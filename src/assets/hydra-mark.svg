@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" fill="none">
+  <!-- Clean monochrome hydra mark for header use -->
+  <g transform="translate(3, 2)">
+    <!-- Left neck + head -->
+    <path d="M7.5 20 Q5.5 14 4 10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+    <circle cx="3.5" cy="8" r="3.2" fill="currentColor"/>
+    <circle cx="3.8" cy="7.4" r="0.9" fill="var(--color-bg, #1A1714)"/>
+
+    <!-- Center neck + head (tallest) -->
+    <path d="M11 20 L11 8" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+    <circle cx="11" cy="4.5" r="3.8" fill="currentColor"/>
+    <circle cx="11" cy="3.8" r="1" fill="var(--color-bg, #1A1714)"/>
+
+    <!-- Right neck + head -->
+    <path d="M14.5 20 Q16.5 14 18 10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+    <circle cx="18.5" cy="8" r="3.2" fill="currentColor"/>
+    <circle cx="18.2" cy="7.4" r="0.9" fill="var(--color-bg, #1A1714)"/>
+
+    <!-- Base -->
+    <rect x="5" y="21" width="12" height="2.4" rx="1.2" fill="currentColor" opacity="0.35"/>
+  </g>
+</svg>

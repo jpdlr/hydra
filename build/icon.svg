@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2D2825"/>
+      <stop offset="100%" stop-color="#1A1714"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#E8956F"/>
+      <stop offset="50%" stop-color="#D97757"/>
+      <stop offset="100%" stop-color="#C4623F"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#E8956F" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#D97757" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect width="512" height="512" rx="108" fill="url(#bg)"/>
+
+  <!-- Subtle inner glow -->
+  <ellipse cx="256" cy="200" rx="180" ry="120" fill="url(#glow)"/>
+
+  <!-- Central body / trunk -->
+  <path d="M232 380 L232 260 Q232 240 244 228 L256 216 L268 228 Q280 240 280 260 L280 380 Z"
+        fill="url(#accent)" opacity="0.6"/>
+
+  <!-- Left head -->
+  <g>
+    <!-- Neck -->
+    <path d="M244 260 Q220 220 180 180 Q170 168 174 154 L180 140"
+          fill="none" stroke="url(#accent)" stroke-width="28" stroke-linecap="round"/>
+    <!-- Head -->
+    <path d="M148 130 Q155 108 176 104 Q200 100 210 118 Q218 132 206 148 Q194 162 174 158 Q154 154 148 130 Z"
+          fill="url(#accent)"/>
+    <!-- Eye -->
+    <circle cx="182" cy="128" r="6" fill="#1A1714"/>
+    <circle cx="184" cy="126" r="2" fill="#E8E0D8"/>
+  </g>
+
+  <!-- Center head (tallest) -->
+  <g>
+    <!-- Neck -->
+    <path d="M256 240 L256 160"
+          fill="none" stroke="url(#accent)" stroke-width="30" stroke-linecap="round"/>
+    <!-- Head -->
+    <path d="M222 118 Q230 88 256 82 Q282 88 290 118 Q294 138 278 152 Q264 164 256 164 Q248 164 234 152 Q218 138 222 118 Z"
+          fill="url(#accent)"/>
+    <!-- Eye -->
+    <circle cx="256" cy="116" r="7" fill="#1A1714"/>
+    <circle cx="258" cy="114" r="2.5" fill="#E8E0D8"/>
+  </g>
+
+  <!-- Right head -->
+  <g>
+    <!-- Neck -->
+    <path d="M268 260 Q292 220 332 180 Q342 168 338 154 L332 140"
+          fill="none" stroke="url(#accent)" stroke-width="28" stroke-linecap="round"/>
+    <!-- Head -->
+    <path d="M364 130 Q357 108 336 104 Q312 100 302 118 Q294 132 306 148 Q318 162 338 158 Q358 154 364 130 Z"
+          fill="url(#accent)"/>
+    <!-- Eye -->
+    <circle cx="330" cy="128" r="6" fill="#1A1714"/>
+    <circle cx="328" cy="126" r="2" fill="#E8E0D8"/>
+  </g>
+
+  <!-- Base platform -->
+  <rect x="196" y="372" width="120" height="20" rx="10" fill="url(#accent)" opacity="0.4"/>
+
+  <!-- HYDRA text -->
+  <text x="256" y="436" text-anchor="middle"
+        font-family="-apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif"
+        font-size="42" font-weight="700" letter-spacing="8" fill="#E8E0D8">
+    HYDRA
+  </text>
+</svg>

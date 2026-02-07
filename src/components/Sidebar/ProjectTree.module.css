@@ -1,0 +1,53 @@
+.group {
+  margin-bottom: var(--space-1);
+}
+
+.groupHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.groupHeader:hover {
+  background: var(--color-sidebar-hover);
+}
+
+.chevron {
+  display: flex;
+  align-items: center;
+  transition: transform var(--transition-fast);
+  color: var(--color-text-muted);
+}
+
+.expanded {
+  transform: rotate(90deg);
+}
+
+.projectName {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.count {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  background: var(--color-surface-hover);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  min-width: 18px;
+  text-align: center;
+}
+
+.agentList {
+  padding-left: var(--space-3);
+}

@@ -1,0 +1,35 @@
+.bubble {
+  max-width: 80%;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.user {
+  align-self: flex-end;
+  background: var(--color-bubble-user);
+  color: var(--color-bubble-user-text);
+  border-bottom-right-radius: var(--radius-sm);
+}
+
+.assistant {
+  align-self: flex-start;
+  background: var(--color-bubble-assistant);
+  color: var(--color-bubble-assistant-text);
+  border-bottom-left-radius: var(--radius-sm);
+  max-width: 90%;
+}
+
+.roleLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-accent);
+  margin-bottom: var(--space-1);
+}
+
+.content {
+  line-height: var(--line-height-base);
+}

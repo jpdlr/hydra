@@ -1,0 +1,30 @@
+appId: com.hydra.app
+productName: Hydra
+directories:
+  buildResources: build
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!shared/*'
+  - '!electron/*'
+  - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,CHANGELOG.md}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json,electron.vite.config.ts}'
+publish:
+  - provider: github
+    owner: jpdlr
+    repo: hydra
+    releaseType: draft
+mac:
+  icon: build/icon.icns
+  category: public.app-category.developer-tools
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.inherit.plist
+  identity: ${CSC_NAME}
+  target:
+    - dmg
+    - dir
+  artifactName: ${name}-${version}-${arch}.${ext}
+dmg:
+  artifactName: ${name}-${version}.${ext}

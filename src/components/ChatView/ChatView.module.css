@@ -1,0 +1,162 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--color-bg);
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: var(--color-bg);
+}
+
+.emptyContent {
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.emptyContent h2 {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-medium);
+  margin-top: var(--space-4);
+  color: var(--color-text-secondary);
+}
+
+.emptyContent p {
+  font-size: var(--font-size-sm);
+  margin-top: var(--space-2);
+}
+
+/* Agent header */
+.agentHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  flex-shrink: 0;
+}
+
+.agentInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.agentName {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.agentMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.model {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-accent);
+}
+
+.separator {
+  color: var(--color-text-muted);
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  display: inline-block;
+}
+
+.yoloBadge {
+  font-size: 9px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-yolo);
+  background: var(--color-yolo-bg);
+  border: 1px solid var(--color-yolo-border);
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+}
+
+.agentActions {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.statusBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-5);
+  font-size: var(--font-size-xs);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.statusBannerNeutral {
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+}
+
+.statusBannerError {
+  background: color-mix(in srgb, var(--color-status-error) 12%, transparent);
+  color: var(--color-status-error);
+}
+
+.bannerBtn {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.bannerBtn:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.actionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.actionBtn:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.actionIcon {
+  width: 14px;
+  height: 14px;
+}
+
+/* Terminal */
+.terminalWrapper {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--color-terminal-bg);
+}

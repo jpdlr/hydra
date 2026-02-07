@@ -1,0 +1,256 @@
+// @vitest-environment jsdom
+
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import App from './App'
+import type { AgentState, AppConfig, PreflightResult, ViewMode } from '@shared/types'
+
+const mockUpdateConfig = vi.fn()
+const mockUseAgents = vi.fn()
+const mockUseViewMode = vi.fn()
+
+vi.mock('./hooks/useConfig', () => ({
+  useConfig: () => ({
+    config: currentConfig,
+    updateConfig: mockUpdateConfig
+  })
+}))
+
+vi.mock('./hooks/useAgents', () => ({
+  useAgents: () => mockUseAgents()
+}))
+
+vi.mock('./hooks/useViewMode', () => ({
+  useViewMode: () => mockUseViewMode()
+}))
+
+vi.mock('./components/Header/Header', () => ({
+  Header: (props: { onOpenSettings: () => void; onOpenHeadless: () => void }) => (
+    <div>
+      <button onClick={props.onOpenSettings}>settings</button>
+      <button onClick={props.onOpenHeadless}>headless</button>
+    </div>
+  )
+}))
+
+vi.mock('./components/Sidebar/Sidebar', () => ({
+  Sidebar: (props: { onNewAgent: () => void }) => (
+    <button onClick={props.onNewAgent}>new-agent</button>
+  )
+}))
+
+vi.mock('./components/ChatView/ChatView', () => ({
+  ChatView: () => <div>chat-view</div>
+}))
+
+vi.mock('./components/GridView/GridView', () => ({
+  GridView: (props: { onRemoveAgent: (id: string) => void }) => (
+    <button onClick={() => props.onRemoveAgent('sess-abc12345')}>remove-imported</button>
+  )
+}))
+
+vi.mock('./components/Settings/SettingsPanel', () => ({
+  SettingsPanel: () => <div>settings-panel</div>
+}))
+
+vi.mock('./components/NewAgent/NewAgentDialog', () => ({
+  NewAgentDialog: () => <div>new-agent-dialog</div>
+}))
+
+vi.mock('./components/Headless/HeadlessPanel', () => ({
+  HeadlessPanel: () => <div>headless-panel</div>
+}))
+
+const baseConfig: AppConfig = {
+  schemaVersion: 1,
+  defaultModel: 'sonnet',
+  globalYolo: false,
+  maxAgents: 8,
+  theme: 'dark',
+  defaultViewMode: 'chat',
+  defaultProjectDir: '/tmp',
+  importSessionsOnStartup: true,
+  sessionImportLimit: 500,
+  sessionImportProjectPrefix: '',
+  hiddenSessionIds: []
+}
+
+let currentConfig: AppConfig = { ...baseConfig }
+let currentViewMode: ViewMode = 'chat'
+
+function createAgent(id: string, overrides: Partial<AgentState> = {}): AgentState {
+  return {
+    id,
+    name: 'Agent',
+    projectDir: '/tmp/project',
+    model: 'sonnet',
+    yolo: false,
+    sessionId: null,
+    initialPrompt: '',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    status: 'idle',
+    pid: null,
+    restartCount: 0,
+    startedAt: null,
+    ...overrides
+  }
+}
+
+function buildAgentsState(importedSessionId: string | null = null) {
+  const imported = createAgent('sess-abc12345', {
+    sessionId: importedSessionId,
+    projectDir: '/tmp/project'
+  })
+
+  const map = new Map([
+    [
+      imported.id,
+      {
+        state: imported,
+        rawOutput: ''
+      }
+    ]
+  ])
+
+  return {
+    agents: map,
+    agentList: [imported],
+    projectGroups: [
+      {
+        projectDir: '/tmp/project',
+        projectName: 'project',
+        agents: [imported]
+      }
+    ],
+    selectedAgentId: imported.id,
+    selectedAgent: map.get(imported.id),
+    setSelectedAgentId: vi.fn(),
+    createAgent: vi.fn(),
+    killAgent: vi.fn().mockResolvedValue(true),
+    removeAgent: vi.fn().mockResolvedValue(true),
+    restartAgent: vi.fn().mockResolvedValue(imported),
+    toggleYolo: vi.fn().mockResolvedValue(imported),
+    sendInput: vi.fn(),
+    sendTerminalInput: vi.fn(),
+    resizeTerminal: vi.fn(),
+    broadcastInput: vi.fn().mockResolvedValue([])
+  }
+}
+
+function setupViewModeMock() {
+  const setViewMode = vi.fn((mode: ViewMode) => {
+    currentViewMode = mode
+  })
+  const toggleViewMode = vi.fn(() => {
+    currentViewMode = currentViewMode === 'chat' ? 'grid' : 'chat'
+  })
+  mockUseViewMode.mockImplementation(() => ({
+    viewMode: currentViewMode,
+    setViewMode,
+    toggleViewMode
+  }))
+}
+
+describe('App flow behavior', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    currentConfig = { ...baseConfig }
+    currentViewMode = currentConfig.defaultViewMode
+    mockUpdateConfig.mockReset()
+    mockUpdateConfig.mockImplementation(async (partial: Partial<AppConfig>) => {
+      currentConfig = { ...currentConfig, ...partial }
+      return currentConfig
+    })
+    setupViewModeMock()
+    mockUseAgents.mockReset()
+    mockUseAgents.mockReturnValue(buildAgentsState())
+  })
+
+  it('blocks opening new agent when preflight fails', async () => {
+    const failedPreflight: PreflightResult = {
+      ok: false,
+      claudePath: null,
+      version: null,
+      error: 'Claude CLI missing'
+    }
+
+    window.hydra = {
+      ...window.hydra,
+      preflight: vi.fn().mockResolvedValue(failedPreflight),
+      onConfirmQuit: vi.fn().mockReturnValue(() => undefined),
+      confirmQuit: vi.fn().mockResolvedValue(true)
+    }
+
+    render(<App />)
+    fireEvent.click(screen.getByText('new-agent'))
+
+    expect(await screen.findByText('Claude CLI Required')).toBeTruthy()
+    expect(screen.queryByText('new-agent-dialog')).toBeNull()
+  })
+
+  it('shows quit confirmation and confirms forced quit', async () => {
+    let quitListener: ((count: number) => void) | null = null
+
+    window.hydra = {
+      ...window.hydra,
+      preflight: vi.fn().mockResolvedValue({
+        ok: true,
+        claudePath: '/usr/local/bin/claude',
+        version: '1.0.0',
+        error: null
+      } satisfies PreflightResult),
+      onConfirmQuit: vi.fn().mockImplementation((cb: (count: number) => void) => {
+        quitListener = cb
+        return () => undefined
+      }),
+      confirmQuit: vi.fn().mockResolvedValue(true)
+    }
+
+    render(<App />)
+    await waitFor(() => expect(quitListener).not.toBeNull())
+    if (!quitListener) {
+      throw new Error('Quit listener was not registered')
+    }
+    ;(quitListener as (count: number) => void)(2)
+    expect(await screen.findByText('Quit Hydra?')).toBeTruthy()
+
+    fireEvent.click(screen.getByText('Quit'))
+    await waitFor(() => {
+      expect(window.hydra.confirmQuit).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('adds removed imported session ids to hidden config list', async () => {
+    currentConfig = {
+      ...baseConfig,
+      defaultViewMode: 'grid',
+      hiddenSessionIds: []
+    }
+    currentViewMode = 'grid'
+    setupViewModeMock()
+    mockUseAgents.mockReturnValue(buildAgentsState('session-hidden-01'))
+
+    window.hydra = {
+      ...window.hydra,
+      preflight: vi.fn().mockResolvedValue({
+        ok: true,
+        claudePath: '/usr/local/bin/claude',
+        version: '1.0.0',
+        error: null
+      } satisfies PreflightResult),
+      onConfirmQuit: vi.fn().mockReturnValue(() => undefined),
+      confirmQuit: vi.fn().mockResolvedValue(true)
+    }
+
+    render(<App />)
+    fireEvent.click(screen.getByText('remove-imported'))
+
+    await waitFor(() => {
+      expect(mockUpdateConfig).toHaveBeenCalledWith(
+        expect.objectContaining({
+          hiddenSessionIds: ['session-hidden-01']
+        })
+      )
+    })
+  })
+})

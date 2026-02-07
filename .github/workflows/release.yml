@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run signed/notarized build without publishing release'
+        required: false
+        default: true
+        type: boolean
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  mac-release:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    env:
+      CSC_LINK: ${{ secrets.CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+      CSC_NAME: ${{ secrets.CSC_NAME }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate
+        run: |
+          npm run lint
+          npm run typecheck
+          npm test -- --run
+
+      - name: Release Preflight
+        run: npm run release:preflight
+
+      - name: Build Signed Dry Run
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: npm run dist:dry-run
+
+      - name: Build and Publish Draft Release
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        run: npm run dist

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 32" fill="none">
+  <!-- Three-headed icon mark -->
+  <g transform="translate(2, 2)">
+    <!-- Left head -->
+    <path d="M8.5 8 Q10 4 13 4 Q16 4.5 16.5 7.5 Q16.8 9.5 15 11 Q13.2 12.2 11.5 11.5 Q9.5 10.8 8.5 8 Z"
+          fill="currentColor"/>
+    <path d="M13.5 12 Q11 16 14 22" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+
+    <!-- Center head (tallest) -->
+    <path d="M12 5 Q13 1.5 16 1 Q19 1.5 20 5 Q20.8 7.5 19 9.5 Q17.5 11 16 11 Q14.5 11 13 9.5 Q11.2 7.5 12 5 Z"
+          fill="currentColor"/>
+    <path d="M16 11 L16 22" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+
+    <!-- Right head -->
+    <path d="M23.5 8 Q22 4 19 4 Q15.5 4.5 15.5 7.5 Q15.2 9.5 17 11 Q18.8 12.2 20.5 11.5 Q22.5 10.8 23.5 8 Z"
+          fill="currentColor"/>
+    <path d="M18.5 12 Q21 16 18 22" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+
+    <!-- Base -->
+    <rect x="11" y="23" width="10" height="2.5" rx="1.25" fill="currentColor" opacity="0.4"/>
+  </g>
+
+  <!-- HYDRA wordmark -->
+  <text x="42" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif"
+        font-size="18" font-weight="700" letter-spacing="3" fill="currentColor">
+    HYDRA
+  </text>
+</svg>

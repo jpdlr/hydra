@@ -1,0 +1,140 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* YOLO confirmation dialog */
+.confirmOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.confirmDialog {
+  width: 400px;
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-yolo-border);
+  box-shadow: 0 0 30px rgba(229, 57, 53, 0.1);
+  padding: var(--space-6);
+  text-align: center;
+}
+
+.confirmIcon {
+  font-size: 36px;
+  margin-bottom: var(--space-3);
+}
+
+.confirmDialog h3 {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-3);
+  color: var(--color-yolo);
+}
+
+.confirmDialog p {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-base);
+  margin-bottom: var(--space-5);
+}
+
+.preflightMeta {
+  margin-top: calc(var(--space-4) * -1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.confirmDialog code {
+  font-size: var(--font-size-xs);
+  background: var(--color-code-bg);
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+}
+
+.confirmActions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: center;
+}
+
+.cancelBtn {
+  padding: var(--space-2) var(--space-5);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.cancelBtn:hover {
+  background: var(--color-surface-hover);
+}
+
+.yoloBtn {
+  padding: var(--space-2) var(--space-5);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: #FFFFFF;
+  background: var(--color-yolo);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.yoloBtn:hover {
+  opacity: 0.9;
+}
+
+.primaryBtn {
+  padding: var(--space-2) var(--space-5);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-accent-text);
+  background: var(--color-accent);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.primaryBtn:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.primaryBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dangerBtn {
+  padding: var(--space-2) var(--space-5);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: #FFFFFF;
+  background: var(--color-status-error);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.dangerBtn:hover {
+  opacity: 0.9;
+}

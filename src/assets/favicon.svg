@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="fbg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2D2825"/>
+      <stop offset="100%" stop-color="#1A1714"/>
+    </linearGradient>
+    <linearGradient id="fa" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#E8956F"/>
+      <stop offset="100%" stop-color="#D97757"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="32" height="32" rx="7" fill="url(#fbg)"/>
+
+  <!-- Simplified three heads -->
+  <g transform="translate(5, 4)">
+    <!-- Left head + neck -->
+    <path d="M5 9 Q6.5 6 9 6.5 Q10 8 8.5 10 L10 18"
+          stroke="url(#fa)" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+    <circle cx="7" cy="7.5" r="3" fill="url(#fa)"/>
+    <circle cx="7.2" cy="7" r="0.8" fill="#1A1714"/>
+
+    <!-- Center head + neck -->
+    <path d="M11 5 L11 18" stroke="url(#fa)" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="11" cy="4" r="3.5" fill="url(#fa)"/>
+    <circle cx="11" cy="3.5" r="0.9" fill="#1A1714"/>
+
+    <!-- Right head + neck -->
+    <path d="M17 9 Q15.5 6 13 6.5 Q12 8 13.5 10 L12 18"
+          stroke="url(#fa)" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+    <circle cx="15" cy="7.5" r="3" fill="url(#fa)"/>
+    <circle cx="14.8" cy="7" r="0.8" fill="#1A1714"/>
+
+    <!-- Base -->
+    <rect x="7" y="19" width="8" height="2" rx="1" fill="url(#fa)" opacity="0.5"/>
+  </g>
+</svg>
