@@ -1,0 +1,38 @@
+.fallback {
+  height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  text-align: center;
+  padding: var(--space-6);
+}
+
+.fallback h1 {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+}
+
+.fallback p {
+  color: var(--color-text-secondary);
+  max-width: 560px;
+}
+
+.reloadBtn {
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-medium);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.reloadBtn:hover {
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+}

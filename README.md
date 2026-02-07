@@ -13,6 +13,9 @@ Hydra is an Electron desktop app for running and supervising multiple Claude Cod
 - Persistent UI state (last selected project/agent/view and expanded grid tile)
 - Persisted app settings in Electron `userData`
 - Headless orchestration via IPC plus in-app Headless Runs panel with search/filter/details/log history
+- Structured JSONL observability logs with renderer/main error capture
+- Diagnostics export bundle (logs + runtime snapshot) from Settings
+- Optional opt-in remote error reporting endpoint
 
 ## Key behavior
 
@@ -73,6 +76,10 @@ Config is stored in `<userData>/config.json` and includes:
 - default model and max concurrent agents
 - startup session import options
 - hidden imported session IDs
+- observability settings:
+  - `enableRemoteErrorReporting`
+  - `errorReportingEndpoint`
+  - `includeSensitiveDiagnostics`
 
 Workspace state is stored in `<userData>/workspace.json`:
 
@@ -84,6 +91,8 @@ UI runtime state is stored in browser local storage:
 - selected project and selected agent
 - current view mode (grid/chat)
 - per-project expanded grid tile
+
+Structured logs are stored in `<userData>/logs/hydra.log.jsonl` (with rotation).
 
 ## CI
 

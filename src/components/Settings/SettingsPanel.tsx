@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { AppConfig, ModelId, ThemeId, ViewMode } from '@shared/types'
 import styles from './SettingsPanel.module.css'
 
@@ -8,6 +9,8 @@ interface SettingsPanelProps {
 }
 
 export function SettingsPanel({ config, onUpdate, onClose }: SettingsPanelProps) {
+  const [exportState, setExportState] = useState<string | null>(null)
+
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
@@ -157,6 +160,67 @@ export function SettingsPanel({ config, onUpdate, onClose }: SettingsPanelProps)
                 Reset Hidden
               </button>
             </div>
+          </div>
+
+          <div className={styles.field}>
+            <label className={styles.sectionLabel}>Observability</label>
+            <label className={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={config.enableRemoteErrorReporting}
+                onChange={(e) => onUpdate({ enableRemoteErrorReporting: e.target.checked })}
+                className={styles.checkbox}
+              />
+              <span>Enable remote error reporting (opt-in)</span>
+            </label>
+          </div>
+
+          <div className={styles.field}>
+            <label className={styles.label}>Remote Error Reporting Endpoint</label>
+            <input
+              className={styles.dirInput}
+              type="text"
+              value={config.errorReportingEndpoint}
+              onChange={(e) => onUpdate({ errorReportingEndpoint: e.target.value })}
+              placeholder="https://your-endpoint.example.com/hydra-errors"
+            />
+          </div>
+
+          <div className={styles.field}>
+            <label className={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={config.includeSensitiveDiagnostics}
+                onChange={(e) => onUpdate({ includeSensitiveDiagnostics: e.target.checked })}
+                className={styles.checkbox}
+              />
+              <span>Include sensitive paths/prompts in exports and reports</span>
+            </label>
+          </div>
+
+          <div className={styles.field}>
+            <div className={styles.inlineRow}>
+              <label className={styles.label}>Diagnostics</label>
+              <button
+                className={styles.clearBtn}
+                onClick={async () => {
+                  setExportState('Exporting...')
+                  const result = await window.hydra.exportDiagnostics()
+                  if (result.error) {
+                    setExportState(`Export failed: ${result.error}`)
+                    return
+                  }
+                  if (!result.path) {
+                    setExportState('Export canceled.')
+                    return
+                  }
+                  setExportState(`Saved to ${result.path}`)
+                }}
+              >
+                Export Diagnostics
+              </button>
+            </div>
+            {exportState && <span className={styles.inlineHint}>{exportState}</span>}
           </div>
         </div>
       </div>

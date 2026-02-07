@@ -72,7 +72,10 @@ const baseConfig: AppConfig = {
   importSessionsOnStartup: true,
   sessionImportLimit: 500,
   sessionImportProjectPrefix: '',
-  hiddenSessionIds: []
+  hiddenSessionIds: [],
+  enableRemoteErrorReporting: false,
+  errorReportingEndpoint: '',
+  includeSensitiveDiagnostics: false
 }
 
 let currentConfig: AppConfig = { ...baseConfig }

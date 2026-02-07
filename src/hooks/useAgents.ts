@@ -9,6 +9,7 @@ import type {
 } from '@shared/types'
 import { createPtyParser } from '@/lib/ptyParser'
 import { basename } from '@/lib/pathUtils'
+import { createTraceId, logEvent } from '@/lib/observability'
 
 interface AgentData {
   state: AgentState
@@ -85,10 +86,25 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
       } else if (agentList.length > 0 && !selectedAgentIdRef.current) {
         setSelectedAgentId(agentList[0].id)
       }
+    }).catch((error) => {
+      logEvent({
+        level: 'error',
+        event: 'renderer.agents.load-failed',
+        traceId: createTraceId('agents-load'),
+        message: error instanceof Error ? error.message : String(error)
+      })
     })
   }, [initialSelectedAgentId])
 
   const createAgent = useCallback(async (payload: CreateAgentPayload) => {
+    const traceId = createTraceId('agent-create')
+    logEvent({
+      level: 'info',
+      event: 'renderer.agent.create',
+      traceId,
+      projectId: payload.projectDir,
+      meta: { model: payload.model, yolo: payload.yolo }
+    })
     const state = await window.hydra.createAgent(payload)
     const data: AgentData = {
       state,
@@ -106,6 +122,12 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
   }, [])
 
   const killAgent = useCallback(async (agentId: string) => {
+    logEvent({
+      level: 'info',
+      event: 'renderer.agent.kill',
+      traceId: createTraceId('agent-kill'),
+      agentId
+    })
     await window.hydra.killAgent(agentId)
   }, [])
 
@@ -125,6 +147,12 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
   )
 
   const restartAgent = useCallback(async (agentId: string) => {
+    logEvent({
+      level: 'info',
+      event: 'renderer.agent.restart',
+      traceId: createTraceId('agent-restart'),
+      agentId
+    })
     const updated = await window.hydra.restartAgent(agentId)
     if (updated) {
       setAgents((prev) => {
@@ -159,6 +187,13 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
   }, [])
 
   const sendInput = useCallback((agentId: string, input: string) => {
+    logEvent({
+      level: 'debug',
+      event: 'renderer.agent.send-input',
+      traceId: createTraceId('agent-send'),
+      agentId,
+      meta: { inputLength: input.length }
+    })
     window.hydra.sendInput(agentId, input)
 
     // Add user message to chat
@@ -185,6 +220,13 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
   }, [])
 
   const broadcastInput = useCallback(async (projectDir: string, input: string) => {
+    logEvent({
+      level: 'info',
+      event: 'renderer.agent.broadcast',
+      traceId: createTraceId('broadcast'),
+      projectId: projectDir,
+      meta: { inputLength: input.length }
+    })
     const sentTo = await window.hydra.broadcast(projectDir, input)
 
     // Add user message to all affected agents

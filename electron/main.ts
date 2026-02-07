@@ -8,6 +8,7 @@ import { registerIpcHandlers } from './ipc/handlers'
 import { SessionCatalog } from './sessions/SessionCatalog'
 import { HeadlessOrchestrator } from './headless/HeadlessOrchestrator'
 import { WorkspaceStore } from './workspace/WorkspaceStore'
+import { ObservabilityService } from './observability/ObservabilityService'
 import { IPC } from '@shared/types'
 
 let mainWindow: BrowserWindow | null = null
@@ -17,6 +18,11 @@ const configStore = new ConfigStore()
 const sessionCatalog = new SessionCatalog()
 const workspaceStore = new WorkspaceStore()
 let headlessOrchestrator: HeadlessOrchestrator | null = null
+const observability = new ObservabilityService({
+  getConfig: () => configStore.get(),
+  getAgents: () => agentManager.list(),
+  getHeadlessRuns: () => headlessOrchestrator?.list({ limit: 1000 }) ?? []
+})
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -69,6 +75,13 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  observability.installProcessHandlers()
+  observability.logMain({
+    level: 'info',
+    event: 'app.startup',
+    message: 'Hydra boot sequence started'
+  })
+
   electronApp.setAppUserModelId('com.hydra.app')
 
   app.on('browser-window-created', (_, window) => {
@@ -90,7 +103,11 @@ app.whenReady().then(() => {
     const config = configStore.get()
     const restored = agentManager.hydrateWorkspaceAgents(workspaceStore.getAgents())
     if (restored > 0) {
-      console.log(`[Hydra] Restored ${restored} workspace agents`)
+      observability.logMain({
+        level: 'info',
+        event: 'workspace.restored',
+        message: `Restored ${restored} workspace agents`
+      })
     }
 
     if (config.importSessionsOnStartup) {
@@ -101,12 +118,21 @@ app.whenReady().then(() => {
       })
       const imported = agentManager.importSessions(sessions, config.defaultModel)
       if (imported > 0) {
-        console.log(`[Hydra] Imported ${imported} Claude sessions`)
+        observability.logMain({
+          level: 'info',
+          event: 'sessions.imported',
+          message: `Imported ${imported} Claude sessions`
+        })
       }
     }
     workspaceStore.setAgents(agentManager.exportWorkspaceAgents())
   } catch (err) {
-    console.warn('[Hydra] Failed to import Claude sessions on startup', err)
+    observability.logMain({
+      level: 'warn',
+      event: 'sessions.import-failed',
+      message: 'Failed to import Claude sessions on startup',
+      meta: { error: err instanceof Error ? err.message : String(err) }
+    })
   }
 
   headlessOrchestrator = new HeadlessOrchestrator(join(app.getPath('userData'), 'headless-runs'))
@@ -115,6 +141,15 @@ app.whenReady().then(() => {
     configStore,
     sessionCatalog,
     headlessOrchestrator,
+    {
+      logRendererEvent: (payload) => {
+        observability.logRenderer(payload)
+      },
+      exportDiagnostics: () => observability.exportDiagnostics(),
+      logMainEvent: (payload) => {
+        observability.logMain(payload)
+      }
+    },
     () => {
       workspaceStore.setAgents(agentManager.exportWorkspaceAgents())
     }
@@ -124,7 +159,11 @@ app.whenReady().then(() => {
   if (!is.dev) {
     autoUpdater.autoDownload = false
     void autoUpdater.checkForUpdatesAndNotify().catch((error) => {
-      console.warn('[Hydra] Auto-update check failed', error)
+      observability.logMain({
+        level: 'warn',
+        event: 'autoupdate.check-failed',
+        message: error instanceof Error ? error.message : String(error)
+      })
     })
   }
 
@@ -136,12 +175,20 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
+  observability.logMain({
+    level: 'info',
+    event: 'app.window-all-closed'
+  })
   workspaceStore.setAgents(agentManager.exportWorkspaceAgents())
   agentManager.killAll()
   app.quit()
 })
 
 app.on('before-quit', () => {
+  observability.logMain({
+    level: 'info',
+    event: 'app.before-quit'
+  })
   forceQuit = true
   workspaceStore.setAgents(agentManager.exportWorkspaceAgents())
   agentManager.killAll()

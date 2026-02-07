@@ -220,7 +220,7 @@ export interface ObservabilityLogEventPayload {
   agentId?: string
   sessionId?: string
   projectId?: string
-  service?: 'renderer' | 'preload'
+  service?: 'main' | 'renderer' | 'preload'
   meta?: Record<string, unknown>
 }
 

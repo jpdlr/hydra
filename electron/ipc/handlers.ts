@@ -346,6 +346,13 @@ export function registerIpcHandlers(
   })
 
   agentManager.on('status', (payload) => {
+    observability.logMainEvent?.({
+      level: payload.status === 'errored' ? 'error' : 'info',
+      event: 'agent.status.changed',
+      agentId: payload.agentId,
+      sessionId: payload.sessionId ?? undefined,
+      message: payload.status
+    })
     onWorkspaceChanged?.()
     BrowserWindow.getAllWindows().forEach((win) => {
       win.webContents.send(IPC.AGENT_STATUS, payload)
