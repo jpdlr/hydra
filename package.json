@@ -19,7 +19,8 @@
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "dist:dry-run": "electron-builder --publish never",
-    "release:preflight": "node scripts/release-preflight.mjs"
+    "release:preflight": "node scripts/release-preflight.mjs",
+    "deploy": "bash scripts/deploy-local.sh"
   },
   "dependencies": {
     "@electron-toolkit/utils": "^4.0.0",

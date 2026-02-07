@@ -1,3 +1,8 @@
+import { fixPath } from './util/fix-path'
+
+// Must run before any child_process / node-pty calls
+fixPath()
+
 import { app, BrowserWindow, shell, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
