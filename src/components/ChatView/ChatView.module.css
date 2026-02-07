@@ -148,6 +148,10 @@
   color: var(--color-text-primary);
 }
 
+.actionBtnActive {
+  color: var(--color-accent);
+}
+
 .actionIcon {
   width: 14px;
   height: 14px;

@@ -91,6 +91,7 @@ export default function App() {
 
   const [showSettings, setShowSettings] = useState(false)
   const [showNewAgent, setShowNewAgent] = useState(false)
+  const [newAgentPrefillDir, setNewAgentPrefillDir] = useState<string | null>(null)
   const [showHeadless, setShowHeadless] = useState(false)
   const [showYoloConfirm, setShowYoloConfirm] = useState(false)
   const [showPreflightGate, setShowPreflightGate] = useState(false)
@@ -148,6 +149,14 @@ export default function App() {
 
   const handleOpenNewAgent = useCallback(async () => {
     if (await ensurePreflightReady()) {
+      setNewAgentPrefillDir(null)
+      setShowNewAgent(true)
+    }
+  }, [ensurePreflightReady])
+
+  const handleNewAgentForProject = useCallback(async (projectDir: string) => {
+    if (await ensurePreflightReady()) {
+      setNewAgentPrefillDir(projectDir)
       setShowNewAgent(true)
     }
   }, [ensurePreflightReady])
@@ -390,6 +399,9 @@ export default function App() {
               onNewAgent={() => {
                 void handleOpenNewAgent()
               }}
+              onNewAgentForProject={(projectDir) => {
+                void handleNewAgentForProject(projectDir)
+              }}
             />
           )}
 
@@ -398,6 +410,8 @@ export default function App() {
             <ChatView
               agent={selectedAgent?.state || null}
               rawOutput={selectedAgent?.rawOutput || ''}
+              messages={selectedAgent?.messages || []}
+              chatRenderMode={config.chatRenderMode}
               onSendInput={(input) => {
                 if (selectedAgentId) {
                   void handleSendInput(selectedAgentId, input)
@@ -421,6 +435,11 @@ export default function App() {
               }}
               onKillAgent={() => {
                 void handleKillAgent()
+              }}
+              onToggleChatRenderMode={() => {
+                updateConfig({
+                  chatRenderMode: config.chatRenderMode === 'terminal' ? 'bubbles' : 'terminal'
+                })
               }}
             />
           ) : (
@@ -466,14 +485,18 @@ export default function App() {
       {showNewAgent && (
         <NewAgentDialog
           defaultModel={config.defaultModel}
-          defaultProjectDir={config.defaultProjectDir}
+          defaultProjectDir={newAgentPrefillDir || config.defaultProjectDir}
           globalYolo={config.globalYolo}
           onSubmit={async (payload) => {
             if (!(await ensurePreflightReady())) return
             await createAgent(payload)
             setShowNewAgent(false)
+            setNewAgentPrefillDir(null)
           }}
-          onClose={() => setShowNewAgent(false)}
+          onClose={() => {
+            setShowNewAgent(false)
+            setNewAgentPrefillDir(null)
+          }}
         />
       )}
 

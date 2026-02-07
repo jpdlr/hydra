@@ -25,6 +25,7 @@ export interface AgentState extends AgentConfig {
 export type ModelId = 'opus' | 'sonnet' | 'haiku'
 export type ThemeId = 'light' | 'dark'
 export type ViewMode = 'grid' | 'chat'
+export type ChatRenderMode = 'terminal' | 'bubbles'
 
 export interface AppConfig {
   schemaVersion: number
@@ -38,6 +39,7 @@ export interface AppConfig {
   sessionImportLimit: number
   sessionImportProjectPrefix: string
   hiddenSessionIds: string[]
+  chatRenderMode: ChatRenderMode
   enableRemoteErrorReporting: boolean
   errorReportingEndpoint: string
   includeSensitiveDiagnostics: boolean
@@ -55,6 +57,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   sessionImportLimit: 500,
   sessionImportProjectPrefix: '',
   hiddenSessionIds: [],
+  chatRenderMode: 'terminal',
   enableRemoteErrorReporting: false,
   errorReportingEndpoint: '',
   includeSensitiveDiagnostics: false
@@ -89,6 +92,9 @@ export const IPC = {
 
   // Dialog
   DIALOG_SELECT_DIR: 'dialog:select-dir',
+
+  // Shell
+  OPEN_IN_EDITOR: 'shell:open-in-editor',
 
   // Broadcast
   AGENT_BROADCAST: 'agent:broadcast',

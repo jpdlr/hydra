@@ -89,6 +89,10 @@ const hydraApi = {
   selectDirectory: (): Promise<string | null> =>
     ipcRenderer.invoke(IPC.DIALOG_SELECT_DIR),
 
+  // Shell
+  openInEditor: (dir: string): Promise<boolean> =>
+    ipcRenderer.invoke(IPC.OPEN_IN_EDITOR, dir),
+
   // Session catalog
   listClaudeSessions: (options?: ListClaudeSessionsOptions): Promise<ClaudeSessionSummary[]> =>
     ipcRenderer.invoke(IPC.SESSIONS_LIST, options),

@@ -1,4 +1,5 @@
-import { ipcMain, dialog, BrowserWindow } from 'electron'
+import { ipcMain, dialog, BrowserWindow, shell } from 'electron'
+import { execFile } from 'child_process'
 import { AgentManager } from '../agents/AgentManager'
 import { ConfigStore } from '../config/ConfigStore'
 import { SessionCatalog } from '../sessions/SessionCatalog'
@@ -53,6 +54,7 @@ const appConfigPatchSchema = z
     sessionImportLimit: z.number().int().min(0).max(20000).optional(),
     sessionImportProjectPrefix: z.string().max(4096).optional(),
     hiddenSessionIds: z.array(z.string().trim().min(1).max(128)).max(10000).optional(),
+    chatRenderMode: z.enum(['terminal', 'bubbles']).optional(),
     enableRemoteErrorReporting: z.boolean().optional(),
     errorReportingEndpoint: z.string().max(1024).optional(),
     includeSensitiveDiagnostics: z.boolean().optional()
@@ -325,6 +327,22 @@ export function registerIpcHandlers(
       return null
     }
     return result.filePaths[0]
+  })
+
+  // ── Shell ────────────────────────────────────────────────────────────────
+
+  ipcMain.handle(IPC.OPEN_IN_EDITOR, (_event, dir: string) => {
+    const validated = projectDirSchema.parse(dir)
+    return new Promise<boolean>((resolve) => {
+      execFile('code', [validated], (err) => {
+        if (err) {
+          // Fallback: try opening the folder in Finder / default handler
+          shell.openPath(validated).then(() => resolve(true)).catch(() => resolve(false))
+          return
+        }
+        resolve(true)
+      })
+    })
   })
 
   // ── Observability ───────────────────────────────────────────────────────

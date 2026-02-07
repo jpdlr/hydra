@@ -9,13 +9,15 @@ interface SidebarProps {
   selectedAgentId: string | null
   onSelectAgent: (agentId: string) => void
   onNewAgent: () => void
+  onNewAgentForProject: (projectDir: string) => void
 }
 
 export function Sidebar({
   projectGroups,
   selectedAgentId,
   onSelectAgent,
-  onNewAgent
+  onNewAgent,
+  onNewAgentForProject
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -52,6 +54,7 @@ export function Sidebar({
               group={group}
               selectedAgentId={selectedAgentId}
               onSelectAgent={onSelectAgent}
+              onNewAgentForProject={onNewAgentForProject}
             />
           ))
         )}

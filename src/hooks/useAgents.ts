@@ -28,8 +28,14 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
   }, [selectedAgentId])
 
   // Listen for agent output
+  const flushTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+
   useEffect(() => {
     const unsub = window.hydra.onAgentOutput((payload: AgentOutputPayload) => {
+      // Clear any pending flush for this agent — new data arrived
+      const existing = flushTimers.current.get(payload.agentId)
+      if (existing) clearTimeout(existing)
+
       setAgents((prev) => {
         const next = new Map(prev)
         const data = next.get(payload.agentId)
@@ -43,8 +49,34 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
         })
         return next
       })
+
+      // Schedule a flush after 300ms of silence to emit accumulated text
+      flushTimers.current.set(
+        payload.agentId,
+        setTimeout(() => {
+          flushTimers.current.delete(payload.agentId)
+          setAgents((prev) => {
+            const next = new Map(prev)
+            const data = next.get(payload.agentId)
+            if (!data) return prev
+            const flushed = data.parser.flushPending()
+            if (flushed.length === 0) return prev
+            next.set(payload.agentId, {
+              ...data,
+              messages: [...data.messages, ...flushed]
+            })
+            return next
+          })
+        }, 300)
+      )
     })
-    return unsub
+
+    return () => {
+      unsub()
+      // Clean up all flush timers
+      for (const timer of flushTimers.current.values()) clearTimeout(timer)
+      flushTimers.current.clear()
+    }
   }, [])
 
   // Listen for agent status changes
@@ -196,15 +228,16 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
     })
     window.hydra.sendInput(agentId, input)
 
-    // Add user message to chat
+    // Flush any pending assistant text, then add user message
     setAgents((prev) => {
       const next = new Map(prev)
       const data = next.get(agentId)
       if (data) {
+        const flushed = data.parser.flushPending()
         const userMsg = data.parser.addUserMessage(input)
         next.set(agentId, {
           ...data,
-          messages: [...data.messages, userMsg]
+          messages: [...data.messages, ...flushed, userMsg]
         })
       }
       return next

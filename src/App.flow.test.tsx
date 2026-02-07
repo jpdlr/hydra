@@ -73,6 +73,7 @@ const baseConfig: AppConfig = {
   sessionImportLimit: 500,
   sessionImportProjectPrefix: '',
   hiddenSessionIds: [],
+  chatRenderMode: 'terminal',
   enableRemoteErrorReporting: false,
   errorReportingEndpoint: '',
   includeSensitiveDiagnostics: false
