@@ -8,6 +8,7 @@ export interface AgentConfig {
   projectDir: string
   model: ModelId
   yolo: boolean
+  isManager: boolean
   sessionId: string | null
   initialPrompt: string
   createdAt: string
@@ -116,7 +117,10 @@ export const IPC = {
 
   // Observability
   OBS_LOG_EVENT: 'obs:log-event',
-  OBS_EXPORT_DIAGNOSTICS: 'obs:export-diagnostics'
+  OBS_EXPORT_DIAGNOSTICS: 'obs:export-diagnostics',
+
+  // MCP
+  MCP_SERVER_STATUS: 'mcp:server-status'
 } as const
 
 // ── IPC Payloads ─────────────────────────────────────────────────────────────
@@ -128,6 +132,7 @@ export interface CreateAgentPayload {
   yolo: boolean
   initialPrompt: string
   resumeSessionId?: string | null
+  isManager?: boolean
 }
 
 export interface AgentOutputPayload {
@@ -263,4 +268,13 @@ export interface ProjectGroup {
   projectDir: string
   projectName: string
   agents: AgentState[]
+}
+
+// ── MCP ──────────────────────────────────────────────────────────────────────
+
+export interface McpServerStatus {
+  running: boolean
+  port: number | null
+  error: string | null
+  managerWorkspace: string | null
 }

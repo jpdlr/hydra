@@ -5,6 +5,7 @@ import { ConfigStore } from '../config/ConfigStore'
 import { SessionCatalog } from '../sessions/SessionCatalog'
 import { HeadlessOrchestrator } from '../headless/HeadlessOrchestrator'
 import { IPC } from '@shared/types'
+import type { HydraMcpServer } from '../mcp/McpServer'
 import type {
   CreateAgentPayload,
   AppConfig,
@@ -22,7 +23,8 @@ const createAgentPayloadSchema = z.object({
   model: modelSchema,
   yolo: z.boolean(),
   initialPrompt: z.string().max(20000),
-  resumeSessionId: z.string().trim().min(1).max(128).nullable().optional()
+  resumeSessionId: z.string().trim().min(1).max(128).nullable().optional(),
+  isManager: z.boolean().optional()
 })
 const resizeSchema = z.object({
   agentId: agentIdSchema,
@@ -110,7 +112,8 @@ export function registerIpcHandlers(
   sessionCatalog: SessionCatalog,
   headlessOrchestrator: HeadlessOrchestrator,
   observability: ObservabilityHandlers,
-  onWorkspaceChanged?: () => void
+  onWorkspaceChanged?: () => void,
+  mcpServer?: HydraMcpServer | null
 ): void {
   // ── Preflight ────────────────────────────────────────────────────────────
 
@@ -124,8 +127,19 @@ export function registerIpcHandlers(
     observability.logMainEvent?.({
       level: 'info',
       event: 'agent.create.request',
-      projectId: payload?.projectDir
+      projectId: payload?.projectDir || undefined,
+      meta: { isManager: payload?.isManager }
     })
+
+    // Manager agent: inject workspace path before Zod validation (projectDir min(1))
+    if (payload?.isManager) {
+      const status = mcpServer?.getStatus()
+      if (!status?.running || !status.managerWorkspace) {
+        throw new Error('MCP server is not running — cannot create manager agent')
+      }
+      payload.projectDir = status.managerWorkspace
+    }
+
     const parsedPayload = createAgentPayloadSchema.parse(payload)
     const preflight = await agentManager.preflight()
     if (!preflight.ok) {
@@ -353,6 +367,12 @@ export function registerIpcHandlers(
 
   ipcMain.handle(IPC.OBS_EXPORT_DIAGNOSTICS, () => {
     return observability.exportDiagnostics()
+  })
+
+  // ── MCP ────────────────────────────────────────────────────────────────────
+
+  ipcMain.handle(IPC.MCP_SERVER_STATUS, () => {
+    return mcpServer?.getStatus() ?? { running: false, port: null, error: null, managerWorkspace: null }
   })
 
   // ── Forward agent events to renderer ─────────────────────────────────────

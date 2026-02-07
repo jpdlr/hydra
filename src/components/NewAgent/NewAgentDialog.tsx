@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { ModelId, CreateAgentPayload, ClaudeSessionSummary } from '@shared/types'
+import type { ModelId, CreateAgentPayload, ClaudeSessionSummary, McpServerStatus } from '@shared/types'
 import styles from './NewAgentDialog.module.css'
 
 interface NewAgentDialogProps {
@@ -22,11 +22,17 @@ export function NewAgentDialog({
   const [model, setModel] = useState<ModelId>(defaultModel)
   const [yolo, setYolo] = useState(globalYolo)
   const [initialPrompt, setInitialPrompt] = useState('')
+  const [isManager, setIsManager] = useState(false)
+  const [mcpStatus, setMcpStatus] = useState<McpServerStatus | null>(null)
   const [resumeExisting, setResumeExisting] = useState(false)
   const [sessions, setSessions] = useState<ClaudeSessionSummary[]>([])
   const [isLoadingSessions, setIsLoadingSessions] = useState(false)
   const [sessionSearch, setSessionSearch] = useState('')
   const [selectedSessionId, setSelectedSessionId] = useState('')
+
+  useEffect(() => {
+    window.hydra.getMcpServerStatus().then(setMcpStatus).catch(console.error)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -83,16 +89,18 @@ export function NewAgentDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || !projectDir.trim()) return
+    if (!name.trim()) return
+    if (!isManager && !projectDir.trim()) return
     if (resumeExisting && !selectedSessionId) return
 
     onSubmit({
       name: name.trim(),
-      projectDir: projectDir.trim(),
+      projectDir: isManager ? '' : projectDir.trim(),
       model,
       yolo,
       initialPrompt: initialPrompt.trim(),
-      resumeSessionId: resumeExisting ? selectedSessionId : null
+      resumeSessionId: resumeExisting ? selectedSessionId : null,
+      isManager
     })
   }
 
@@ -130,27 +138,29 @@ export function NewAgentDialog({
             />
           </div>
 
-          {/* Project directory */}
-          <div className={styles.field}>
-            <label className={styles.label}>Project Directory</label>
-            <div className={styles.dirField}>
-              <input
-                className={styles.dirInput}
-                type="text"
-                value={projectDir}
-                onChange={(e) => setProjectDir(e.target.value)}
-                placeholder="/path/to/project"
-                required
-              />
-              <button
-                className={styles.browseBtn}
-                type="button"
-                onClick={handleBrowse}
-              >
-                Browse
-              </button>
+          {/* Project directory (hidden for manager agents) */}
+          {!isManager && (
+            <div className={styles.field}>
+              <label className={styles.label}>Project Directory</label>
+              <div className={styles.dirField}>
+                <input
+                  className={styles.dirInput}
+                  type="text"
+                  value={projectDir}
+                  onChange={(e) => setProjectDir(e.target.value)}
+                  placeholder="/path/to/project"
+                  required
+                />
+                <button
+                  className={styles.browseBtn}
+                  type="button"
+                  onClick={handleBrowse}
+                >
+                  Browse
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Model */}
           <div className={styles.field}>
@@ -187,21 +197,55 @@ export function NewAgentDialog({
             </label>
           </div>
 
-          {/* Resume existing session */}
+          {/* Manager Agent */}
           <div className={styles.field}>
             <label className={styles.checkboxLabel}>
               <input
                 type="checkbox"
-                checked={resumeExisting}
-                onChange={(e) => setResumeExisting(e.target.checked)}
+                checked={isManager}
+                onChange={(e) => {
+                  const checked = e.target.checked
+                  setIsManager(checked)
+                  if (checked) {
+                    setResumeExisting(false)
+                    if (!initialPrompt.trim()) {
+                      setInitialPrompt('What can you do as the Hydra Manager agent? List your available MCP tools and capabilities.')
+                    }
+                  }
+                }}
                 className={styles.checkbox}
+                disabled={!mcpStatus?.running}
               />
-              <span>Resume existing Claude session</span>
+              <span className={isManager ? styles.managerText : ''}>
+                Manager Agent
+              </span>
               <span className={styles.hint}>
-                Import from ~/.claude/projects
+                {mcpStatus?.running
+                  ? 'Orchestrate other agents via MCP tools'
+                  : mcpStatus?.error
+                    ? `MCP unavailable: ${mcpStatus.error}`
+                    : 'MCP server not running'}
               </span>
             </label>
           </div>
+
+          {/* Resume existing session (hidden for manager agents) */}
+          {!isManager && (
+            <div className={styles.field}>
+              <label className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={resumeExisting}
+                  onChange={(e) => setResumeExisting(e.target.checked)}
+                  className={styles.checkbox}
+                />
+                <span>Resume existing Claude session</span>
+                <span className={styles.hint}>
+                  Import from ~/.claude/projects
+                </span>
+              </label>
+            </div>
+          )}
 
           {resumeExisting && (
             <>
@@ -283,7 +327,7 @@ export function NewAgentDialog({
           <button
             className={styles.submitBtn}
             type="submit"
-            disabled={!name.trim() || !projectDir.trim() || (resumeExisting && !selectedSessionId)}
+            disabled={!name.trim() || (!isManager && !projectDir.trim()) || (resumeExisting && !selectedSessionId)}
           >
             Create Agent
           </button>

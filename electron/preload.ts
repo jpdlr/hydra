@@ -16,7 +16,8 @@ import type {
   StartHeadlessRunPayload,
   HeadlessRunEventPayload,
   ObservabilityLogEventPayload,
-  ExportDiagnosticsResult
+  ExportDiagnosticsResult,
+  McpServerStatus
 } from '@shared/types'
 
 export type HydraAPI = typeof hydraApi
@@ -133,7 +134,11 @@ const hydraApi = {
   logEvent: (payload: ObservabilityLogEventPayload): void =>
     ipcRenderer.send(IPC.OBS_LOG_EVENT, payload),
   exportDiagnostics: (): Promise<ExportDiagnosticsResult> =>
-    ipcRenderer.invoke(IPC.OBS_EXPORT_DIAGNOSTICS)
+    ipcRenderer.invoke(IPC.OBS_EXPORT_DIAGNOSTICS),
+
+  // MCP
+  getMcpServerStatus: (): Promise<McpServerStatus> =>
+    ipcRenderer.invoke(IPC.MCP_SERVER_STATUS)
 }
 
 contextBridge.exposeInMainWorld('hydra', hydraApi)

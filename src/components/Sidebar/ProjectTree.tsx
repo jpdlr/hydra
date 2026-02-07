@@ -24,7 +24,6 @@ export function ProjectTree({ group, selectedAgentId, onSelectAgent, onNewAgentF
             <ChevronIcon />
           </span>
           <span className={styles.projectName}>{group.projectName}</span>
-          <span className={styles.count}>{group.agents.length}</span>
         </button>
         <button
           className={styles.addBtn}
@@ -40,6 +39,7 @@ export function ProjectTree({ group, selectedAgentId, onSelectAgent, onNewAgentF
         >
           <PlusIcon />
         </button>
+        <span className={styles.count}>{group.agents.length}</span>
       </div>
 
       {expanded && (

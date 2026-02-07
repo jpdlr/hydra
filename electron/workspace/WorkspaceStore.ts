@@ -9,6 +9,7 @@ export interface PersistedWorkspaceAgent {
   projectDir: string
   model: ModelId
   yolo: boolean
+  isManager?: boolean
   sessionId: string | null
   createdAt: string
 }

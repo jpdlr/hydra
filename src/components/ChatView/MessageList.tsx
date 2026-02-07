@@ -9,17 +9,18 @@ interface MessageListProps {
 }
 
 export function MessageList({ messages }: MessageListProps) {
-  const bottomRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Auto-scroll to bottom when new messages arrive,
   // but only if already near the bottom (within 120px).
+  // Uses direct scrollTop instead of scrollIntoView to avoid
+  // scrolling ancestor containers (which can jump to the top).
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
     const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120
     if (isNearBottom) {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+      el.scrollTop = el.scrollHeight
     }
   }, [messages])
 
@@ -49,7 +50,6 @@ export function MessageList({ messages }: MessageListProps) {
             <MessageBubble key={msg.id} message={msg} />
           )
         )}
-        <div ref={bottomRef} />
       </div>
     </div>
   )

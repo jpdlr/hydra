@@ -9,6 +9,7 @@ import { SessionCatalog } from './sessions/SessionCatalog'
 import { HeadlessOrchestrator } from './headless/HeadlessOrchestrator'
 import { WorkspaceStore } from './workspace/WorkspaceStore'
 import { ObservabilityService } from './observability/ObservabilityService'
+import { HydraMcpServer } from './mcp/McpServer'
 import { IPC } from '@shared/types'
 
 let mainWindow: BrowserWindow | null = null
@@ -18,6 +19,7 @@ const configStore = new ConfigStore()
 const sessionCatalog = new SessionCatalog()
 const workspaceStore = new WorkspaceStore()
 let headlessOrchestrator: HeadlessOrchestrator | null = null
+let mcpServer: HydraMcpServer | null = null
 const observability = new ObservabilityService({
   getConfig: () => configStore.get(),
   getAgents: () => agentManager.list(),
@@ -74,7 +76,7 @@ function createWindow(): void {
   })
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   observability.installProcessHandlers()
   observability.logMain({
     level: 'info',
@@ -136,6 +138,27 @@ app.whenReady().then(() => {
   }
 
   headlessOrchestrator = new HeadlessOrchestrator(join(app.getPath('userData'), 'headless-runs'))
+
+  // Start MCP server for manager agents (non-fatal if it fails)
+  mcpServer = new HydraMcpServer(agentManager, app.getPath('userData'))
+  try {
+    await mcpServer.start()
+    const status = mcpServer.getStatus()
+    observability.logMain({
+      level: 'info',
+      event: 'mcp.server-started',
+      message: `MCP server listening on port ${status.port}`
+    })
+  } catch (err) {
+    observability.logMain({
+      level: 'warn',
+      event: 'mcp.server-failed',
+      message: 'Failed to start MCP server',
+      meta: { error: err instanceof Error ? err.message : String(err) }
+    })
+    mcpServer = null
+  }
+
   registerIpcHandlers(
     agentManager,
     configStore,
@@ -152,7 +175,8 @@ app.whenReady().then(() => {
     },
     () => {
       workspaceStore.setAgents(agentManager.exportWorkspaceAgents())
-    }
+    },
+    mcpServer
   )
   createWindow()
 
@@ -181,6 +205,7 @@ app.on('window-all-closed', () => {
   })
   workspaceStore.setAgents(agentManager.exportWorkspaceAgents())
   agentManager.killAll()
+  mcpServer?.stop()
   app.quit()
 })
 
@@ -192,4 +217,5 @@ app.on('before-quit', () => {
   forceQuit = true
   workspaceStore.setAgents(agentManager.exportWorkspaceAgents())
   agentManager.killAll()
+  mcpServer?.stop()
 })

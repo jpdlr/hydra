@@ -191,6 +191,11 @@
   font-weight: var(--font-weight-medium);
 }
 
+.managerText {
+  color: var(--color-accent);
+  font-weight: var(--font-weight-medium);
+}
+
 .hint {
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);

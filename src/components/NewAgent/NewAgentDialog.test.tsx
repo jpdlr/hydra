@@ -24,7 +24,13 @@ describe('NewAgentDialog', () => {
     window.hydra = {
       ...window.hydra,
       listClaudeSessions: vi.fn().mockResolvedValue(sessions),
-      selectDirectory: vi.fn().mockResolvedValue(null)
+      selectDirectory: vi.fn().mockResolvedValue(null),
+      getMcpServerStatus: vi.fn().mockResolvedValue({
+        running: false,
+        port: null,
+        error: null,
+        managerWorkspace: null
+      })
     }
   })
 

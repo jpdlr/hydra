@@ -30,7 +30,11 @@ export function InputBar({
   }, [value, disabled, onSend])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter') {
+      if (e.shiftKey) {
+        // Allow default textarea newline behavior
+        return
+      }
       e.preventDefault()
       handleSubmit()
     }

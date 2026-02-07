@@ -78,6 +78,7 @@ export class AgentManager extends EventEmitter {
       projectDir: payload.projectDir,
       model: payload.model,
       yolo: payload.yolo,
+      isManager: payload.isManager ?? false,
       sessionId: payload.resumeSessionId ?? null,
       initialPrompt: payload.initialPrompt,
       createdAt: now,
@@ -123,6 +124,7 @@ export class AgentManager extends EventEmitter {
         projectDir: session.projectPath,
         model: defaultModel,
         yolo: false,
+        isManager: false,
         sessionId: session.sessionId,
         initialPrompt: '',
         createdAt: session.createdAt || new Date().toISOString(),
@@ -167,6 +169,7 @@ export class AgentManager extends EventEmitter {
         projectDir: persisted.projectDir,
         model: persisted.model,
         yolo: persisted.yolo,
+        isManager: persisted.isManager ?? false,
         sessionId: persisted.sessionId,
         initialPrompt: '',
         createdAt: persisted.createdAt,
@@ -202,6 +205,7 @@ export class AgentManager extends EventEmitter {
         projectDir: managed.state.projectDir,
         model: managed.state.model,
         yolo: managed.state.yolo,
+        isManager: managed.state.isManager,
         sessionId: managed.state.sessionId,
         createdAt: managed.state.createdAt
       }))

@@ -89,6 +89,7 @@ function createAgent(id: string, overrides: Partial<AgentState> = {}): AgentStat
     projectDir: '/tmp/project',
     model: 'sonnet',
     yolo: false,
+    isManager: false,
     sessionId: null,
     initialPrompt: '',
     createdAt: '2026-01-01T00:00:00.000Z',

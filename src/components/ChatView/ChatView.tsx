@@ -53,6 +53,7 @@ export function ChatView({
             <span className={styles.model}>{agent.model}</span>
             <span className={styles.separator}>·</span>
             <StatusBadge status={agent.status} />
+            {agent.isManager && <span className={styles.managerBadge}>Manager</span>}
             {agent.yolo && <span className={styles.yoloBadge}>YOLO</span>}
           </div>
         </div>
