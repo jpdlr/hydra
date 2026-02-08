@@ -37,8 +37,8 @@ export const PROVIDER_MODELS: Record<ProviderId, { id: ModelId; label: string }[
     { id: 'haiku', label: 'Haiku' }
   ],
   codex: [
-    { id: 'gpt-5.3-codex', label: 'GPT-5.3 Codex' },
     { id: 'gpt-5.2-codex', label: 'GPT-5.2 Codex' },
+    { id: 'gpt-5.3-codex', label: 'GPT-5.3 Codex' },
     { id: 'gpt-5.1-codex-max', label: 'GPT-5.1 Codex Max' },
     { id: 'gpt-5.2', label: 'GPT-5.2' },
     { id: 'gpt-5.1-codex-mini', label: 'GPT-5.1 Codex Mini' }
@@ -65,7 +65,7 @@ export function getProviderForModel(model: ModelId): ProviderId {
 }
 
 // ── Config ───────────────────────────────────────────────────────────────────
-export type ThemeId = 'light' | 'dark'
+export type ThemeId = 'light' | 'dark' | 'midnight'
 export type ViewMode = 'grid' | 'chat'
 export type ChatRenderMode = 'terminal' | 'bubbles'
 

@@ -55,7 +55,7 @@ const appConfigPatchSchema = z
     defaultModel: modelSchema.optional(),
     globalYolo: z.boolean().optional(),
     maxAgents: z.number().int().min(1).max(64).optional(),
-    theme: z.enum(['light', 'dark']).optional(),
+    theme: z.enum(['light', 'dark', 'midnight']).optional(),
     defaultViewMode: z.enum(['grid', 'chat']).optional(),
     defaultProjectDir: z.string().max(4096).optional(),
     importSessionsOnStartup: z.boolean().optional(),

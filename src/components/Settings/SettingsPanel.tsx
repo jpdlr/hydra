@@ -1,9 +1,29 @@
 import { useState } from 'react'
-import type { AppConfig, ChatRenderMode, ModelId, ProviderId, ThemeId, ViewMode } from '@shared/types'
+import type { AppConfig, ChatRenderMode, ProviderId, ThemeId, ViewMode } from '@shared/types'
 import { PROVIDER_MODELS, PROVIDER_LABELS, getDefaultModelForProvider } from '@shared/types'
 import styles from './SettingsPanel.module.css'
 
 const PROVIDERS: ProviderId[] = ['claude', 'codex']
+const THEMES: Array<{ id: ThemeId; label: string; description: string; swatches: [string, string] }> = [
+  {
+    id: 'dark',
+    label: 'Terracotta',
+    description: 'Current warm dark palette with terracotta accents.',
+    swatches: ['#262624', '#30302e']
+  },
+  {
+    id: 'midnight',
+    label: 'Midnight',
+    description: 'Cleaner modern dark palette with white borders.',
+    swatches: ['#181818', '#222221']
+  },
+  {
+    id: 'light',
+    label: 'Light',
+    description: 'Warm light palette for daytime use.',
+    swatches: ['#FAF6F1', '#FFFFFF']
+  }
+]
 
 interface SettingsPanelProps {
   config: AppConfig
@@ -27,20 +47,24 @@ export function SettingsPanel({ config, onUpdate, onClose }: SettingsPanelProps)
         <div className={styles.body}>
           {/* Theme */}
           <div className={styles.field}>
-            <label className={styles.label}>Theme</label>
-            <div className={styles.segmented}>
-              <button
-                className={`${styles.segment} ${config.theme === 'light' ? styles.active : ''}`}
-                onClick={() => onUpdate({ theme: 'light' as ThemeId })}
-              >
-                Light
-              </button>
-              <button
-                className={`${styles.segment} ${config.theme === 'dark' ? styles.active : ''}`}
-                onClick={() => onUpdate({ theme: 'dark' as ThemeId })}
-              >
-                Dark
-              </button>
+            <label className={styles.label}>Color Theme</label>
+            <div className={styles.themePicker}>
+              {THEMES.map((theme) => (
+                <button
+                  key={theme.id}
+                  className={`${styles.themeOption} ${config.theme === theme.id ? styles.themeOptionActive : ''}`}
+                  onClick={() => onUpdate({ theme: theme.id })}
+                >
+                  <span className={styles.themeSwatches}>
+                    <span className={styles.themeSwatch} style={{ background: theme.swatches[0] }} />
+                    <span className={styles.themeSwatch} style={{ background: theme.swatches[1] }} />
+                  </span>
+                  <span className={styles.themeMeta}>
+                    <span className={styles.themeName}>{theme.label}</span>
+                    <span className={styles.themeDescription}>{theme.description}</span>
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
 
