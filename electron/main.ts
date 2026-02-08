@@ -123,7 +123,7 @@ app.whenReady().then(async () => {
         projectPathPrefix: config.sessionImportProjectPrefix || undefined,
         hiddenSessionIds: config.hiddenSessionIds
       })
-      const imported = agentManager.importSessions(sessions, config.defaultModel)
+      const imported = agentManager.importSessions(sessions, config.defaultModel, config.defaultProvider)
       if (imported > 0) {
         observability.logMain({
           level: 'info',

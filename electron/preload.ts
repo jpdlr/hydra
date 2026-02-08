@@ -7,6 +7,7 @@ import type {
   AgentStatusPayload,
   AppConfig,
   PreflightResult,
+  ProviderId,
   ClaudeSessionSummary,
   ListClaudeSessionsOptions,
   HeadlessRun,
@@ -17,14 +18,15 @@ import type {
   HeadlessRunEventPayload,
   ObservabilityLogEventPayload,
   ExportDiagnosticsResult,
-  McpServerStatus
+  McpServerStatus,
+  HydraNotification
 } from '@shared/types'
 
 export type HydraAPI = typeof hydraApi
 
 const hydraApi = {
   // Preflight
-  preflight: (): Promise<PreflightResult> => ipcRenderer.invoke(IPC.PREFLIGHT_CHECK),
+  preflight: (provider?: ProviderId): Promise<PreflightResult> => ipcRenderer.invoke(IPC.PREFLIGHT_CHECK, provider),
 
   // Agent lifecycle
   createAgent: (payload: CreateAgentPayload): Promise<AgentState> =>
@@ -138,7 +140,17 @@ const hydraApi = {
 
   // MCP
   getMcpServerStatus: (): Promise<McpServerStatus> =>
-    ipcRenderer.invoke(IPC.MCP_SERVER_STATUS)
+    ipcRenderer.invoke(IPC.MCP_SERVER_STATUS),
+
+  // Notifications
+  onNotification: (callback: (notification: HydraNotification) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, notification: HydraNotification) =>
+      callback(notification)
+    ipcRenderer.on(IPC.NOTIFICATION, handler)
+    return () => { ipcRenderer.removeListener(IPC.NOTIFICATION, handler) }
+  },
+  dismissNotification: (id: string): void =>
+    ipcRenderer.send(IPC.NOTIFICATION_DISMISS, id)
 }
 
 contextBridge.exposeInMainWorld('hydra', hydraApi)

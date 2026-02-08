@@ -3,12 +3,14 @@ import { EventEmitter } from 'events'
 import { randomUUID } from 'crypto'
 import { basename } from 'path'
 import { SessionCatalog } from '../sessions/SessionCatalog'
+import { getProvider } from './providers'
 import type { PersistedWorkspaceAgent } from '../workspace/WorkspaceStore'
 import type {
   AgentState,
   AgentStatus,
   CreateAgentPayload,
   ModelId,
+  ProviderId,
   ClaudeSessionSummary
 } from '@shared/types'
 
@@ -36,35 +38,27 @@ const SESSION_HINT_MAX_LENGTH = 400
 
 export class AgentManager extends EventEmitter {
   private agents: Map<string, ManagedAgent> = new Map()
-  private claudePath: string | null = null
+  private providerPaths: Map<ProviderId, string> = new Map()
   constructor(private readonly sessionCatalog: SessionCatalog = new SessionCatalog()) {
     super()
   }
 
-  async preflight(): Promise<{
+  async preflight(providerId: ProviderId = 'claude'): Promise<{
     ok: boolean
     claudePath: string | null
     version: string | null
     error: string | null
   }> {
-    try {
-      const { execSync } = await import('child_process')
-      const whichResult = execSync('which claude', { encoding: 'utf-8' }).trim()
-      this.claudePath = whichResult
-
-      const versionResult = execSync('claude --version', {
-        encoding: 'utf-8',
-        timeout: 10000
-      }).trim()
-
-      return { ok: true, claudePath: whichResult, version: versionResult, error: null }
-    } catch {
-      return {
-        ok: false,
-        claudePath: null,
-        version: null,
-        error: `Claude CLI not found. Install it from https://claude.ai/download`
-      }
+    const provider = getProvider(providerId)
+    const result = await provider.preflight()
+    if (result.ok && result.path) {
+      this.providerPaths.set(providerId, result.path)
+    }
+    return {
+      ok: result.ok,
+      claudePath: result.path,
+      version: result.version,
+      error: result.error
     }
   }
 
@@ -76,6 +70,7 @@ export class AgentManager extends EventEmitter {
       id,
       name: payload.name,
       projectDir: payload.projectDir,
+      provider: payload.provider,
       model: payload.model,
       yolo: payload.yolo,
       isManager: payload.isManager ?? false,
@@ -107,7 +102,7 @@ export class AgentManager extends EventEmitter {
     return { ...state }
   }
 
-  importSessions(sessions: ClaudeSessionSummary[], defaultModel: ModelId): number {
+  importSessions(sessions: ClaudeSessionSummary[], defaultModel: ModelId, defaultProvider: ProviderId = 'claude'): number {
     let imported = 0
 
     for (const session of sessions) {
@@ -122,6 +117,7 @@ export class AgentManager extends EventEmitter {
         id: this.buildImportedAgentId(session.sessionId),
         name: this.buildImportedAgentName(session),
         projectDir: session.projectPath,
+        provider: defaultProvider,
         model: defaultModel,
         yolo: false,
         isManager: false,
@@ -167,6 +163,7 @@ export class AgentManager extends EventEmitter {
         id,
         name: persisted.name,
         projectDir: persisted.projectDir,
+        provider: persisted.provider ?? 'claude',
         model: persisted.model,
         yolo: persisted.yolo,
         isManager: persisted.isManager ?? false,
@@ -203,6 +200,7 @@ export class AgentManager extends EventEmitter {
         id: managed.state.id,
         name: managed.state.name,
         projectDir: managed.state.projectDir,
+        provider: managed.state.provider,
         model: managed.state.model,
         yolo: managed.state.yolo,
         isManager: managed.state.isManager,
@@ -258,27 +256,17 @@ export class AgentManager extends EventEmitter {
   }
 
   private buildArgs(state: AgentState): string[] {
-    const args: string[] = []
-
-    if (state.yolo) {
-      args.push('--dangerously-skip-permissions')
-    }
-
-    args.push('--model', state.model)
-
-    if (state.sessionId) {
-      args.push('--resume', state.sessionId)
-    }
-
-    return args
+    const provider = getProvider(state.provider)
+    return provider.buildArgs(state)
   }
 
   private spawnProcess(managed: ManagedAgent): void {
-    const claudeCmd = this.claudePath || 'claude'
+    const provider = getProvider(managed.state.provider)
+    const cmd = this.providerPaths.get(managed.state.provider) || provider.command
     const args = this.buildArgs(managed.state)
 
     try {
-      const pty = ptySpawn(claudeCmd, args, {
+      const pty = ptySpawn(cmd, args, {
         name: 'xterm-256color',
         cols: managed.cols,
         rows: managed.rows,
@@ -361,13 +349,18 @@ export class AgentManager extends EventEmitter {
   private captureSessionIdFromOutput(managed: ManagedAgent, data: string): void {
     if (managed.state.sessionId) return
 
-    // Claude output can include session hints in status/debug lines.
-    const directMatch = data.match(/session(?:[_\s-]?id)?[:=\s]+([a-z0-9-]{8,})/i)
-    if (directMatch?.[1]) {
-      this.updateSessionId(managed, directMatch[1])
-      return
+    const provider = getProvider(managed.state.provider)
+
+    // Try provider-specific session ID regex
+    if (provider.sessionIdRegex) {
+      const directMatch = data.match(provider.sessionIdRegex)
+      if (directMatch?.[1]) {
+        this.updateSessionId(managed, directMatch[1])
+        return
+      }
     }
 
+    // Fallback: generic UUID pattern
     const uuidMatch = data.match(
       /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/i
     )
@@ -377,6 +370,8 @@ export class AgentManager extends EventEmitter {
   }
 
   private startSessionDiscovery(managed: ManagedAgent): void {
+    const provider = getProvider(managed.state.provider)
+    if (!provider.supportsResume) return
     if (managed.state.sessionId || managed.source !== 'hydra') return
     this.stopSessionDiscovery(managed)
     this.probeSessionIdFromCatalog(managed)

@@ -1,12 +1,13 @@
 import { app } from 'electron'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
-import type { ModelId } from '@shared/types'
+import type { ModelId, ProviderId } from '@shared/types'
 
 export interface PersistedWorkspaceAgent {
   id: string
   name: string
   projectDir: string
+  provider?: ProviderId
   model: ModelId
   yolo: boolean
   isManager?: boolean
@@ -75,11 +76,14 @@ export class WorkspaceStore {
   private isAgent(value: unknown): value is PersistedWorkspaceAgent {
     if (!value || typeof value !== 'object') return false
     const obj = value as Record<string, unknown>
+    const validModels = ['opus', 'sonnet', 'haiku', 'o3', 'o4-mini', 'codex-mini']
+    const validProviders = ['claude', 'codex']
     return (
       typeof obj.id === 'string' &&
       typeof obj.name === 'string' &&
       typeof obj.projectDir === 'string' &&
-      (obj.model === 'opus' || obj.model === 'sonnet' || obj.model === 'haiku') &&
+      validModels.includes(obj.model as string) &&
+      (obj.provider === undefined || validProviders.includes(obj.provider as string)) &&
       typeof obj.yolo === 'boolean' &&
       (typeof obj.sessionId === 'string' || obj.sessionId === null) &&
       typeof obj.createdAt === 'string'

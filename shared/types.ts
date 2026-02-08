@@ -6,6 +6,7 @@ export interface AgentConfig {
   id: string
   name: string
   projectDir: string
+  provider: ProviderId
   model: ModelId
   yolo: boolean
   isManager: boolean
@@ -21,15 +22,52 @@ export interface AgentState extends AgentConfig {
   startedAt: string | null
 }
 
-// ── Config ───────────────────────────────────────────────────────────────────
+// ── Providers ────────────────────────────────────────────────────────────────
 
-export type ModelId = 'opus' | 'sonnet' | 'haiku'
+export type ProviderId = 'claude' | 'codex'
+
+export type ClaudeModelId = 'opus' | 'sonnet' | 'haiku'
+export type CodexModelId = 'o3' | 'o4-mini' | 'codex-mini'
+
+export type ModelId = ClaudeModelId | CodexModelId
+
+export const PROVIDER_MODELS: Record<ProviderId, { id: ModelId; label: string }[]> = {
+  claude: [
+    { id: 'opus', label: 'Opus' },
+    { id: 'sonnet', label: 'Sonnet' },
+    { id: 'haiku', label: 'Haiku' }
+  ],
+  codex: [
+    { id: 'o3', label: 'o3' },
+    { id: 'o4-mini', label: 'o4-mini' },
+    { id: 'codex-mini', label: 'Codex Mini' }
+  ]
+}
+
+export const PROVIDER_LABELS: Record<ProviderId, string> = {
+  claude: 'Claude',
+  codex: 'Codex'
+}
+
+export function getDefaultModelForProvider(provider: ProviderId): ModelId {
+  return PROVIDER_MODELS[provider][0].id
+}
+
+export function getProviderForModel(model: ModelId): ProviderId {
+  for (const [provider, models] of Object.entries(PROVIDER_MODELS)) {
+    if (models.some((m) => m.id === model)) return provider as ProviderId
+  }
+  return 'claude'
+}
+
+// ── Config ───────────────────────────────────────────────────────────────────
 export type ThemeId = 'light' | 'dark'
 export type ViewMode = 'grid' | 'chat'
 export type ChatRenderMode = 'terminal' | 'bubbles'
 
 export interface AppConfig {
   schemaVersion: number
+  defaultProvider: ProviderId
   defaultModel: ModelId
   globalYolo: boolean
   maxAgents: number
@@ -49,6 +87,7 @@ export interface AppConfig {
 
 export const DEFAULT_CONFIG: AppConfig = {
   schemaVersion: 1,
+  defaultProvider: 'claude',
   defaultModel: 'sonnet',
   globalYolo: false,
   maxAgents: 8,
@@ -122,7 +161,11 @@ export const IPC = {
   OBS_EXPORT_DIAGNOSTICS: 'obs:export-diagnostics',
 
   // MCP
-  MCP_SERVER_STATUS: 'mcp:server-status'
+  MCP_SERVER_STATUS: 'mcp:server-status',
+
+  // Notifications
+  NOTIFICATION: 'notification:push',
+  NOTIFICATION_DISMISS: 'notification:dismiss'
 } as const
 
 // ── IPC Payloads ─────────────────────────────────────────────────────────────
@@ -130,6 +173,7 @@ export const IPC = {
 export interface CreateAgentPayload {
   name: string
   projectDir: string
+  provider: ProviderId
   model: ModelId
   yolo: boolean
   initialPrompt: string
@@ -182,6 +226,7 @@ export interface HeadlessRun {
   id: string
   prompt: string
   projectDir: string
+  provider: ProviderId
   model: ModelId
   resumeSessionId: string | null
   status: HeadlessRunStatus
@@ -194,6 +239,7 @@ export interface HeadlessRun {
 export interface StartHeadlessRunPayload {
   prompt: string
   projectDir: string
+  provider: ProviderId
   model: ModelId
   resumeSessionId?: string | null
 }
@@ -271,6 +317,25 @@ export interface ProjectGroup {
   projectDir: string
   projectName: string
   agents: AgentState[]
+}
+
+// ── Notifications ────────────────────────────────────────────────────────────
+
+export type NotificationType =
+  | 'agent_idle'
+  | 'agent_errored'
+  | 'agent_started'
+  | 'headless_completed'
+  | 'headless_errored'
+
+export interface HydraNotification {
+  id: string
+  type: NotificationType
+  title: string
+  body: string
+  agentId?: string
+  runId?: string
+  timestamp: string
 }
 
 // ── MCP ──────────────────────────────────────────────────────────────────────

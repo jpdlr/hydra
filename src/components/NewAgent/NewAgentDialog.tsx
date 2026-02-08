@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { ModelId, CreateAgentPayload, ClaudeSessionSummary, McpServerStatus } from '@shared/types'
+import type { ModelId, ProviderId, CreateAgentPayload, ClaudeSessionSummary, McpServerStatus } from '@shared/types'
+import { PROVIDER_MODELS, PROVIDER_LABELS, getDefaultModelForProvider } from '@shared/types'
 import styles from './NewAgentDialog.module.css'
 
+const PROVIDERS: ProviderId[] = ['claude', 'codex']
+
 interface NewAgentDialogProps {
+  defaultProvider: ProviderId
   defaultModel: ModelId
   defaultProjectDir: string
   globalYolo: boolean
@@ -11,6 +15,7 @@ interface NewAgentDialogProps {
 }
 
 export function NewAgentDialog({
+  defaultProvider,
   defaultModel,
   defaultProjectDir,
   globalYolo,
@@ -19,6 +24,7 @@ export function NewAgentDialog({
 }: NewAgentDialogProps) {
   const [name, setName] = useState('')
   const [projectDir, setProjectDir] = useState(defaultProjectDir)
+  const [provider, setProvider] = useState<ProviderId>(defaultProvider)
   const [model, setModel] = useState<ModelId>(defaultModel)
   const [yolo, setYolo] = useState(globalYolo)
   const [initialPrompt, setInitialPrompt] = useState('')
@@ -96,6 +102,7 @@ export function NewAgentDialog({
     onSubmit({
       name: name.trim(),
       projectDir: isManager ? '' : projectDir.trim(),
+      provider,
       model,
       yolo,
       initialPrompt: initialPrompt.trim(),
@@ -162,18 +169,39 @@ export function NewAgentDialog({
             </div>
           )}
 
+          {/* Provider */}
+          <div className={styles.field}>
+            <label className={styles.label}>Provider</label>
+            <div className={styles.segmented}>
+              {PROVIDERS.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  className={`${styles.segment} ${provider === p ? styles.active : ''}`}
+                  onClick={() => {
+                    setProvider(p)
+                    setModel(getDefaultModelForProvider(p))
+                    if (p !== 'claude') setResumeExisting(false)
+                  }}
+                >
+                  {PROVIDER_LABELS[p]}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Model */}
           <div className={styles.field}>
             <label className={styles.label}>Model</label>
             <div className={styles.segmented}>
-              {(['opus', 'sonnet', 'haiku'] as ModelId[]).map((m) => (
+              {PROVIDER_MODELS[provider].map((m) => (
                 <button
-                  key={m}
+                  key={m.id}
                   type="button"
-                  className={`${styles.segment} ${model === m ? styles.active : ''}`}
-                  onClick={() => setModel(m)}
+                  className={`${styles.segment} ${model === m.id ? styles.active : ''}`}
+                  onClick={() => setModel(m.id)}
                 >
-                  {m.charAt(0).toUpperCase() + m.slice(1)}
+                  {m.label}
                 </button>
               ))}
             </div>
@@ -229,8 +257,8 @@ export function NewAgentDialog({
             </label>
           </div>
 
-          {/* Resume existing session (hidden for manager agents) */}
-          {!isManager && (
+          {/* Resume existing session (hidden for manager agents and non-resumable providers) */}
+          {!isManager && provider === 'claude' && (
             <div className={styles.field}>
               <label className={styles.checkboxLabel}>
                 <input

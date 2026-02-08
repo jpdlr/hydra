@@ -4,6 +4,7 @@ import { AgentManager } from '../agents/AgentManager'
 import { ConfigStore } from '../config/ConfigStore'
 import { SessionCatalog } from '../sessions/SessionCatalog'
 import { HeadlessOrchestrator } from '../headless/HeadlessOrchestrator'
+import { NotificationService } from '../notifications/NotificationService'
 import { IPC } from '@shared/types'
 import type { HydraMcpServer } from '../mcp/McpServer'
 import type {
@@ -16,10 +17,12 @@ import { z } from 'zod'
 
 const agentIdSchema = z.string().trim().min(1).max(128)
 const projectDirSchema = z.string().trim().min(1).max(4096)
-const modelSchema = z.enum(['opus', 'sonnet', 'haiku'])
+const providerSchema = z.enum(['claude', 'codex'])
+const modelSchema = z.enum(['opus', 'sonnet', 'haiku', 'o3', 'o4-mini', 'codex-mini'])
 const createAgentPayloadSchema = z.object({
   name: z.string().trim().min(1).max(120),
   projectDir: projectDirSchema,
+  provider: providerSchema,
   model: modelSchema,
   yolo: z.boolean(),
   initialPrompt: z.string().max(20000),
@@ -46,6 +49,7 @@ const broadcastSchema = z.object({
 const appConfigPatchSchema = z
   .object({
     schemaVersion: z.number().int().min(1).max(100).optional(),
+    defaultProvider: providerSchema.optional(),
     defaultModel: modelSchema.optional(),
     globalYolo: z.boolean().optional(),
     maxAgents: z.number().int().min(1).max(64).optional(),
@@ -73,6 +77,7 @@ const sessionListOptionsSchema = z
 const headlessStartSchema = z.object({
   prompt: z.string().trim().min(1).max(20000),
   projectDir: projectDirSchema,
+  provider: providerSchema,
   model: modelSchema,
   resumeSessionId: z.string().trim().min(1).max(128).nullable().optional()
 })
@@ -114,12 +119,14 @@ export function registerIpcHandlers(
   headlessOrchestrator: HeadlessOrchestrator,
   observability: ObservabilityHandlers,
   onWorkspaceChanged?: () => void,
-  mcpServer?: HydraMcpServer | null
+  mcpServer?: HydraMcpServer | null,
+  notificationService?: NotificationService | null
 ): void {
   // ── Preflight ────────────────────────────────────────────────────────────
 
-  ipcMain.handle(IPC.PREFLIGHT_CHECK, async () => {
-    return agentManager.preflight()
+  ipcMain.handle(IPC.PREFLIGHT_CHECK, async (_event, provider?: string) => {
+    const providerId = providerSchema.catch('claude').parse(provider ?? 'claude')
+    return agentManager.preflight(providerId)
   })
 
   // ── Agent lifecycle ──────────────────────────────────────────────────────
@@ -142,9 +149,9 @@ export function registerIpcHandlers(
     }
 
     const parsedPayload = createAgentPayloadSchema.parse(payload)
-    const preflight = await agentManager.preflight()
+    const preflight = await agentManager.preflight(parsedPayload.provider)
     if (!preflight.ok) {
-      throw new Error(preflight.error || 'Claude preflight check failed')
+      throw new Error(preflight.error || `${parsedPayload.provider} CLI preflight check failed`)
     }
     const maxAgents = configStore.get().maxAgents
     const current = agentManager.activeCount()
@@ -404,4 +411,20 @@ export function registerIpcHandlers(
       win.webContents.send(IPC.HEADLESS_RUN_EVENT, payload)
     })
   })
+
+  // ── Notifications ─────────────────────────────────────────────────────────
+
+  ipcMain.on(IPC.NOTIFICATION_DISMISS, (_event, id: string) => {
+    // Dismiss is renderer-side only (remove from toast stack).
+    // Forward to all windows so multi-window setups stay in sync.
+    const validated = z.string().trim().min(1).max(128).parse(id)
+    BrowserWindow.getAllWindows().forEach((win) => {
+      win.webContents.send(IPC.NOTIFICATION_DISMISS, validated)
+    })
+  })
+
+  // Connect NotificationService to agent/headless events
+  if (notificationService) {
+    notificationService.connectAgentEvents(agentManager, headlessOrchestrator)
+  }
 }

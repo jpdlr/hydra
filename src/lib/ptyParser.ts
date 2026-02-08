@@ -24,8 +24,11 @@ const BOX_DRAWING = /^[\s─│┌┐└┘├┤┬┴┼═║╔╗╚╝╠�
 // Claude CLI startup banner lines
 const BANNER_PATTERNS = [
   /^claude\s+code/i, // "Claude Code v2.1.34"
+  /^codex\s/i, // "codex v0.1.2"
+  /^openai\s+codex/i, // "OpenAI Codex CLI"
   /^v\d+\.\d+/, // "v2.1.34"
   /^opus|^sonnet|^haiku/i, // "Opus 4.6 · Claude Max"
+  /^o3\b|^o4-mini\b|^codex-mini\b/i, // Codex model banners
   /^~?\//,  // "~/Documents/Personal/..." (project path line)
   /^\/Users\//i, // "/Users/jp/..." absolute path as banner
   /^\/home\//i // "/home/..." absolute path as banner
@@ -49,11 +52,11 @@ const THINKING_PATTERNS = [
   /^[|/\-\\]$/ // Single-char ASCII spinners
 ]
 
-// Tool use patterns from Claude CLI output
-const TOOL_CALL_START = /^[│┌├╭].*?(Read|Write|Edit|Bash|Glob|Grep|WebFetch|WebSearch|Task|TodoRead|TodoWrite|Skill)/
+// Tool use patterns from Claude CLI / Codex CLI output
+const TOOL_CALL_START = /^[│┌├╭].*?(Read|Write|Edit|Bash|Glob|Grep|WebFetch|WebSearch|Task|TodoRead|TodoWrite|Skill|shell|apply_patch|create_file|read_file)/
 const TOOL_CALL_RESULT = [
   /^[│├└╰]\s*(✓|✗|⚠)/,
-  /^>\s*(Reading|Writing|Editing|Running|Searching|Fetching|Globbing)/i,
+  /^>\s*(Reading|Writing|Editing|Running|Searching|Fetching|Globbing|Applying|Creating)/i,
   /^>\s*[✓✗⚠]/
 ]
 
@@ -241,9 +244,13 @@ export function createPtyParser() {
 
 function extractToolName(line: string): string {
   const patterns: Array<[RegExp, string]> = [
+    [/read_file/i, 'Read'],
     [/Read/i, 'Read'],
+    [/create_file/i, 'Write'],
     [/Write|Writing/i, 'Write'],
+    [/apply_patch/i, 'Edit'],
     [/Edit/i, 'Edit'],
+    [/shell\b/i, 'Bash'],
     [/Bash|Running/i, 'Bash'],
     [/Glob/i, 'Glob'],
     [/Grep|Search/i, 'Grep'],

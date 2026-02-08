@@ -1,6 +1,9 @@
 import { useState } from 'react'
-import type { AppConfig, ChatRenderMode, ModelId, ThemeId, ViewMode } from '@shared/types'
+import type { AppConfig, ChatRenderMode, ModelId, ProviderId, ThemeId, ViewMode } from '@shared/types'
+import { PROVIDER_MODELS, PROVIDER_LABELS, getDefaultModelForProvider } from '@shared/types'
 import styles from './SettingsPanel.module.css'
+
+const PROVIDERS: ProviderId[] = ['claude', 'codex']
 
 interface SettingsPanelProps {
   config: AppConfig
@@ -79,6 +82,25 @@ export function SettingsPanel({ config, onUpdate, onClose }: SettingsPanelProps)
             </div>
           </div>
 
+          {/* Default provider */}
+          <div className={styles.field}>
+            <label className={styles.label}>Default Provider</label>
+            <div className={styles.segmented}>
+              {PROVIDERS.map((p) => (
+                <button
+                  key={p}
+                  className={`${styles.segment} ${config.defaultProvider === p ? styles.active : ''}`}
+                  onClick={() => onUpdate({
+                    defaultProvider: p,
+                    defaultModel: getDefaultModelForProvider(p)
+                  })}
+                >
+                  {PROVIDER_LABELS[p]}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Default model */}
           <div className={styles.field}>
             <label className={styles.label}>Default Model</label>
@@ -87,9 +109,9 @@ export function SettingsPanel({ config, onUpdate, onClose }: SettingsPanelProps)
               value={config.defaultModel}
               onChange={(e) => onUpdate({ defaultModel: e.target.value as ModelId })}
             >
-              <option value="opus">Opus</option>
-              <option value="sonnet">Sonnet</option>
-              <option value="haiku">Haiku</option>
+              {PROVIDER_MODELS[config.defaultProvider].map((m) => (
+                <option key={m.id} value={m.id}>{m.label}</option>
+              ))}
             </select>
           </div>
 

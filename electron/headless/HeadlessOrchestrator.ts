@@ -11,10 +11,10 @@ import {
 import { basename, join } from 'path'
 import { randomUUID } from 'crypto'
 import { spawn, type ChildProcessWithoutNullStreams } from 'child_process'
+import { getProvider } from '../agents/providers'
 import type {
   HeadlessRun,
   HeadlessRunStatus,
-  ModelId,
   StartHeadlessRunPayload,
   HeadlessRunEventPayload,
   HeadlessRunLogOptions,
@@ -61,6 +61,7 @@ export class HeadlessOrchestrator extends EventEmitter {
       id: runId,
       prompt: payload.prompt,
       projectDir: payload.projectDir,
+      provider: payload.provider,
       model: payload.model,
       resumeSessionId: payload.resumeSessionId ?? null,
       status: 'running',
@@ -82,10 +83,11 @@ export class HeadlessOrchestrator extends EventEmitter {
     writeFileSync(logPath, '', 'utf-8')
     this.persistRun(managed)
 
-    const args = this.buildArgs(payload.model, payload.prompt, payload.resumeSessionId ?? null)
+    const provider = getProvider(payload.provider)
+    const args = provider.buildHeadlessArgs(payload.model, payload.prompt, payload.resumeSessionId ?? null)
 
     try {
-      const child = spawn('claude', args, {
+      const child = spawn(provider.command, args, {
         cwd: payload.projectDir,
         env: {
           ...process.env,
@@ -112,7 +114,7 @@ export class HeadlessOrchestrator extends EventEmitter {
         if (code === 0) {
           this.finalizeRun(managed, 'completed', null)
         } else {
-          this.finalizeRun(managed, 'errored', `Claude exited with code ${code ?? -1}`)
+          this.finalizeRun(managed, 'errored', `CLI exited with code ${code ?? -1}`)
         }
       })
 
@@ -215,14 +217,6 @@ export class HeadlessOrchestrator extends EventEmitter {
     }
   }
 
-  private buildArgs(model: ModelId, prompt: string, resumeSessionId: string | null): string[] {
-    const args = ['-p', prompt, '--output-format', 'stream-json', '--model', model]
-    if (resumeSessionId) {
-      args.push('--resume', resumeSessionId)
-    }
-    return args
-  }
-
   private handleStdout(managed: ManagedHeadlessRun, data: string): void {
     managed.stdoutBuffer += data
     const lines = managed.stdoutBuffer.split('\n')
@@ -290,6 +284,7 @@ export class HeadlessOrchestrator extends EventEmitter {
         const run = parsed.run
         if (!run || !this.isHeadlessRun(run)) continue
 
+        if (!run.provider) run.provider = 'claude'
         const logPath = join(this.baseDir, `${run.id}${LOG_EXTENSION}`)
         this.runs.set(run.id, {
           state: run,
@@ -318,6 +313,7 @@ export class HeadlessOrchestrator extends EventEmitter {
         id: runId,
         prompt: '(legacy run)',
         projectDir: '',
+        provider: 'claude',
         model: 'sonnet',
         resumeSessionId: null,
         status: 'completed',
@@ -385,13 +381,17 @@ export class HeadlessOrchestrator extends EventEmitter {
       run.status === 'errored' ||
       run.status === 'canceled'
 
-    const validModel = run.model === 'opus' || run.model === 'sonnet' || run.model === 'haiku'
+    const validModels = ['opus', 'sonnet', 'haiku', 'o3', 'o4-mini', 'codex-mini']
+    const validProviders = ['claude', 'codex']
+    const validModel = validModels.includes(run.model as string)
+    const validProvider = run.provider === undefined || validProviders.includes(run.provider as string)
 
     return (
       typeof run.id === 'string' &&
       typeof run.prompt === 'string' &&
       typeof run.projectDir === 'string' &&
       validModel &&
+      validProvider &&
       (typeof run.resumeSessionId === 'string' || run.resumeSessionId === null) &&
       validStatus &&
       typeof run.startedAt === 'string' &&
