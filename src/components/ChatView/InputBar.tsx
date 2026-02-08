@@ -48,8 +48,31 @@ export function InputBar({
     el.style.height = Math.min(el.scrollHeight, 120) + 'px'
   }
 
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault()
+      const files = Array.from(e.dataTransfer.files)
+      const paths = files.map((f) => f.path).filter(Boolean)
+      if (paths.length > 0) {
+        const text = paths.join(' ')
+        setValue((prev) => {
+          const prefix = prev.length > 0 && !prev.endsWith(' ') ? ' ' : ''
+          return prev + prefix + text
+        })
+      }
+    },
+    []
+  )
+
   return (
-    <div className={styles.bar}>
+    <div
+      className={styles.bar}
+      onDragOver={(e) => {
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'copy'
+      }}
+      onDrop={handleDrop}
+    >
       <div className={styles.inputWrapper}>
         <textarea
           ref={inputRef}

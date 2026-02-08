@@ -157,6 +157,20 @@ export function SettingsPanel({ config, onUpdate, onClose }: SettingsPanelProps)
           </div>
 
           <div className={styles.field}>
+            <label className={styles.label}>Session Max Age (days, 0 = no limit)</label>
+            <input
+              className={styles.numberInput}
+              type="number"
+              min={0}
+              max={365}
+              value={config.sessionMaxAgeDays}
+              onChange={(e) =>
+                onUpdate({ sessionMaxAgeDays: Math.max(0, parseInt(e.target.value, 10) || 0) })
+              }
+            />
+          </div>
+
+          <div className={styles.field}>
             <label className={styles.label}>Session Project Prefix Filter</label>
             <input
               className={styles.dirInput}

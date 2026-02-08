@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { ProjectTree } from './ProjectTree'
 import { SearchBar } from './SearchBar'
 import type { ProjectGroup } from '@shared/types'
@@ -10,16 +10,55 @@ interface SidebarProps {
   onSelectAgent: (agentId: string) => void
   onNewAgent: () => void
   onNewAgentForProject: (projectDir: string) => void
+  width: number
+  onWidthChange: (width: number) => void
 }
+
+const MIN_WIDTH = 200
+const MAX_WIDTH = 480
 
 export function Sidebar({
   projectGroups,
   selectedAgentId,
   onSelectAgent,
   onNewAgent,
-  onNewAgentForProject
+  onNewAgentForProject,
+  width,
+  onWidthChange
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState('')
+  const [isDragging, setIsDragging] = useState(false)
+  const startXRef = useRef(0)
+  const startWidthRef = useRef(0)
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      e.preventDefault()
+      startXRef.current = e.clientX
+      startWidthRef.current = width
+      setIsDragging(true)
+
+      const target = e.currentTarget as HTMLElement
+      target.setPointerCapture(e.pointerId)
+
+      const onPointerMove = (ev: PointerEvent) => {
+        const delta = ev.clientX - startXRef.current
+        const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidthRef.current + delta))
+        onWidthChange(newWidth)
+      }
+
+      const onPointerUp = () => {
+        setIsDragging(false)
+        target.releasePointerCapture(e.pointerId)
+        target.removeEventListener('pointermove', onPointerMove)
+        target.removeEventListener('pointerup', onPointerUp)
+      }
+
+      target.addEventListener('pointermove', onPointerMove)
+      target.addEventListener('pointerup', onPointerUp)
+    },
+    [width, onWidthChange]
+  )
 
   const filteredGroups = searchQuery
     ? projectGroups
@@ -35,7 +74,7 @@ export function Sidebar({
     : projectGroups
 
   return (
-    <aside className={styles.sidebar}>
+    <aside className={styles.sidebar} style={{ width }}>
       <div className={styles.searchWrapper}>
         <SearchBar value={searchQuery} onChange={setSearchQuery} />
       </div>
@@ -67,6 +106,11 @@ export function Sidebar({
           New Agent
         </button>
       </div>
+
+      <div
+        className={`${styles.resizeHandle} ${isDragging ? styles.resizeHandleActive : ''}`}
+        onPointerDown={handlePointerDown}
+      />
     </aside>
   )
 }

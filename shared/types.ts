@@ -38,6 +38,7 @@ export interface AppConfig {
   defaultProjectDir: string
   importSessionsOnStartup: boolean
   sessionImportLimit: number
+  sessionMaxAgeDays: number
   sessionImportProjectPrefix: string
   hiddenSessionIds: string[]
   chatRenderMode: ChatRenderMode
@@ -56,6 +57,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   defaultProjectDir: '',
   importSessionsOnStartup: true,
   sessionImportLimit: 500,
+  sessionMaxAgeDays: 7,
   sessionImportProjectPrefix: '',
   hiddenSessionIds: [],
   chatRenderMode: 'terminal',
@@ -167,6 +169,7 @@ export interface ClaudeSessionSummary {
 
 export interface ListClaudeSessionsOptions {
   limit?: number
+  maxAgeDays?: number
   projectPathPrefix?: string
   includeHidden?: boolean
 }

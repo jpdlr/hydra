@@ -17,6 +17,7 @@ interface PersistedWorkspaceUiState {
   selectedAgentId: string | null
   viewMode: ViewMode | null
   expandedTilesByProject: Record<string, string | null>
+  sidebarWidth: number | null
 }
 
 const WORKSPACE_UI_STORAGE_KEY = 'hydra:workspace-ui:v1'
@@ -29,7 +30,8 @@ function readWorkspaceUiState(): PersistedWorkspaceUiState {
         selectedProject: null,
         selectedAgentId: null,
         viewMode: null,
-        expandedTilesByProject: {}
+        expandedTilesByProject: {},
+        sidebarWidth: null
       }
     }
 
@@ -44,14 +46,16 @@ function readWorkspaceUiState(): PersistedWorkspaceUiState {
       expandedTilesByProject:
         parsed.expandedTilesByProject && typeof parsed.expandedTilesByProject === 'object'
           ? parsed.expandedTilesByProject
-          : {}
+          : {},
+      sidebarWidth: typeof parsed.sidebarWidth === 'number' ? parsed.sidebarWidth : null
     }
   } catch {
     return {
       selectedProject: null,
       selectedAgentId: null,
       viewMode: null,
-      expandedTilesByProject: {}
+      expandedTilesByProject: {},
+      sidebarWidth: null
     }
   }
 }
@@ -88,6 +92,8 @@ export default function App() {
   const { viewMode, setViewMode, toggleViewMode } = useViewMode(
     persistedUi.viewMode ?? config.defaultViewMode
   )
+
+  const [sidebarWidth, setSidebarWidth] = useState(persistedUi.sidebarWidth ?? 260)
 
   const [showSettings, setShowSettings] = useState(false)
   const [showNewAgent, setShowNewAgent] = useState(false)
@@ -231,9 +237,10 @@ export default function App() {
       selectedProject,
       selectedAgentId,
       viewMode,
-      expandedTilesByProject
+      expandedTilesByProject,
+      sidebarWidth
     })
-  }, [selectedProject, selectedAgentId, viewMode, expandedTilesByProject])
+  }, [selectedProject, selectedAgentId, viewMode, expandedTilesByProject, sidebarWidth])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -402,6 +409,8 @@ export default function App() {
               onNewAgentForProject={(projectDir) => {
                 void handleNewAgentForProject(projectDir)
               }}
+              width={sidebarWidth}
+              onWidthChange={setSidebarWidth}
             />
           )}
 

@@ -36,6 +36,7 @@ const JSONL_MAX_HEADER_CHARS = 64 * 1024
 
 export interface ListSessionOptions {
   limit?: number
+  maxAgeDays?: number
   projectPathPrefix?: string
   hiddenSessionIds?: Iterable<string>
 }
@@ -57,9 +58,14 @@ export class SessionCatalog {
 
     const hiddenIds = new Set(options.hiddenSessionIds ?? [])
     const projectPrefix = options.projectPathPrefix?.trim()
+    const cutoff =
+      typeof options.maxAgeDays === 'number' && options.maxAgeDays > 0
+        ? Date.now() - options.maxAgeDays * 86_400_000
+        : 0
     const filtered = sessions.filter((session) => {
       if (hiddenIds.has(session.sessionId)) return false
       if (projectPrefix && !session.projectPath.startsWith(projectPrefix)) return false
+      if (cutoff > 0 && Date.parse(session.modifiedAt) < cutoff) return false
       return true
     })
 

@@ -291,11 +291,19 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
       if (!grouped.has(dir)) grouped.set(dir, [])
       grouped.get(dir)!.push(data.state)
     }
-    return Array.from(grouped.entries()).map(([dir, agts]) => ({
-      projectDir: dir,
-      projectName: basename(dir),
-      agents: agts
-    }))
+    const groups = Array.from(grouped.entries()).map(([dir, agts]) => {
+      // Newest agent first within each project
+      agts.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+      return { projectDir: dir, projectName: basename(dir), agents: agts }
+    })
+    // Manager workspace pinned to the top, then newest-first
+    groups.sort((a, b) => {
+      const aIsManager = a.agents.some((ag) => ag.isManager)
+      const bIsManager = b.agents.some((ag) => ag.isManager)
+      if (aIsManager !== bIsManager) return aIsManager ? -1 : 1
+      return Date.parse(b.agents[0].createdAt) - Date.parse(a.agents[0].createdAt)
+    })
+    return groups
   })()
 
   const selectedAgent = selectedAgentId ? agents.get(selectedAgentId) || null : null

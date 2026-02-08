@@ -1,3 +1,4 @@
+import { useRef, useCallback } from 'react'
 import { TerminalPane } from '../Terminal/TerminalPane'
 import { InputBar } from './InputBar'
 import { MessageList } from './MessageList'
@@ -43,8 +44,17 @@ export function ChatView({
     )
   }
 
+  // Prevent browser focus-scroll from moving the outer container
+  const containerRef = useRef<HTMLDivElement>(null)
+  const handleContainerScroll = useCallback(() => {
+    const el = containerRef.current
+    if (el && el.scrollTop !== 0) {
+      el.scrollTop = 0
+    }
+  }, [])
+
   return (
-    <div className={styles.container}>
+    <div className={styles.container} ref={containerRef} onScroll={handleContainerScroll}>
       {/* Agent header */}
       <div className={styles.agentHeader}>
         <div className={styles.agentInfo}>

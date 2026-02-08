@@ -1,11 +1,28 @@
 .sidebar {
+  position: relative;
   display: flex;
   flex-direction: column;
-  width: var(--sidebar-width);
-  min-width: var(--sidebar-width);
+  min-width: var(--sidebar-min-width);
+  max-width: var(--sidebar-max-width);
   background: var(--color-sidebar);
   border-right: 1px solid var(--color-border);
   overflow: hidden;
+}
+
+.resizeHandle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 4px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 10;
+  transition: background var(--transition-fast);
+}
+
+.resizeHandle:hover,
+.resizeHandleActive {
+  background: var(--color-border);
 }
 
 .searchWrapper {

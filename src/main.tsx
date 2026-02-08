@@ -36,6 +36,11 @@ window.addEventListener('unhandledrejection', (event) => {
   })
 })
 
+// Prevent Electron from navigating to dropped files.
+// Individual components opt-in to handle drops themselves.
+document.addEventListener('dragover', (e) => e.preventDefault())
+document.addEventListener('drop', (e) => e.preventDefault())
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <AppErrorBoundary>

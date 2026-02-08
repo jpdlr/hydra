@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
@@ -14,21 +14,21 @@ interface TerminalPaneProps {
 }
 
 const TERMINAL_THEME = {
-  background: '#1E1B18',
-  foreground: '#E8E0D8',
+  background: '#262624',
+  foreground: '#E8E4E0',
   cursor: '#D97757',
-  cursorAccent: '#1E1B18',
+  cursorAccent: '#262624',
   selectionBackground: 'rgba(217, 119, 87, 0.3)',
-  selectionForeground: '#E8E0D8',
-  black: '#1E1B18',
+  selectionForeground: '#E8E4E0',
+  black: '#262624',
   red: '#E53935',
   green: '#66BB6A',
   yellow: '#FFA726',
   blue: '#42A5F5',
   magenta: '#AB47BC',
   cyan: '#26C6DA',
-  white: '#E8E0D8',
-  brightBlack: '#6B6058',
+  white: '#E8E4E0',
+  brightBlack: '#6B6760',
   brightRed: '#EF5350',
   brightGreen: '#81C784',
   brightYellow: '#FFB74D',
@@ -46,12 +46,16 @@ export function TerminalPane({
   fontSize = 12,
   lineHeight = 1.35
 }: TerminalPaneProps) {
+  const wrapperRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const terminalRef = useRef<Terminal | null>(null)
   const onDataRef = useRef(onData)
   const onResizeRef = useRef(onResize)
   const writtenLengthRef = useRef(0)
   const lastSizeRef = useRef<{ cols: number; rows: number } | null>(null)
+  const [isDragOver, setIsDragOver] = useState(false)
+  const dragCounterRef = useRef(0)
+  const [isScrolledUp, setIsScrolledUp] = useState(false)
 
   useEffect(() => {
     onDataRef.current = onData
@@ -105,11 +109,30 @@ export function TerminalPane({
     })
     const fitTimers = [80, 180].map((delay) => setTimeout(fitAndNotify, delay))
 
+    // Shift+Enter → send newline instead of carriage return
+    terminal.attachCustomKeyEventHandler((e) => {
+      if (e.type === 'keydown' && e.key === 'Enter' && e.shiftKey) {
+        onDataRef.current?.('\n')
+        return false // prevent xterm from also sending \r
+      }
+      return true
+    })
+
     if (onDataRef.current) {
       terminal.onData((data) => {
         onDataRef.current?.(data)
       })
     }
+
+    // Track whether user has scrolled up from the bottom.
+    // viewportY is the top line of the visible viewport;
+    // baseY is the top line of the last (bottom) page.
+    // When viewportY < baseY, the user has scrolled up.
+    const checkScrollPosition = () => {
+      const buf = terminal.buffer.active
+      setIsScrolledUp(buf.viewportY < buf.baseY)
+    }
+    const scrollDisposable = terminal.onScroll(checkScrollPosition)
 
     terminalRef.current = terminal
     writtenLengthRef.current = 0
@@ -120,11 +143,68 @@ export function TerminalPane({
     })
     observer.observe(containerRef.current)
 
+    // ── Native DOM listeners for Shift+Enter (capture phase fallback) ──
+    // xterm creates an internal textarea that receives key events.
+    // Use capture phase on the wrapper to intercept before xterm does.
+    const wrapper = wrapperRef.current!
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && e.shiftKey) {
+        e.preventDefault()
+        e.stopPropagation()
+        onDataRef.current?.('\n')
+      }
+    }
+    wrapper.addEventListener('keydown', handleKeyDown, true) // capture phase
+
+    // ── Native DOM listeners for drag-and-drop ──
+    const handleDragEnter = (e: DragEvent) => {
+      e.preventDefault()
+      dragCounterRef.current++
+      if (e.dataTransfer?.types.includes('Files')) {
+        setIsDragOver(true)
+      }
+    }
+    const handleDragLeave = (e: DragEvent) => {
+      e.preventDefault()
+      dragCounterRef.current--
+      if (dragCounterRef.current <= 0) {
+        dragCounterRef.current = 0
+        setIsDragOver(false)
+      }
+    }
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault()
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
+    }
+    const handleDrop = (e: DragEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      dragCounterRef.current = 0
+      setIsDragOver(false)
+
+      const files = Array.from(e.dataTransfer?.files ?? [])
+      const paths = files.map((f) => f.path).filter(Boolean)
+      if (paths.length > 0) {
+        onDataRef.current?.(paths.join(' '))
+      }
+    }
+
+    wrapper.addEventListener('dragenter', handleDragEnter, true)
+    wrapper.addEventListener('dragleave', handleDragLeave, true)
+    wrapper.addEventListener('dragover', handleDragOver, true)
+    wrapper.addEventListener('drop', handleDrop, true)
+
     return () => {
       for (const timer of fitTimers) {
         clearTimeout(timer)
       }
+      scrollDisposable.dispose()
       observer.disconnect()
+      wrapper.removeEventListener('keydown', handleKeyDown, true)
+      wrapper.removeEventListener('dragenter', handleDragEnter, true)
+      wrapper.removeEventListener('dragleave', handleDragLeave, true)
+      wrapper.removeEventListener('dragover', handleDragOver, true)
+      wrapper.removeEventListener('drop', handleDrop, true)
       terminal.dispose()
       terminalRef.current = null
     }
@@ -132,33 +212,108 @@ export function TerminalPane({
 
   // Write new output incrementally
   useEffect(() => {
-    if (!terminalRef.current) return
+    const terminal = terminalRef.current
+    if (!terminal) return
 
     // When agent output is reset (restart/switch), clear terminal and replay.
     if (rawOutput.length < writtenLengthRef.current) {
-      terminalRef.current.reset()
+      terminal.reset()
       writtenLengthRef.current = 0
     }
 
     if (rawOutput.length > writtenLengthRef.current) {
       const newData = rawOutput.slice(writtenLengthRef.current)
-      terminalRef.current.write(newData)
+      terminal.write(newData, () => {
+        // After xterm finishes writing, re-check scroll position.
+        // New output may have pushed past viewport if user scrolled up.
+        const buf = terminal.buffer.active
+        setIsScrolledUp(buf.viewportY < buf.baseY)
+      })
       writtenLengthRef.current = rawOutput.length
     }
   }, [rawOutput])
 
   return (
     <div
-      ref={containerRef}
+      ref={wrapperRef}
       className={className}
       onMouseDown={() => terminalRef.current?.focus()}
       style={{
         width: '100%',
         height: '100%',
-        background: '#1E1B18',
+        background: '#262624',
         borderRadius: 'inherit',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        position: 'relative'
       }}
-    />
+    >
+      <div
+        ref={containerRef}
+        style={{ width: '100%', height: '100%' }}
+      />
+      {isScrolledUp && (
+        <button
+          onClick={() => {
+            terminalRef.current?.scrollToBottom()
+            setIsScrolledUp(false)
+          }}
+          style={{
+            position: 'absolute',
+            bottom: 8,
+            right: 16,
+            zIndex: 10,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            padding: '4px 10px',
+            fontSize: '11px',
+            fontWeight: 500,
+            color: '#E8E4E0',
+            background: 'rgba(48, 48, 46, 0.92)',
+            border: '1px solid rgba(59, 59, 56, 0.8)',
+            borderRadius: '12px',
+            cursor: 'pointer',
+            backdropFilter: 'blur(6px)',
+            transition: 'opacity 150ms'
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(59, 59, 56, 0.95)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(48, 48, 46, 0.92)' }}
+        >
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 3v10M4 9l4 4 4-4" />
+          </svg>
+          Bottom
+        </button>
+      )}
+      {isDragOver && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(224, 139, 109, 0.08)',
+            border: '2px dashed rgba(224, 139, 109, 0.5)',
+            borderRadius: 'inherit',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10,
+            pointerEvents: 'none'
+          }}
+        >
+          <span
+            style={{
+              color: '#E08B6D',
+              fontSize: '13px',
+              fontWeight: 500,
+              background: 'rgba(38, 38, 36, 0.9)',
+              padding: '6px 14px',
+              borderRadius: '6px'
+            }}
+          >
+            Drop to insert file path
+          </span>
+        </div>
+      )}
+    </div>
   )
 }

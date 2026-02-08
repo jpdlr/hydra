@@ -76,7 +76,8 @@ const baseConfig: AppConfig = {
   chatRenderMode: 'terminal',
   enableRemoteErrorReporting: false,
   errorReportingEndpoint: '',
-  includeSensitiveDiagnostics: false
+  includeSensitiveDiagnostics: false,
+  sessionMaxAgeDays: 7
 }
 
 let currentConfig: AppConfig = { ...baseConfig }

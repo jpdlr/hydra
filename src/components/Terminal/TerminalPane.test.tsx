@@ -27,6 +27,9 @@ vi.mock('@xterm/xterm', () => ({
     dispose = vi.fn()
     loadAddon = vi.fn()
     open = vi.fn()
+    attachCustomKeyEventHandler = vi.fn()
+    scrollToBottom = vi.fn()
+    buffer = { active: { baseY: 0, viewportY: 0, length: 24 } }
     onDataHandler: ((data: string) => void) | null = null
 
     constructor() {
@@ -35,6 +38,10 @@ vi.mock('@xterm/xterm', () => ({
 
     onData(handler: (data: string) => void) {
       this.onDataHandler = handler
+    }
+
+    onScroll() {
+      return { dispose: vi.fn() }
     }
   }
 }))
@@ -70,14 +77,14 @@ describe('TerminalPane', () => {
     const { rerender } = render(<TerminalPane rawOutput="hello" />)
     const term = terminalState.instances[0]
 
-    expect(term.write).toHaveBeenCalledWith('hello')
+    expect(term.write).toHaveBeenCalledWith('hello', expect.any(Function))
 
     rerender(<TerminalPane rawOutput="hello world" />)
-    expect(term.write).toHaveBeenLastCalledWith(' world')
+    expect(term.write).toHaveBeenLastCalledWith(' world', expect.any(Function))
 
     rerender(<TerminalPane rawOutput="x" />)
     expect(term.reset).toHaveBeenCalledTimes(1)
-    expect(term.write).toHaveBeenLastCalledWith('x')
+    expect(term.write).toHaveBeenLastCalledWith('x', expect.any(Function))
   })
 
   it('forwards terminal keystrokes through onData', () => {

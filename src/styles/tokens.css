@@ -48,13 +48,15 @@
 
   /* Layout */
   --sidebar-width: 260px;
+  --sidebar-min-width: 200px;
+  --sidebar-max-width: 480px;
   --header-height: 48px;
   --input-bar-height: 56px;
   --tile-header-height: 36px;
 
   /* Terminal (always dark) */
-  --color-terminal-bg: #1E1B18;
-  --color-terminal-text: #E8E0D8;
+  --color-terminal-bg: #262624;
+  --color-terminal-text: #E8E4E0;
   --color-terminal-cursor: #D97757;
   --color-terminal-selection: rgba(217, 119, 87, 0.3);
 }

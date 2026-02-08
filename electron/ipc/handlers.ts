@@ -65,6 +65,7 @@ const appConfigPatchSchema = z
 const sessionListOptionsSchema = z
   .object({
     limit: z.number().int().min(1).max(20000).optional(),
+    maxAgeDays: z.number().int().min(1).max(365).optional(),
     projectPathPrefix: z.string().trim().min(1).max(4096).optional(),
     includeHidden: z.boolean().optional()
   })
@@ -245,6 +246,7 @@ export function registerIpcHandlers(
     const shouldIncludeHidden = parsedOptions?.includeHidden === true
     return sessionCatalog.listSessions({
       limit: parsedOptions?.limit ?? (config.sessionImportLimit > 0 ? config.sessionImportLimit : undefined),
+      maxAgeDays: parsedOptions?.maxAgeDays ?? (config.sessionMaxAgeDays > 0 ? config.sessionMaxAgeDays : undefined),
       projectPathPrefix,
       hiddenSessionIds: shouldIncludeHidden ? undefined : config.hiddenSessionIds
     })
