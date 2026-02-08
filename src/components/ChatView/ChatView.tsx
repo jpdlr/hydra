@@ -60,7 +60,7 @@ export function ChatView({
         <div className={styles.agentInfo}>
           <h3 className={styles.agentName}>{agent.name}</h3>
           <div className={styles.agentMeta}>
-            <span className={styles.model}>{agent.model}</span>
+            <span className={styles.model}>{agent.provider === 'codex' ? 'Codex' : 'Claude'} / {agent.model}</span>
             <span className={styles.separator}>·</span>
             <StatusBadge status={agent.status} />
             {agent.isManager && <span className={styles.managerBadge}>Manager</span>}

@@ -54,6 +54,7 @@ describe('AgentManager', () => {
     const agent = manager.create({
       name: 'EP',
       projectDir: '/tmp/project',
+      provider: 'claude',
       model: 'sonnet',
       yolo: false,
       initialPrompt: ''
@@ -125,6 +126,7 @@ describe('AgentManager', () => {
     const created = manager.create({
       name: 'EP',
       projectDir: '/tmp/project',
+      provider: 'claude',
       model: 'sonnet',
       yolo: false,
       initialPrompt: 'Hi Claude'

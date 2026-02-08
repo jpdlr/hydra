@@ -6,9 +6,11 @@ import { GridView } from './components/GridView/GridView'
 import { SettingsPanel } from './components/Settings/SettingsPanel'
 import { NewAgentDialog } from './components/NewAgent/NewAgentDialog'
 import { HeadlessPanel } from './components/Headless/HeadlessPanel'
+import { NotificationToast } from './components/Notifications/NotificationToast'
 import { useAgents } from './hooks/useAgents'
 import { useConfig } from './hooks/useConfig'
 import { useViewMode } from './hooks/useViewMode'
+import { useNotifications } from './hooks/useNotifications'
 import type { PreflightResult, ViewMode } from '@shared/types'
 import styles from './App.module.css'
 
@@ -71,6 +73,7 @@ function writeWorkspaceUiState(state: PersistedWorkspaceUiState): void {
 export default function App() {
   const persistedUi = useMemo(() => readWorkspaceUiState(), [])
   const { config, updateConfig } = useConfig()
+  const { notifications, dismiss: dismissNotification } = useNotifications()
   const {
     agents,
     agentList,
@@ -493,6 +496,7 @@ export default function App() {
 
       {showNewAgent && (
         <NewAgentDialog
+          defaultProvider={config.defaultProvider}
           defaultModel={config.defaultModel}
           defaultProjectDir={newAgentPrefillDir || config.defaultProjectDir}
           globalYolo={config.globalYolo}
@@ -512,6 +516,7 @@ export default function App() {
       {showHeadless && (
         <HeadlessPanel
           defaultProjectDir={selectedProject || config.defaultProjectDir}
+          defaultProvider={config.defaultProvider}
           defaultModel={config.defaultModel}
           onClose={() => setShowHeadless(false)}
         />
@@ -603,6 +608,8 @@ export default function App() {
           </div>
         </div>
       )}
+
+      <NotificationToast notifications={notifications} onDismiss={dismissNotification} />
     </div>
   )
 }

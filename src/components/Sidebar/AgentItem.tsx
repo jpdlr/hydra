@@ -28,6 +28,7 @@ export function AgentItem({ agent, isSelected, onSelect }: AgentItemProps) {
         {agent.status === 'errored' ? '✖' : agent.status === 'running' || agent.status === 'starting' ? '●' : '○'}
       </span>
       <span className={styles.name}>{agent.name}</span>
+      {agent.provider === 'codex' && <span className={styles.providerBadge}>CDX</span>}
       {agent.isManager && <span className={styles.managerBadge}>MGR</span>}
       {agent.yolo && <span className={styles.yoloBadge}>Y</span>}
     </button>

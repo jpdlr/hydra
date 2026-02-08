@@ -15,6 +15,7 @@ import { HeadlessOrchestrator } from './headless/HeadlessOrchestrator'
 import { WorkspaceStore } from './workspace/WorkspaceStore'
 import { ObservabilityService } from './observability/ObservabilityService'
 import { HydraMcpServer } from './mcp/McpServer'
+import { NotificationService } from './notifications/NotificationService'
 import { IPC } from '@shared/types'
 
 let mainWindow: BrowserWindow | null = null
@@ -144,8 +145,12 @@ app.whenReady().then(async () => {
 
   headlessOrchestrator = new HeadlessOrchestrator(join(app.getPath('userData'), 'headless-runs'))
 
+  // Notification service
+  const notificationService = new NotificationService()
+
   // Start MCP server for manager agents (non-fatal if it fails)
   mcpServer = new HydraMcpServer(agentManager, app.getPath('userData'))
+  mcpServer.setNotificationService(notificationService)
   try {
     await mcpServer.start()
     const status = mcpServer.getStatus()
@@ -181,7 +186,8 @@ app.whenReady().then(async () => {
     () => {
       workspaceStore.setAgents(agentManager.exportWorkspaceAgents())
     },
-    mcpServer
+    mcpServer,
+    notificationService
   )
   createWindow()
 

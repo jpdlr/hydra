@@ -4,6 +4,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { z } from 'zod'
 import type { AgentManager } from '../agents/AgentManager'
+import type { NotificationService } from '../notifications/NotificationService'
 import type { McpServerStatus } from '@shared/types'
 import { setupManagerWorkspace } from './manager-workspace'
 
@@ -18,11 +19,16 @@ export class HydraMcpServer {
   private managerWorkspace: string | null = null
   private sessions = new Map<string, SessionEntry>()
   private error: string | null = null
+  private notificationService: NotificationService | null = null
 
   constructor(
     private readonly agentManager: AgentManager,
     private readonly userDataPath: string
   ) {}
+
+  setNotificationService(service: NotificationService): void {
+    this.notificationService = service
+  }
 
   async start(): Promise<void> {
     const server = createServer((req, res) => {
@@ -75,6 +81,22 @@ export class HydraMcpServer {
 
   private async handleHttp(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const url = new URL(req.url ?? '/', `http://127.0.0.1:${this.port}`)
+
+    // ── Notification endpoints ──────────────────────────────────────────────
+
+    if (url.pathname === '/notifications/stream' && req.method === 'GET') {
+      this.handleNotificationStream(res)
+      return
+    }
+
+    if (url.pathname === '/notifications' && req.method === 'GET') {
+      const limitParam = url.searchParams.get('limit')
+      const limit = limitParam ? Math.min(Math.max(parseInt(limitParam, 10) || 50, 1), 200) : 50
+      const recent = this.notificationService?.getRecent(limit) ?? []
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(recent))
+      return
+    }
 
     if (url.pathname !== '/mcp') {
       res.writeHead(404, { 'Content-Type': 'application/json' })
@@ -190,15 +212,17 @@ export class HydraMcpServer {
       {
         name: z.string().min(1).max(120).describe('Agent name'),
         projectDir: z.string().min(1).max(4096).describe('Absolute path to the project directory'),
-        model: z.enum(['opus', 'sonnet', 'haiku']).describe('Claude model to use'),
+        provider: z.enum(['claude', 'codex']).default('claude').describe('CLI provider to use (claude or codex)'),
+        model: z.enum(['opus', 'sonnet', 'haiku', 'o3', 'o4-mini', 'codex-mini']).describe('Model to use'),
         initialPrompt: z.string().max(20000).default('').describe('Initial prompt to send after startup'),
         yolo: z.boolean().default(false).describe('Skip all permission prompts')
       },
-      async ({ name, projectDir, model, initialPrompt, yolo }) => {
+      async ({ name, projectDir, provider, model, initialPrompt, yolo }) => {
         try {
           const state = this.agentManager.create({
             name,
             projectDir,
+            provider,
             model,
             yolo,
             initialPrompt,
@@ -370,6 +394,37 @@ export class HydraMcpServer {
         }
       }
     )
+
+    server.tool(
+      'hydra_get_notifications',
+      'Get recent Hydra notifications (agent status changes, headless run completions/errors). Use this to check what happened while you were busy.',
+      {
+        limit: z.number().int().min(1).max(200).default(20).describe('Maximum number of notifications to return')
+      },
+      async ({ limit }) => {
+        const notifications = this.notificationService?.getRecent(limit) ?? []
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(notifications, null, 2) }]
+        }
+      }
+    )
+  }
+
+  private handleNotificationStream(res: ServerResponse): void {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive'
+    })
+    res.write(':\n\n') // SSE comment to establish connection
+
+    const unsubscribe = this.notificationService?.subscribe((notification) => {
+      res.write(`data: ${JSON.stringify(notification)}\n\n`)
+    })
+
+    res.on('close', () => {
+      unsubscribe?.()
+    })
   }
 
   private readBody(req: IncomingMessage): Promise<unknown> {

@@ -3,12 +3,17 @@ import type {
   HeadlessRun,
   HeadlessRunLogPayload,
   HeadlessRunStatus,
-  ModelId
+  ModelId,
+  ProviderId
 } from '@shared/types'
+import { PROVIDER_MODELS, PROVIDER_LABELS, getDefaultModelForProvider } from '@shared/types'
 import styles from './HeadlessPanel.module.css'
+
+const PROVIDERS: ProviderId[] = ['claude', 'codex']
 
 interface HeadlessPanelProps {
   defaultProjectDir: string
+  defaultProvider: ProviderId
   defaultModel: ModelId
   onClose: () => void
 }
@@ -21,9 +26,10 @@ const STATUS_OPTIONS: Array<HeadlessRunStatus | 'all'> = [
   'canceled'
 ]
 
-export function HeadlessPanel({ defaultProjectDir, defaultModel, onClose }: HeadlessPanelProps) {
+export function HeadlessPanel({ defaultProjectDir, defaultProvider, defaultModel, onClose }: HeadlessPanelProps) {
   const [prompt, setPrompt] = useState('')
   const [projectDir, setProjectDir] = useState(defaultProjectDir)
+  const [provider, setProvider] = useState<ProviderId>(defaultProvider)
   const [model, setModel] = useState<ModelId>(defaultModel)
   const [resumeSessionId, setResumeSessionId] = useState('')
 
@@ -122,6 +128,7 @@ export function HeadlessPanel({ defaultProjectDir, defaultModel, onClose }: Head
       const created = await window.hydra.startHeadlessRun({
         prompt: trimmedPrompt,
         projectDir: trimmedProjectDir,
+        provider,
         model,
         resumeSessionId: resumeSessionId.trim() || null
       })
@@ -163,12 +170,25 @@ export function HeadlessPanel({ defaultProjectDir, defaultModel, onClose }: Head
           <div className={styles.formRow}>
             <select
               className={styles.select}
+              value={provider}
+              onChange={(e) => {
+                const p = e.target.value as ProviderId
+                setProvider(p)
+                setModel(getDefaultModelForProvider(p))
+              }}
+            >
+              {PROVIDERS.map((p) => (
+                <option key={p} value={p}>{PROVIDER_LABELS[p]}</option>
+              ))}
+            </select>
+            <select
+              className={styles.select}
               value={model}
               onChange={(e) => setModel(e.target.value as ModelId)}
             >
-              <option value="opus">Opus</option>
-              <option value="sonnet">Sonnet</option>
-              <option value="haiku">Haiku</option>
+              {PROVIDER_MODELS[provider].map((m) => (
+                <option key={m.id} value={m.id}>{m.label}</option>
+              ))}
             </select>
             <input
               className={styles.input}

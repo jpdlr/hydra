@@ -39,6 +39,7 @@ describe('NewAgentDialog', () => {
 
     render(
       <NewAgentDialog
+        defaultProvider="claude"
         defaultModel="sonnet"
         defaultProjectDir=""
         globalYolo={false}
@@ -72,6 +73,7 @@ describe('NewAgentDialog', () => {
       expect.objectContaining({
         name: 'EP inventory',
         projectDir: '/Users/jp/projects/ep_inventory',
+        provider: 'claude',
         model: 'sonnet',
         resumeSessionId: 'abc12345'
       })
