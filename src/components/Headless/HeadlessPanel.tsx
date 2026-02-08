@@ -6,7 +6,7 @@ import type {
   ModelId,
   ProviderId
 } from '@shared/types'
-import { PROVIDER_MODELS, PROVIDER_LABELS, getDefaultModelForProvider } from '@shared/types'
+import { PROVIDER_MODELS, PROVIDER_LABELS, CODEX_REASONING_LEVELS, getDefaultModelForProvider } from '@shared/types'
 import styles from './HeadlessPanel.module.css'
 
 const PROVIDERS: ProviderId[] = ['claude', 'codex']
@@ -31,6 +31,9 @@ export function HeadlessPanel({ defaultProjectDir, defaultProvider, defaultModel
   const [projectDir, setProjectDir] = useState(defaultProjectDir)
   const [provider, setProvider] = useState<ProviderId>(defaultProvider)
   const [model, setModel] = useState<ModelId>(defaultModel)
+  const [customModel, setCustomModel] = useState('')
+  const [useCustomModel, setUseCustomModel] = useState(false)
+  const [reasoningEffort, setReasoningEffort] = useState('')
   const [resumeSessionId, setResumeSessionId] = useState('')
 
   const [query, setQuery] = useState('')
@@ -117,11 +120,13 @@ export function HeadlessPanel({ defaultProjectDir, defaultProvider, defaultModel
     return [...runs].sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))
   }, [runs])
 
+  const effectiveModel = useCustomModel ? customModel.trim() : model
+
   const handleStart = async (e: React.FormEvent) => {
     e.preventDefault()
     const trimmedPrompt = prompt.trim()
     const trimmedProjectDir = projectDir.trim()
-    if (!trimmedPrompt || !trimmedProjectDir) return
+    if (!trimmedPrompt || !trimmedProjectDir || !effectiveModel) return
 
     setIsStarting(true)
     try {
@@ -129,7 +134,8 @@ export function HeadlessPanel({ defaultProjectDir, defaultProvider, defaultModel
         prompt: trimmedPrompt,
         projectDir: trimmedProjectDir,
         provider,
-        model,
+        model: effectiveModel,
+        reasoningEffort: provider === 'codex' && reasoningEffort ? reasoningEffort : undefined,
         resumeSessionId: resumeSessionId.trim() || null
       })
       setPrompt('')
@@ -175,6 +181,9 @@ export function HeadlessPanel({ defaultProjectDir, defaultProvider, defaultModel
                 const p = e.target.value as ProviderId
                 setProvider(p)
                 setModel(getDefaultModelForProvider(p))
+                setUseCustomModel(false)
+                setCustomModel('')
+                setReasoningEffort('')
               }}
             >
               {PROVIDERS.map((p) => (
@@ -183,13 +192,36 @@ export function HeadlessPanel({ defaultProjectDir, defaultProvider, defaultModel
             </select>
             <select
               className={styles.select}
-              value={model}
-              onChange={(e) => setModel(e.target.value as ModelId)}
+              value={useCustomModel ? '__custom__' : model}
+              onChange={(e) => {
+                if (e.target.value === '__custom__') {
+                  setUseCustomModel(true)
+                } else {
+                  setUseCustomModel(false)
+                  setCustomModel('')
+                  setModel(e.target.value)
+                }
+              }}
             >
               {PROVIDER_MODELS[provider].map((m) => (
                 <option key={m.id} value={m.id}>{m.label}</option>
               ))}
+              <option value="__custom__">Custom...</option>
             </select>
+            {provider === 'codex' && (
+              <select
+                className={styles.select}
+                value={reasoningEffort}
+                onChange={(e) => setReasoningEffort(e.target.value)}
+              >
+                <option value="">Reasoning: Default</option>
+                {CODEX_REASONING_LEVELS.map((level) => (
+                  <option key={level} value={level}>
+                    {level.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                  </option>
+                ))}
+              </select>
+            )}
             <input
               className={styles.input}
               value={resumeSessionId}
@@ -199,11 +231,21 @@ export function HeadlessPanel({ defaultProjectDir, defaultProvider, defaultModel
             <button
               className={styles.startBtn}
               type="submit"
-              disabled={isStarting || !prompt.trim() || !projectDir.trim()}
+              disabled={isStarting || !prompt.trim() || !projectDir.trim() || !effectiveModel}
             >
               {isStarting ? 'Starting...' : 'Start'}
             </button>
           </div>
+          {useCustomModel && (
+            <input
+              className={styles.input}
+              type="text"
+              value={customModel}
+              onChange={(e) => setCustomModel(e.target.value)}
+              placeholder="Custom model identifier (e.g. gpt-5.3-codex)"
+              style={{ marginTop: '0.375rem' }}
+            />
+          )}
         </form>
 
         <div className={styles.filters}>

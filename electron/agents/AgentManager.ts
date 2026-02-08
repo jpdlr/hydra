@@ -72,6 +72,7 @@ export class AgentManager extends EventEmitter {
       projectDir: payload.projectDir,
       provider: payload.provider,
       model: payload.model,
+      reasoningEffort: payload.reasoningEffort,
       yolo: payload.yolo,
       isManager: payload.isManager ?? false,
       sessionId: payload.resumeSessionId ?? null,

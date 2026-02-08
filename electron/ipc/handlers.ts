@@ -18,12 +18,14 @@ import { z } from 'zod'
 const agentIdSchema = z.string().trim().min(1).max(128)
 const projectDirSchema = z.string().trim().min(1).max(4096)
 const providerSchema = z.enum(['claude', 'codex'])
-const modelSchema = z.enum(['opus', 'sonnet', 'haiku', 'o3', 'o4-mini', 'codex-mini'])
+const modelSchema = z.string().trim().min(1).max(128)
+const reasoningEffortSchema = z.string().trim().max(32).optional()
 const createAgentPayloadSchema = z.object({
   name: z.string().trim().min(1).max(120),
   projectDir: projectDirSchema,
   provider: providerSchema,
   model: modelSchema,
+  reasoningEffort: reasoningEffortSchema,
   yolo: z.boolean(),
   initialPrompt: z.string().max(20000),
   resumeSessionId: z.string().trim().min(1).max(128).nullable().optional(),
@@ -79,6 +81,7 @@ const headlessStartSchema = z.object({
   projectDir: projectDirSchema,
   provider: providerSchema,
   model: modelSchema,
+  reasoningEffort: reasoningEffortSchema,
   resumeSessionId: z.string().trim().min(1).max(128).nullable().optional()
 })
 const headlessListOptionsSchema = z

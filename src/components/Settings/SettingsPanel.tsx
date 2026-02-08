@@ -106,13 +106,32 @@ export function SettingsPanel({ config, onUpdate, onClose }: SettingsPanelProps)
             <label className={styles.label}>Default Model</label>
             <select
               className={styles.select}
-              value={config.defaultModel}
-              onChange={(e) => onUpdate({ defaultModel: e.target.value as ModelId })}
+              value={
+                PROVIDER_MODELS[config.defaultProvider].some((m) => m.id === config.defaultModel)
+                  ? config.defaultModel
+                  : '__custom__'
+              }
+              onChange={(e) => {
+                if (e.target.value !== '__custom__') {
+                  onUpdate({ defaultModel: e.target.value })
+                }
+              }}
             >
               {PROVIDER_MODELS[config.defaultProvider].map((m) => (
                 <option key={m.id} value={m.id}>{m.label}</option>
               ))}
+              <option value="__custom__">Custom...</option>
             </select>
+            {!PROVIDER_MODELS[config.defaultProvider].some((m) => m.id === config.defaultModel) && (
+              <input
+                className={styles.dirInput}
+                type="text"
+                value={config.defaultModel}
+                onChange={(e) => onUpdate({ defaultModel: e.target.value })}
+                placeholder="Custom model identifier"
+                style={{ marginTop: '0.375rem' }}
+              />
+            )}
           </div>
 
           {/* Max agents */}

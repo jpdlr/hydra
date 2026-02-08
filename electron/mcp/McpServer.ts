@@ -213,17 +213,19 @@ export class HydraMcpServer {
         name: z.string().min(1).max(120).describe('Agent name'),
         projectDir: z.string().min(1).max(4096).describe('Absolute path to the project directory'),
         provider: z.enum(['claude', 'codex']).default('claude').describe('CLI provider to use (claude or codex)'),
-        model: z.enum(['opus', 'sonnet', 'haiku', 'o3', 'o4-mini', 'codex-mini']).describe('Model to use'),
+        model: z.string().min(1).max(128).describe('Model to use (e.g. opus, sonnet, haiku, gpt-5.3-codex)'),
+        reasoningEffort: z.string().max(32).optional().describe('Reasoning effort level for Codex (low, medium, high, extra_high)'),
         initialPrompt: z.string().max(20000).default('').describe('Initial prompt to send after startup'),
         yolo: z.boolean().default(false).describe('Skip all permission prompts')
       },
-      async ({ name, projectDir, provider, model, initialPrompt, yolo }) => {
+      async ({ name, projectDir, provider, model, reasoningEffort, initialPrompt, yolo }) => {
         try {
           const state = this.agentManager.create({
             name,
             projectDir,
             provider,
             model,
+            reasoningEffort,
             yolo,
             initialPrompt,
             isManager: false // Prevent recursive managers

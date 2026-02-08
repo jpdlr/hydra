@@ -1,5 +1,4 @@
 import type { AgentState, ProviderId, ModelId } from '@shared/types'
-import { PROVIDER_MODELS } from '@shared/types'
 
 export interface ProviderConfig {
   id: ProviderId
@@ -8,7 +7,7 @@ export interface ProviderConfig {
   /** Build CLI arguments from agent state */
   buildArgs(state: AgentState): string[]
   /** Build CLI arguments for headless (non-interactive) runs */
-  buildHeadlessArgs(model: ModelId, prompt: string, resumeSessionId: string | null): string[]
+  buildHeadlessArgs(model: ModelId, prompt: string, resumeSessionId: string | null, reasoningEffort?: string): string[]
   /** Whether this provider supports --resume */
   supportsResume: boolean
   /** CLI flag for auto-approve / YOLO mode, or null if unsupported */
@@ -41,7 +40,7 @@ const claudeProvider: ProviderConfig = {
     return args
   },
 
-  buildHeadlessArgs(model: ModelId, prompt: string, resumeSessionId: string | null): string[] {
+  buildHeadlessArgs(model: ModelId, prompt: string, resumeSessionId: string | null, _reasoningEffort?: string): string[] {
     const args = ['-p', prompt, '--output-format', 'stream-json', '--model', model]
     if (resumeSessionId) args.push('--resume', resumeSessionId)
     return args
@@ -80,11 +79,17 @@ const codexProvider: ProviderConfig = {
     const args: string[] = []
     if (state.yolo) args.push('--full-auto')
     args.push('--model', state.model)
+    if (state.reasoningEffort) {
+      args.push('-c', `model_reasoning_effort="${state.reasoningEffort}"`)
+    }
     return args
   },
 
-  buildHeadlessArgs(model: ModelId, prompt: string, _resumeSessionId: string | null): string[] {
+  buildHeadlessArgs(model: ModelId, prompt: string, _resumeSessionId: string | null, reasoningEffort?: string): string[] {
     const args = ['--model', model, '-q', prompt]
+    if (reasoningEffort) {
+      args.push('-c', `model_reasoning_effort="${reasoningEffort}"`)
+    }
     return args
   },
 

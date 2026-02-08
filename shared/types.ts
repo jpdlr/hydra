@@ -8,6 +8,7 @@ export interface AgentConfig {
   projectDir: string
   provider: ProviderId
   model: ModelId
+  reasoningEffort?: string
   yolo: boolean
   isManager: boolean
   sessionId: string | null
@@ -26,10 +27,8 @@ export interface AgentState extends AgentConfig {
 
 export type ProviderId = 'claude' | 'codex'
 
-export type ClaudeModelId = 'opus' | 'sonnet' | 'haiku'
-export type CodexModelId = 'o3' | 'o4-mini' | 'codex-mini'
-
-export type ModelId = ClaudeModelId | CodexModelId
+/** Free-form model identifier — any string accepted so new models work without code changes. */
+export type ModelId = string
 
 export const PROVIDER_MODELS: Record<ProviderId, { id: ModelId; label: string }[]> = {
   claude: [
@@ -38,11 +37,16 @@ export const PROVIDER_MODELS: Record<ProviderId, { id: ModelId; label: string }[
     { id: 'haiku', label: 'Haiku' }
   ],
   codex: [
-    { id: 'o3', label: 'o3' },
-    { id: 'o4-mini', label: 'o4-mini' },
-    { id: 'codex-mini', label: 'Codex Mini' }
+    { id: 'gpt-5.3-codex', label: 'GPT-5.3 Codex' },
+    { id: 'gpt-5.2-codex', label: 'GPT-5.2 Codex' },
+    { id: 'gpt-5.1-codex-max', label: 'GPT-5.1 Codex Max' },
+    { id: 'gpt-5.2', label: 'GPT-5.2' },
+    { id: 'gpt-5.1-codex-mini', label: 'GPT-5.1 Codex Mini' }
   ]
 }
+
+export const CODEX_REASONING_LEVELS = ['low', 'medium', 'high', 'extra_high'] as const
+export type CodexReasoningLevel = (typeof CODEX_REASONING_LEVELS)[number]
 
 export const PROVIDER_LABELS: Record<ProviderId, string> = {
   claude: 'Claude',
@@ -175,6 +179,7 @@ export interface CreateAgentPayload {
   projectDir: string
   provider: ProviderId
   model: ModelId
+  reasoningEffort?: string
   yolo: boolean
   initialPrompt: string
   resumeSessionId?: string | null
@@ -228,6 +233,7 @@ export interface HeadlessRun {
   projectDir: string
   provider: ProviderId
   model: ModelId
+  reasoningEffort?: string
   resumeSessionId: string | null
   status: HeadlessRunStatus
   startedAt: string
@@ -241,6 +247,7 @@ export interface StartHeadlessRunPayload {
   projectDir: string
   provider: ProviderId
   model: ModelId
+  reasoningEffort?: string
   resumeSessionId?: string | null
 }
 

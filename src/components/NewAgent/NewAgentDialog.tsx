@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ModelId, ProviderId, CreateAgentPayload, ClaudeSessionSummary, McpServerStatus } from '@shared/types'
-import { PROVIDER_MODELS, PROVIDER_LABELS, getDefaultModelForProvider } from '@shared/types'
+import { PROVIDER_MODELS, PROVIDER_LABELS, CODEX_REASONING_LEVELS, getDefaultModelForProvider } from '@shared/types'
 import styles from './NewAgentDialog.module.css'
 
 const PROVIDERS: ProviderId[] = ['claude', 'codex']
@@ -26,6 +26,9 @@ export function NewAgentDialog({
   const [projectDir, setProjectDir] = useState(defaultProjectDir)
   const [provider, setProvider] = useState<ProviderId>(defaultProvider)
   const [model, setModel] = useState<ModelId>(defaultModel)
+  const [customModel, setCustomModel] = useState('')
+  const [useCustomModel, setUseCustomModel] = useState(false)
+  const [reasoningEffort, setReasoningEffort] = useState('')
   const [yolo, setYolo] = useState(globalYolo)
   const [initialPrompt, setInitialPrompt] = useState('')
   const [isManager, setIsManager] = useState(false)
@@ -93,17 +96,21 @@ export function NewAgentDialog({
     }
   }, [resumeExisting, selectedSession])
 
+  const effectiveModel = useCustomModel ? customModel.trim() : model
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
     if (!isManager && !projectDir.trim()) return
     if (resumeExisting && !selectedSessionId) return
+    if (!effectiveModel) return
 
     onSubmit({
       name: name.trim(),
       projectDir: isManager ? '' : projectDir.trim(),
       provider,
-      model,
+      model: effectiveModel,
+      reasoningEffort: provider === 'codex' && reasoningEffort ? reasoningEffort : undefined,
       yolo,
       initialPrompt: initialPrompt.trim(),
       resumeSessionId: resumeExisting ? selectedSessionId : null,
@@ -181,6 +188,9 @@ export function NewAgentDialog({
                   onClick={() => {
                     setProvider(p)
                     setModel(getDefaultModelForProvider(p))
+                    setUseCustomModel(false)
+                    setCustomModel('')
+                    setReasoningEffort('')
                     if (p !== 'claude') setResumeExisting(false)
                   }}
                 >
@@ -193,19 +203,54 @@ export function NewAgentDialog({
           {/* Model */}
           <div className={styles.field}>
             <label className={styles.label}>Model</label>
-            <div className={styles.segmented}>
+            <select
+              className={styles.select}
+              value={useCustomModel ? '__custom__' : model}
+              onChange={(e) => {
+                if (e.target.value === '__custom__') {
+                  setUseCustomModel(true)
+                } else {
+                  setUseCustomModel(false)
+                  setCustomModel('')
+                  setModel(e.target.value)
+                }
+              }}
+            >
               {PROVIDER_MODELS[provider].map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  className={`${styles.segment} ${model === m.id ? styles.active : ''}`}
-                  onClick={() => setModel(m.id)}
-                >
-                  {m.label}
-                </button>
+                <option key={m.id} value={m.id}>{m.label}</option>
               ))}
-            </div>
+              <option value="__custom__">Custom...</option>
+            </select>
+            {useCustomModel && (
+              <input
+                className={styles.input}
+                type="text"
+                value={customModel}
+                onChange={(e) => setCustomModel(e.target.value)}
+                placeholder="e.g. gpt-5.3-codex"
+                style={{ marginTop: '0.375rem' }}
+              />
+            )}
           </div>
+
+          {/* Reasoning Effort (Codex only) */}
+          {provider === 'codex' && (
+            <div className={styles.field}>
+              <label className={styles.label}>Reasoning Effort</label>
+              <select
+                className={styles.select}
+                value={reasoningEffort}
+                onChange={(e) => setReasoningEffort(e.target.value)}
+              >
+                <option value="">Default</option>
+                {CODEX_REASONING_LEVELS.map((level) => (
+                  <option key={level} value={level}>
+                    {level.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* YOLO */}
           <div className={styles.field}>
@@ -355,7 +400,7 @@ export function NewAgentDialog({
           <button
             className={styles.submitBtn}
             type="submit"
-            disabled={!name.trim() || (!isManager && !projectDir.trim()) || (resumeExisting && !selectedSessionId)}
+            disabled={!name.trim() || (!isManager && !projectDir.trim()) || (resumeExisting && !selectedSessionId) || !effectiveModel}
           >
             Create Agent
           </button>

@@ -63,6 +63,7 @@ export class HeadlessOrchestrator extends EventEmitter {
       projectDir: payload.projectDir,
       provider: payload.provider,
       model: payload.model,
+      reasoningEffort: payload.reasoningEffort,
       resumeSessionId: payload.resumeSessionId ?? null,
       status: 'running',
       startedAt,
@@ -84,7 +85,7 @@ export class HeadlessOrchestrator extends EventEmitter {
     this.persistRun(managed)
 
     const provider = getProvider(payload.provider)
-    const args = provider.buildHeadlessArgs(payload.model, payload.prompt, payload.resumeSessionId ?? null)
+    const args = provider.buildHeadlessArgs(payload.model, payload.prompt, payload.resumeSessionId ?? null, payload.reasoningEffort)
 
     try {
       const child = spawn(provider.command, args, {
@@ -381,16 +382,14 @@ export class HeadlessOrchestrator extends EventEmitter {
       run.status === 'errored' ||
       run.status === 'canceled'
 
-    const validModels = ['opus', 'sonnet', 'haiku', 'o3', 'o4-mini', 'codex-mini']
     const validProviders = ['claude', 'codex']
-    const validModel = validModels.includes(run.model as string)
     const validProvider = run.provider === undefined || validProviders.includes(run.provider as string)
 
     return (
       typeof run.id === 'string' &&
       typeof run.prompt === 'string' &&
       typeof run.projectDir === 'string' &&
-      validModel &&
+      typeof run.model === 'string' &&
       validProvider &&
       (typeof run.resumeSessionId === 'string' || run.resumeSessionId === null) &&
       validStatus &&
