@@ -170,50 +170,56 @@
 /* ── Midnight Theme ─────────────────────────────────────────────────────── */
 
 [data-theme='midnight'] {
-  --color-bg: #181818;
-  --color-surface: #222221;
-  --color-surface-raised: #292928;
-  --color-surface-hover: #2f2f2e;
-  --color-sidebar: #1b1b1b;
-  --color-sidebar-hover: #222221;
+  --color-bg: #191919;
+  --color-surface: #232323;
+  --color-surface-raised: #2a2a2a;
+  --color-surface-hover: #313131;
+  --color-sidebar: #1e1e1e;
+  --color-sidebar-hover: #272727;
 
   --color-accent: #FFFFFF;
-  --color-accent-hover: #EAEAEA;
-  --color-accent-text: #181818;
-  --color-accent-subtle: rgba(255, 255, 255, 0.12);
+  --color-accent-hover: #D4D4D4;
+  --color-accent-text: #191919;
+  --color-accent-subtle: rgba(255, 255, 255, 0.08);
 
-  --color-text-primary: #FFFFFF;
-  --color-text-secondary: #E0E0E0;
-  --color-text-muted: #B2B2B2;
-  --color-text-inverse: #181818;
+  --color-text-primary: #E8E8E8;
+  --color-text-secondary: #A0A0A0;
+  --color-text-muted: #666666;
+  --color-text-inverse: #191919;
 
-  --color-border: #FFFFFF;
-  --color-border-subtle: rgba(255, 255, 255, 0.72);
-  --color-divider: #FFFFFF;
+  --color-border: #333333;
+  --color-border-subtle: #2a2a2a;
+  --color-divider: #2e2e2e;
 
   --color-status-running: #7EE787;
-  --color-status-idle: #A8A8A8;
+  --color-status-idle: #777777;
   --color-status-error: #FF6B6B;
   --color-status-starting: #FFD166;
 
   --color-yolo: #FF6B6B;
-  --color-yolo-bg: rgba(255, 107, 107, 0.12);
-  --color-yolo-border: rgba(255, 107, 107, 0.48);
+  --color-yolo-bg: rgba(255, 107, 107, 0.1);
+  --color-yolo-border: rgba(255, 107, 107, 0.35);
 
-  --color-input-bg: #222221;
-  --color-input-border: #FFFFFF;
-  --color-input-focus: #FFFFFF;
+  --color-input-bg: #232323;
+  --color-input-border: #333333;
+  --color-input-focus: #505050;
 
-  --color-bubble-user: #FFFFFF;
-  --color-bubble-user-text: #181818;
-  --color-bubble-assistant: #222221;
-  --color-bubble-assistant-text: #FFFFFF;
+  --color-bubble-user: #E8E8E8;
+  --color-bubble-user-text: #191919;
+  --color-bubble-assistant: #2a2a2a;
+  --color-bubble-assistant-text: #E8E8E8;
 
   --color-code-bg: #1e1e1e;
-  --color-code-border: #FFFFFF;
+  --color-code-border: #333333;
 
-  --color-scrollbar: rgba(255, 255, 255, 0.28);
-  --color-scrollbar-hover: rgba(255, 255, 255, 0.44);
+  --color-scrollbar: rgba(255, 255, 255, 0.12);
+  --color-scrollbar-hover: rgba(255, 255, 255, 0.2);
+
+  /* Terminal overrides — neutral instead of terracotta */
+  --color-terminal-bg: #191919;
+  --color-terminal-text: #E8E8E8;
+  --color-terminal-cursor: #E8E8E8;
+  --color-terminal-selection: rgba(255, 255, 255, 0.15);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.32);
   --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.44);

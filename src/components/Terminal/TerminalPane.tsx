@@ -13,29 +13,35 @@ interface TerminalPaneProps {
   lineHeight?: number
 }
 
-const TERMINAL_THEME = {
-  background: '#262624',
-  foreground: '#E8E4E0',
-  cursor: '#D97757',
-  cursorAccent: '#262624',
-  selectionBackground: 'rgba(217, 119, 87, 0.3)',
-  selectionForeground: '#E8E4E0',
-  black: '#262624',
-  red: '#E53935',
-  green: '#66BB6A',
-  yellow: '#FFA726',
-  blue: '#42A5F5',
-  magenta: '#AB47BC',
-  cyan: '#26C6DA',
-  white: '#E8E4E0',
-  brightBlack: '#6B6760',
-  brightRed: '#EF5350',
-  brightGreen: '#81C784',
-  brightYellow: '#FFB74D',
-  brightBlue: '#64B5F6',
-  brightMagenta: '#CE93D8',
-  brightCyan: '#4DD0E1',
-  brightWhite: '#FAF6F1'
+function getTerminalTheme(): Record<string, string> {
+  const s = getComputedStyle(document.documentElement)
+  const v = (name: string, fallback: string) => s.getPropertyValue(name).trim() || fallback
+  const bg = v('--color-terminal-bg', '#262624')
+  const fg = v('--color-terminal-text', '#E8E4E0')
+  return {
+    background: bg,
+    foreground: fg,
+    cursor: v('--color-terminal-cursor', '#D97757'),
+    cursorAccent: bg,
+    selectionBackground: v('--color-terminal-selection', 'rgba(217, 119, 87, 0.3)'),
+    selectionForeground: fg,
+    black: bg,
+    red: '#E53935',
+    green: '#66BB6A',
+    yellow: '#FFA726',
+    blue: '#42A5F5',
+    magenta: '#AB47BC',
+    cyan: '#26C6DA',
+    white: fg,
+    brightBlack: '#6B6760',
+    brightRed: '#EF5350',
+    brightGreen: '#81C784',
+    brightYellow: '#FFB74D',
+    brightBlue: '#64B5F6',
+    brightMagenta: '#CE93D8',
+    brightCyan: '#4DD0E1',
+    brightWhite: '#FAF6F1'
+  }
 }
 
 export function TerminalPane({
@@ -69,7 +75,7 @@ export function TerminalPane({
     if (!containerRef.current) return
 
     const terminal = new Terminal({
-      theme: TERMINAL_THEME,
+      theme: getTerminalTheme(),
       fontFamily: '"SF Mono", "Menlo", "Monaco", monospace',
       fontSize,
       lineHeight,
@@ -143,6 +149,15 @@ export function TerminalPane({
     })
     observer.observe(containerRef.current)
 
+    // Re-apply terminal theme when data-theme attribute changes
+    const themeObserver = new MutationObserver(() => {
+      terminal.options.theme = getTerminalTheme()
+    })
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme']
+    })
+
     // ── Native DOM listeners for Shift+Enter (capture phase fallback) ──
     // xterm creates an internal textarea that receives key events.
     // Use capture phase on the wrapper to intercept before xterm does.
@@ -200,6 +215,7 @@ export function TerminalPane({
       }
       scrollDisposable.dispose()
       observer.disconnect()
+      themeObserver.disconnect()
       wrapper.removeEventListener('keydown', handleKeyDown, true)
       wrapper.removeEventListener('dragenter', handleDragEnter, true)
       wrapper.removeEventListener('dragleave', handleDragLeave, true)
@@ -241,7 +257,7 @@ export function TerminalPane({
       style={{
         width: '100%',
         height: '100%',
-        background: '#262624',
+        background: 'var(--color-terminal-bg)',
         borderRadius: 'inherit',
         overflow: 'hidden',
         position: 'relative'
@@ -268,16 +284,17 @@ export function TerminalPane({
             padding: '4px 10px',
             fontSize: '11px',
             fontWeight: 500,
-            color: '#E8E4E0',
-            background: 'rgba(48, 48, 46, 0.92)',
-            border: '1px solid rgba(59, 59, 56, 0.8)',
+            color: 'var(--color-text-primary)',
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
             borderRadius: '12px',
             cursor: 'pointer',
             backdropFilter: 'blur(6px)',
+            opacity: 0.92,
             transition: 'opacity 150ms'
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(59, 59, 56, 0.95)' }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(48, 48, 46, 0.92)' }}
+          onMouseEnter={(e) => { e.currentTarget.style.opacity = '1' }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.92' }}
         >
           <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
             <path d="M8 3v10M4 9l4 4 4-4" />
@@ -290,8 +307,8 @@ export function TerminalPane({
           style={{
             position: 'absolute',
             inset: 0,
-            background: 'rgba(224, 139, 109, 0.08)',
-            border: '2px dashed rgba(224, 139, 109, 0.5)',
+            background: 'var(--color-accent-subtle)',
+            border: '2px dashed var(--color-accent-hover)',
             borderRadius: 'inherit',
             display: 'flex',
             alignItems: 'center',
@@ -302,10 +319,10 @@ export function TerminalPane({
         >
           <span
             style={{
-              color: '#E08B6D',
+              color: 'var(--color-accent)',
               fontSize: '13px',
               fontWeight: 500,
-              background: 'rgba(38, 38, 36, 0.9)',
+              background: 'var(--color-surface)',
               padding: '6px 14px',
               borderRadius: '6px'
             }}

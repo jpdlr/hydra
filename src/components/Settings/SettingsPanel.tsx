@@ -14,8 +14,8 @@ const THEMES: Array<{ id: ThemeId; label: string; description: string; swatches:
   {
     id: 'midnight',
     label: 'Midnight',
-    description: 'Cleaner modern dark palette with white borders.',
-    swatches: ['#181818', '#222221']
+    description: 'Clean modern dark palette with subtle borders.',
+    swatches: ['#191919', '#232323']
   },
   {
     id: 'light',
