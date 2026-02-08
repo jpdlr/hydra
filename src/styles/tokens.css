@@ -115,26 +115,26 @@
 /* ── Dark Theme ─────────────────────────────────────────────────────────── */
 
 [data-theme='dark'] {
-  --color-bg: #1A1714;
-  --color-surface: #2D2825;
-  --color-surface-raised: #3D3632;
-  --color-surface-hover: #4A433E;
-  --color-sidebar: #231F1C;
-  --color-sidebar-hover: #2D2825;
+  --color-bg: #262624;
+  --color-surface: #30302e;
+  --color-surface-raised: #3b3b38;
+  --color-surface-hover: #46463f;
+  --color-sidebar: #2b2b29;
+  --color-sidebar-hover: #30302e;
 
   --color-accent: #E08B6D;
   --color-accent-hover: #D97757;
-  --color-accent-text: #1A1714;
+  --color-accent-text: #262624;
   --color-accent-subtle: rgba(224, 139, 109, 0.12);
 
-  --color-text-primary: #E8E0D8;
-  --color-text-secondary: #A89E95;
-  --color-text-muted: #6B6058;
-  --color-text-inverse: #1A1714;
+  --color-text-primary: #E8E4E0;
+  --color-text-secondary: #A8A49E;
+  --color-text-muted: #6B6760;
+  --color-text-inverse: #262624;
 
-  --color-border: #3D3632;
-  --color-border-subtle: #332E2B;
-  --color-divider: #3D3632;
+  --color-border: #3b3b38;
+  --color-border-subtle: #353532;
+  --color-divider: #3b3b38;
 
   --color-status-running: #66BB6A;
   --color-status-idle: #757575;
@@ -145,17 +145,17 @@
   --color-yolo-bg: rgba(255, 82, 82, 0.1);
   --color-yolo-border: rgba(255, 82, 82, 0.35);
 
-  --color-input-bg: #2D2825;
-  --color-input-border: #3D3632;
+  --color-input-bg: #30302e;
+  --color-input-border: #3b3b38;
   --color-input-focus: #E08B6D;
 
   --color-bubble-user: #D97757;
   --color-bubble-user-text: #FFFFFF;
-  --color-bubble-assistant: #2D2825;
-  --color-bubble-assistant-text: #E8E0D8;
+  --color-bubble-assistant: #30302e;
+  --color-bubble-assistant-text: #E8E4E0;
 
-  --color-code-bg: #1E1B18;
-  --color-code-border: #3D3632;
+  --color-code-bg: #2a2a28;
+  --color-code-border: #3b3b38;
 
   --color-scrollbar: rgba(232, 224, 216, 0.12);
   --color-scrollbar-hover: rgba(232, 224, 216, 0.2);
