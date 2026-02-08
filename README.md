@@ -151,7 +151,7 @@ App configuration is stored in `<userData>/config.json`:
 | `defaultProvider` | Default AI provider (`claude` or `codex`) | `claude` |
 | `defaultModel` | Default model for new agents | `sonnet` |
 | `maxAgents` | Maximum concurrent agents | `8` |
-| `theme` | UI theme (`light` or `dark`) | `dark` |
+| `theme` | UI theme (`light`, `dark` = Terracotta, or `midnight`) | `dark` |
 | `defaultViewMode` | Startup view (`chat` or `grid`) | `chat` |
 | `sessionMaxAgeDays` | Max session age to display (0 = no limit) | `7` |
 | `sessionImportLimit` | Max sessions to import (0 = unlimited) | `500` |
