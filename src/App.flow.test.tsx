@@ -61,6 +61,10 @@ vi.mock('./components/Headless/HeadlessPanel', () => ({
   HeadlessPanel: () => <div>headless-panel</div>
 }))
 
+vi.mock('./components/Notifications/NotificationToast', () => ({
+  NotificationToast: () => null
+}))
+
 const baseConfig: AppConfig = {
   schemaVersion: 1,
   defaultModel: 'sonnet',
@@ -184,7 +188,9 @@ describe('App flow behavior', () => {
       ...window.hydra,
       preflight: vi.fn().mockResolvedValue(failedPreflight),
       onConfirmQuit: vi.fn().mockReturnValue(() => undefined),
-      confirmQuit: vi.fn().mockResolvedValue(true)
+      confirmQuit: vi.fn().mockResolvedValue(true),
+      onNotification: vi.fn().mockReturnValue(() => undefined),
+      dismissNotification: vi.fn()
     }
 
     render(<App />)
@@ -209,7 +215,9 @@ describe('App flow behavior', () => {
         quitListener = cb
         return () => undefined
       }),
-      confirmQuit: vi.fn().mockResolvedValue(true)
+      confirmQuit: vi.fn().mockResolvedValue(true),
+      onNotification: vi.fn().mockReturnValue(() => undefined),
+      dismissNotification: vi.fn()
     }
 
     render(<App />)
@@ -245,7 +253,9 @@ describe('App flow behavior', () => {
         error: null
       } satisfies PreflightResult),
       onConfirmQuit: vi.fn().mockReturnValue(() => undefined),
-      confirmQuit: vi.fn().mockResolvedValue(true)
+      confirmQuit: vi.fn().mockResolvedValue(true),
+      onNotification: vi.fn().mockReturnValue(() => undefined),
+      dismissNotification: vi.fn()
     }
 
     render(<App />)
