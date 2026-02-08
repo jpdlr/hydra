@@ -26,6 +26,7 @@ describe('HeadlessOrchestrator', () => {
       id: 'run12345',
       prompt: 'Build inventory dashboard',
       projectDir: '/tmp/ep_inventory',
+      provider: 'claude',
       model: 'sonnet',
       resumeSessionId: null,
       status: 'completed',

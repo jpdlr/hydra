@@ -1,4 +1,4 @@
-import type { AgentState, ProviderId, ModelId } from '@shared/types'
+import { PROVIDER_MODELS, type AgentState, type ProviderId, type ModelId } from '@shared/types'
 
 export interface ProviderConfig {
   id: ProviderId

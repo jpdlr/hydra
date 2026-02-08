@@ -67,6 +67,7 @@ vi.mock('./components/Notifications/NotificationToast', () => ({
 
 const baseConfig: AppConfig = {
   schemaVersion: 1,
+  defaultProvider: 'claude',
   defaultModel: 'sonnet',
   globalYolo: false,
   maxAgents: 8,
@@ -92,6 +93,7 @@ function createAgent(id: string, overrides: Partial<AgentState> = {}): AgentStat
     id,
     name: 'Agent',
     projectDir: '/tmp/project',
+    provider: 'claude',
     model: 'sonnet',
     yolo: false,
     isManager: false,
