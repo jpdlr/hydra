@@ -125,13 +125,48 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
         run: npm run dist:win:dry-run
 
-      - name: Publish Draft Release (Windows)
+      - name: Resolve release tag
         if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
-        uses: softprops/action-gh-release@v2
+        id: release-tag
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          if ($env:GITHUB_REF -like "refs/tags/*") {
+            $tag = $env:GITHUB_REF.Substring(10)
+          }
+          if ([string]::IsNullOrWhiteSpace($tag)) {
+            throw "Unable to resolve release tag from GITHUB_REF/GITHUB_REF_NAME"
+          }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+
+      - name: Ensure draft release exists (Windows)
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.release-tag.outputs.tag }}"
+          gh release view $tag --repo $env:GITHUB_REPOSITORY | Out-Null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --repo $env:GITHUB_REPOSITORY --draft --title $tag --notes "Automated Windows installer build."
+          }
+
+      - name: Upload release assets (Windows)
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.release-tag.outputs.tag }}"
+          gh release upload $tag `
+            dist/*.exe `
+            dist/*.blockmap `
+            dist/latest*.yml `
+            --repo $env:GITHUB_REPOSITORY `
+            --clobber
+
+      - name: Upload workflow artifact (Windows)
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: ${{ github.ref_name }}
-          draft: true
-          files: |
+          name: windows-installer-${{ steps.release-tag.outputs.tag }}
+          path: |
             dist/*.exe
             dist/*.blockmap
             dist/latest*.yml
