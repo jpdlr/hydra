@@ -2,7 +2,7 @@
 
 # Hydra
 
-**Orchestrate multiple AI coding agents in parallel from a single desktop app.**
+**Orchestrate Claude Code and OpenAI Codex agents in parallel from a single desktop app.**
 
 Hydra is a cross-platform desktop application (macOS + Windows) that lets you run, monitor, and coordinate multiple Claude Code and OpenAI Codex CLI sessions side by side — with live terminals, session resume, headless runs, and a built-in MCP orchestration layer.
 
