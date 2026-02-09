@@ -14,7 +14,6 @@ on:
 
 jobs:
   mac-release:
-    if: ${{ secrets.CSC_LINK != '' && secrets.CSC_KEY_PASSWORD != '' && secrets.CSC_NAME != '' && secrets.APPLE_ID != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
     runs-on: macos-latest
     permissions:
       contents: write
@@ -30,31 +29,56 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check signing secrets
+        id: mac-secrets
+        shell: bash
+        run: |
+          missing=0
+          for key in CSC_LINK CSC_KEY_PASSWORD CSC_NAME APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+            if [ -z "${!key}" ]; then
+              echo "Missing $key"
+              missing=1
+            fi
+          done
+          if [ "$missing" -eq 1 ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup Node
+        if: ${{ steps.mac-secrets.outputs.available == 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
       - name: Install dependencies
+        if: ${{ steps.mac-secrets.outputs.available == 'true' }}
         run: npm ci
 
       - name: Validate
+        if: ${{ steps.mac-secrets.outputs.available == 'true' }}
         run: |
           npm run lint
           npm run typecheck
           npm test -- --run
 
       - name: Release Preflight
+        if: ${{ steps.mac-secrets.outputs.available == 'true' }}
         run: npm run release:preflight
 
       - name: Build Signed Dry Run
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        if: ${{ steps.mac-secrets.outputs.available == 'true' && github.event_name == 'workflow_dispatch' && inputs.dry_run }}
         run: npm run dist:mac:dry-run
 
       - name: Build and Publish Draft Release
-        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        if: ${{ steps.mac-secrets.outputs.available == 'true' && (github.event_name != 'workflow_dispatch' || !inputs.dry_run) }}
         run: npm run dist:mac
+
+      - name: Skip mac release
+        if: ${{ steps.mac-secrets.outputs.available != 'true' }}
+        run: echo "Skipping mac release because signing secrets are not configured."
 
   windows-release:
     runs-on: windows-latest
