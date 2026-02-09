@@ -106,7 +106,7 @@ jobs:
         shell: pwsh
         run: |
           echo "PYTHON=${{ steps.setup-python.outputs.python-path }}" >> $env:GITHUB_ENV
-          npm config set python "${{ steps.setup-python.outputs.python-path }}"
+          echo "npm_config_python=${{ steps.setup-python.outputs.python-path }}" >> $env:GITHUB_ENV
 
       - name: Install dependencies
         run: npm ci
