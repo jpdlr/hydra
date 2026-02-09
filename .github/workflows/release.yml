@@ -121,6 +121,17 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
         run: npm run dist:win:dry-run
 
-      - name: Build and Publish Draft Release (Windows)
+      - name: Build Windows Installer
         if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
-        run: npm run dist:win
+        run: npm run dist:win:dry-run
+
+      - name: Publish Draft Release (Windows)
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          draft: true
+          files: |
+            dist/*.exe
+            dist/*.blockmap
+            dist/latest*.yml
