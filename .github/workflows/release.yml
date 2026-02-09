@@ -153,16 +153,13 @@ jobs:
         shell: pwsh
         run: |
           $tag = "${{ steps.release-tag.outputs.tag }}"
-          gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$tag" --silent
+          gh release view $tag --repo $env:GITHUB_REPOSITORY --json id
           if ($LASTEXITCODE -ne 0) {
-            gh api `
-              --method POST `
-              "repos/$env:GITHUB_REPOSITORY/releases" `
-              -f tag_name="$tag" `
-              -f target_commitish="$env:GITHUB_SHA" `
-              -f name="$tag" `
-              -F draft=true `
-              -f body="Automated Windows installer build."
+            gh release create $tag `
+              --repo $env:GITHUB_REPOSITORY `
+              --verify-tag `
+              --title $tag `
+              --notes "Automated Windows installer build."
           }
           gh release view $tag --repo $env:GITHUB_REPOSITORY
 
