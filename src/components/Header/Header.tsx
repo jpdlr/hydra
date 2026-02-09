@@ -11,6 +11,10 @@ interface HeaderProps {
   onOpenSettings: () => void
   onOpenHeadless: () => void
   onOpenUsage: () => void
+  onOpenUpdates: () => void
+  showUpdateAction: boolean
+  updateReadyToInstall: boolean
+  updateAvailable: boolean
   selectedProjectName?: string
 }
 
@@ -23,6 +27,10 @@ export function Header({
   onOpenSettings,
   onOpenHeadless,
   onOpenUsage,
+  onOpenUpdates,
+  showUpdateAction,
+  updateReadyToInstall,
+  updateAvailable,
   selectedProjectName
 }: HeaderProps) {
   const isMac = navigator.platform.toLowerCase().includes('mac')
@@ -52,6 +60,15 @@ export function Header({
       </div>
 
       <div className={`${styles.right} titlebar-no-drag`}>
+        {showUpdateAction && (
+          <button
+            className={`${styles.updateBtn} ${updateReadyToInstall ? styles.updateReady : updateAvailable ? styles.updateAvailable : ''}`}
+            onClick={onOpenUpdates}
+            title={updateReadyToInstall ? 'Update ready to install' : 'Check for app updates'}
+          >
+            {updateReadyToInstall ? 'Install Update' : updateAvailable ? 'Update Available' : 'Updates'}
+          </button>
+        )}
         <button className={styles.headlessBtn} onClick={onOpenHeadless} title="Headless Runs">
           Headless
         </button>

@@ -7,11 +7,13 @@ import { SettingsPanel } from './components/Settings/SettingsPanel'
 import { NewAgentDialog } from './components/NewAgent/NewAgentDialog'
 import { HeadlessPanel } from './components/Headless/HeadlessPanel'
 import { UsageDashboard } from './components/UsageDashboard/UsageDashboard'
+import { UpdatePanel } from './components/Updates/UpdatePanel'
 import { NotificationToast } from './components/Notifications/NotificationToast'
 import { useAgents } from './hooks/useAgents'
 import { useConfig } from './hooks/useConfig'
 import { useViewMode } from './hooks/useViewMode'
 import { useNotifications } from './hooks/useNotifications'
+import { useUpdates } from './hooks/useUpdates'
 import type { PreflightResult, ViewMode } from '@shared/types'
 import styles from './App.module.css'
 
@@ -75,6 +77,8 @@ export default function App() {
   const persistedUi = useMemo(() => readWorkspaceUiState(), [])
   const { config, updateConfig } = useConfig()
   const { notifications, dismiss: dismissNotification } = useNotifications()
+  const { updateState, check: checkForUpdates, download: downloadUpdate, install: installUpdate } =
+    useUpdates()
   const {
     agents,
     agentList,
@@ -104,6 +108,7 @@ export default function App() {
   const [newAgentPrefillDir, setNewAgentPrefillDir] = useState<string | null>(null)
   const [showHeadless, setShowHeadless] = useState(false)
   const [showUsageDashboard, setShowUsageDashboard] = useState(false)
+  const [showUpdatePanel, setShowUpdatePanel] = useState(false)
   const [showYoloConfirm, setShowYoloConfirm] = useState(false)
   const [showPreflightGate, setShowPreflightGate] = useState(false)
   const [selectedProject, setSelectedProject] = useState<string | null>(persistedUi.selectedProject)
@@ -306,8 +311,17 @@ export default function App() {
         return
       }
 
+      // Cmd+Shift+U — updates panel
+      if (meta && e.shiftKey && e.key.toLowerCase() === 'u') {
+        e.preventDefault()
+        if (updateState.supported) {
+          setShowUpdatePanel(true)
+        }
+        return
+      }
+
       // Cmd+U — usage dashboard
-      if (meta && e.key.toLowerCase() === 'u') {
+      if (meta && !e.shiftKey && e.key.toLowerCase() === 'u') {
         e.preventDefault()
         setShowUsageDashboard(true)
         return
@@ -358,6 +372,7 @@ export default function App() {
         if (showNewAgent) setShowNewAgent(false)
         if (showHeadless) setShowHeadless(false)
         if (showUsageDashboard) setShowUsageDashboard(false)
+        if (showUpdatePanel) setShowUpdatePanel(false)
         if (showYoloConfirm) setShowYoloConfirm(false)
         if (showPreflightGate) setShowPreflightGate(false)
         if (quitConfirmRunningCount !== null) setQuitConfirmRunningCount(null)
@@ -374,6 +389,7 @@ export default function App() {
     showNewAgent,
     showHeadless,
     showUsageDashboard,
+    showUpdatePanel,
     showYoloConfirm,
     showPreflightGate,
     quitConfirmRunningCount,
@@ -382,7 +398,8 @@ export default function App() {
     handleRemoveAgent,
     handleRestartAgent,
     toggleYolo,
-    setSelectedAgentId
+    setSelectedAgentId,
+    updateState.supported
   ])
 
   // Handle global YOLO toggle
@@ -443,6 +460,10 @@ export default function App() {
         onOpenSettings={() => setShowSettings(true)}
         onOpenHeadless={() => setShowHeadless(true)}
         onOpenUsage={() => setShowUsageDashboard(true)}
+        onOpenUpdates={() => setShowUpdatePanel(true)}
+        showUpdateAction={updateState.supported}
+        updateReadyToInstall={updateState.downloaded}
+        updateAvailable={updateState.available}
         selectedProjectName={viewMode === 'grid' ? selectedProjectName : undefined}
       />
 
@@ -573,6 +594,22 @@ export default function App() {
           config={config}
           onUpdateConfig={updateConfig}
           onClose={() => setShowUsageDashboard(false)}
+        />
+      )}
+
+      {showUpdatePanel && (
+        <UpdatePanel
+          state={updateState}
+          onClose={() => setShowUpdatePanel(false)}
+          onCheck={async () => {
+            await checkForUpdates()
+          }}
+          onDownload={async () => {
+            await downloadUpdate()
+          }}
+          onInstall={async () => {
+            await installUpdate()
+          }}
         />
       )}
 

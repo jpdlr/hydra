@@ -84,6 +84,38 @@
   color: var(--color-accent);
 }
 
+.updateBtn {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-hover);
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+  border: 1px solid transparent;
+}
+
+.updateBtn:hover {
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+}
+
+.updateAvailable {
+  color: var(--color-status-starting);
+  border-color: color-mix(in srgb, var(--color-status-starting) 55%, var(--color-border));
+}
+
+.updateReady {
+  color: var(--color-accent-text);
+  background: var(--color-accent);
+  border-color: transparent;
+}
+
+.updateReady:hover {
+  background: var(--color-accent-hover);
+  color: var(--color-accent-text);
+}
+
 .usageBtn {
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);

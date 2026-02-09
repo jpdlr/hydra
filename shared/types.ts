@@ -174,6 +174,13 @@ export const IPC = {
   USAGE_DASHBOARD_GET: 'usage:dashboard-get',
   USAGE_UPDATED: 'usage:updated',
 
+  // App updates
+  UPDATE_GET_STATE: 'update:get-state',
+  UPDATE_CHECK: 'update:check',
+  UPDATE_DOWNLOAD: 'update:download',
+  UPDATE_INSTALL: 'update:install',
+  UPDATE_STATE_CHANGED: 'update:state-changed',
+
   // MCP
   MCP_SERVER_STATUS: 'mcp:server-status',
 
@@ -337,6 +344,22 @@ export interface UsageDashboardSnapshot {
 
 export interface UsageDashboardOptions {
   days?: number
+}
+
+// ── App updates ───────────────────────────────────────────────────────────────
+
+export interface AppUpdateState {
+  supported: boolean
+  platform: string
+  checking: boolean
+  available: boolean
+  downloaded: boolean
+  downloading: boolean
+  currentVersion: string
+  latestVersion: string | null
+  releaseDate: string | null
+  releaseNotes: string | null
+  error: string | null
 }
 
 // ── Observability ──────────────────────────────────────────────────────────

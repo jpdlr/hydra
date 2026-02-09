@@ -21,7 +21,8 @@ import type {
   McpServerStatus,
   HydraNotification,
   UsageDashboardOptions,
-  UsageDashboardSnapshot
+  UsageDashboardSnapshot,
+  AppUpdateState
 } from '@shared/types'
 
 export type HydraAPI = typeof hydraApi
@@ -148,6 +149,22 @@ const hydraApi = {
       callback(snapshot)
     ipcRenderer.on(IPC.USAGE_UPDATED, handler)
     return () => { ipcRenderer.removeListener(IPC.USAGE_UPDATED, handler) }
+  },
+
+  // App updates
+  getUpdateState: (): Promise<AppUpdateState> =>
+    ipcRenderer.invoke(IPC.UPDATE_GET_STATE),
+  checkForUpdates: (): Promise<AppUpdateState> =>
+    ipcRenderer.invoke(IPC.UPDATE_CHECK),
+  downloadUpdate: (): Promise<AppUpdateState> =>
+    ipcRenderer.invoke(IPC.UPDATE_DOWNLOAD),
+  installUpdateAndRestart: (): Promise<boolean> =>
+    ipcRenderer.invoke(IPC.UPDATE_INSTALL),
+  onUpdateStateChange: (callback: (state: AppUpdateState) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, state: AppUpdateState) =>
+      callback(state)
+    ipcRenderer.on(IPC.UPDATE_STATE_CHANGED, handler)
+    return () => { ipcRenderer.removeListener(IPC.UPDATE_STATE_CHANGED, handler) }
   },
 
   // MCP

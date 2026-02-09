@@ -48,6 +48,7 @@ Working on a complex project often means juggling multiple coding tasks at once 
 - **Orchestration built in** — The MCP manager agent can spawn, message, and coordinate other agents autonomously
 - **Headless runs** — Queue background tasks that run without a terminal, with full log history
 - **Usage visibility** — Track token/cost-style usage signals per day, project, and agent
+- **Windows in-app updates** — Detect, download, and install new releases from GitHub Releases
 - **Native performance** — Electron app with real PTY terminals via `node-pty` and `xterm.js`
 
 ## Features

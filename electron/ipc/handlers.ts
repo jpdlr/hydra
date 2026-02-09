@@ -7,6 +7,7 @@ import { SessionCatalog } from '../sessions/SessionCatalog'
 import { HeadlessOrchestrator } from '../headless/HeadlessOrchestrator'
 import { NotificationService } from '../notifications/NotificationService'
 import { UsageTracker } from '../usage/UsageTracker'
+import { UpdateService } from '../updates/UpdateService'
 import { IPC } from '@shared/types'
 import type { HydraMcpServer } from '../mcp/McpServer'
 import type {
@@ -133,6 +134,7 @@ export function registerIpcHandlers(
   sessionCatalog: SessionCatalog,
   headlessOrchestrator: HeadlessOrchestrator,
   usageTracker: UsageTracker,
+  updateService: UpdateService,
   observability: ObservabilityHandlers,
   onWorkspaceChanged?: () => void,
   mcpServer?: HydraMcpServer | null,
@@ -404,6 +406,24 @@ export function registerIpcHandlers(
     return usageTracker.getDashboard(configStore.get(), parsed)
   })
 
+  // ── App updates ────────────────────────────────────────────────────────────
+
+  ipcMain.handle(IPC.UPDATE_GET_STATE, () => {
+    return updateService.getState()
+  })
+
+  ipcMain.handle(IPC.UPDATE_CHECK, async () => {
+    return updateService.checkForUpdates()
+  })
+
+  ipcMain.handle(IPC.UPDATE_DOWNLOAD, async () => {
+    return updateService.downloadUpdate()
+  })
+
+  ipcMain.handle(IPC.UPDATE_INSTALL, () => {
+    return updateService.installAndRestart()
+  })
+
   // ── MCP ────────────────────────────────────────────────────────────────────
 
   ipcMain.handle(IPC.MCP_SERVER_STATUS, () => {
@@ -469,6 +489,12 @@ export function registerIpcHandlers(
   headlessOrchestrator.on('event', (payload) => {
     BrowserWindow.getAllWindows().forEach((win) => {
       win.webContents.send(IPC.HEADLESS_RUN_EVENT, payload)
+    })
+  })
+
+  updateService.on('state-changed', (state) => {
+    BrowserWindow.getAllWindows().forEach((win) => {
+      win.webContents.send(IPC.UPDATE_STATE_CHANGED, state)
     })
   })
 

@@ -6,7 +6,6 @@ fixPath()
 import { app, BrowserWindow, shell, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import { autoUpdater } from 'electron-updater'
 import { AgentManager } from './agents/AgentManager'
 import { ConfigStore } from './config/ConfigStore'
 import { registerIpcHandlers } from './ipc/handlers'
@@ -17,6 +16,7 @@ import { ObservabilityService } from './observability/ObservabilityService'
 import { HydraMcpServer } from './mcp/McpServer'
 import { NotificationService } from './notifications/NotificationService'
 import { UsageTracker } from './usage/UsageTracker'
+import { UpdateService } from './updates/UpdateService'
 import { IPC } from '@shared/types'
 
 let mainWindow: BrowserWindow | null = null
@@ -28,6 +28,7 @@ const workspaceStore = new WorkspaceStore()
 let headlessOrchestrator: HeadlessOrchestrator | null = null
 let mcpServer: HydraMcpServer | null = null
 const usageTracker = new UsageTracker(app.getPath('userData'))
+const updateService = new UpdateService()
 const observability = new ObservabilityService({
   getConfig: () => configStore.get(),
   getAgents: () => agentManager.list(),
@@ -182,6 +183,7 @@ app.whenReady().then(async () => {
     sessionCatalog,
     headlessOrchestrator,
     usageTracker,
+    updateService,
     {
       logRendererEvent: (payload) => {
         observability.logRenderer(payload)
@@ -200,8 +202,7 @@ app.whenReady().then(async () => {
   createWindow()
 
   if (!is.dev) {
-    autoUpdater.autoDownload = false
-    void autoUpdater.checkForUpdatesAndNotify().catch((error) => {
+    void updateService.checkForUpdates().catch((error) => {
       observability.logMain({
         level: 'warn',
         event: 'autoupdate.check-failed',

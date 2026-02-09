@@ -24,11 +24,33 @@ vi.mock('./hooks/useViewMode', () => ({
   useViewMode: () => mockUseViewMode()
 }))
 
+vi.mock('./hooks/useUpdates', () => ({
+  useUpdates: () => ({
+    updateState: {
+      supported: false,
+      platform: 'darwin',
+      checking: false,
+      available: false,
+      downloaded: false,
+      downloading: false,
+      currentVersion: '0.1.0',
+      latestVersion: null,
+      releaseDate: null,
+      releaseNotes: null,
+      error: null
+    },
+    check: vi.fn(),
+    download: vi.fn(),
+    install: vi.fn()
+  })
+}))
+
 vi.mock('./components/Header/Header', () => ({
-  Header: (props: { onOpenSettings: () => void; onOpenHeadless: () => void }) => (
+  Header: (props: { onOpenSettings: () => void; onOpenHeadless: () => void; onOpenUsage: () => void }) => (
     <div>
       <button onClick={props.onOpenSettings}>settings</button>
       <button onClick={props.onOpenHeadless}>headless</button>
+      <button onClick={props.onOpenUsage}>usage</button>
     </div>
   )
 }))
@@ -59,6 +81,10 @@ vi.mock('./components/NewAgent/NewAgentDialog', () => ({
 
 vi.mock('./components/Headless/HeadlessPanel', () => ({
   HeadlessPanel: () => <div>headless-panel</div>
+}))
+
+vi.mock('./components/Updates/UpdatePanel', () => ({
+  UpdatePanel: () => <div>update-panel</div>
 }))
 
 vi.mock('./components/Notifications/NotificationToast', () => ({
