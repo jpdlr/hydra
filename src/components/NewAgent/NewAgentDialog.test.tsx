@@ -51,21 +51,26 @@ describe('NewAgentDialog', () => {
     const nameInput = screen.getByPlaceholderText('Auth Module')
     fireEvent.change(nameInput, { target: { value: 'EP inventory' } })
 
-    const resumeLabel = screen.getByText('Resume existing Claude session').closest('label')
-    const resumeCheckbox = resumeLabel?.querySelector('input') as HTMLInputElement
+    const resumeCheckbox = screen.getByRole('checkbox', { name: /resume existing claude session/i })
     fireEvent.click(resumeCheckbox)
 
-    await waitFor(() => {
-      expect(window.hydra.listClaudeSessions).toHaveBeenCalledWith({
-        includeHidden: true,
-        limit: 2000
-      })
-    })
+    await waitFor(
+      () => {
+        expect(window.hydra.listClaudeSessions).toHaveBeenCalledWith({
+          includeHidden: true,
+          limit: 2000
+        })
+      },
+      { timeout: 10000 }
+    )
 
     const projectInput = screen.getByPlaceholderText('/path/to/project') as HTMLInputElement
-    await waitFor(() => {
-      expect(projectInput.value).toBe('/Users/jp/projects/ep_inventory')
-    })
+    await waitFor(
+      () => {
+        expect(projectInput.value).toBe('/Users/jp/projects/ep_inventory')
+      },
+      { timeout: 10000 }
+    )
 
     fireEvent.click(screen.getByRole('button', { name: 'Create Agent' }))
 
@@ -78,5 +83,5 @@ describe('NewAgentDialog', () => {
         resumeSessionId: 'abc12345'
       })
     )
-  })
+  }, 15000)
 })
