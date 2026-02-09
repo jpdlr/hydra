@@ -16,6 +16,7 @@ import { WorkspaceStore } from './workspace/WorkspaceStore'
 import { ObservabilityService } from './observability/ObservabilityService'
 import { HydraMcpServer } from './mcp/McpServer'
 import { NotificationService } from './notifications/NotificationService'
+import { UsageTracker } from './usage/UsageTracker'
 import { IPC } from '@shared/types'
 
 let mainWindow: BrowserWindow | null = null
@@ -26,6 +27,7 @@ const sessionCatalog = new SessionCatalog()
 const workspaceStore = new WorkspaceStore()
 let headlessOrchestrator: HeadlessOrchestrator | null = null
 let mcpServer: HydraMcpServer | null = null
+const usageTracker = new UsageTracker(app.getPath('userData'))
 const observability = new ObservabilityService({
   getConfig: () => configStore.get(),
   getAgents: () => agentManager.list(),
@@ -179,6 +181,7 @@ app.whenReady().then(async () => {
     configStore,
     sessionCatalog,
     headlessOrchestrator,
+    usageTracker,
     {
       logRendererEvent: (payload) => {
         observability.logRenderer(payload)

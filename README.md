@@ -21,6 +21,7 @@ Hydra is a cross-platform desktop application (macOS + Windows) that lets you ru
   - [Session Management](#session-management)
   - [MCP Manager Agent](#mcp-manager-agent)
   - [Headless Orchestration](#headless-orchestration)
+  - [Usage Dashboard and Budgets](#usage-dashboard-and-budgets)
   - [Observability](#observability)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
@@ -46,6 +47,7 @@ Working on a complex project often means juggling multiple coding tasks at once 
 - **Session continuity** — Import and resume existing Claude sessions; workspace state persists across relaunches
 - **Orchestration built in** — The MCP manager agent can spawn, message, and coordinate other agents autonomously
 - **Headless runs** — Queue background tasks that run without a terminal, with full log history
+- **Usage visibility** — Track token/cost-style usage signals per day, project, and agent
 - **Native performance** — Electron app with real PTY terminals via `node-pty` and `xterm.js`
 
 ## Features
@@ -102,6 +104,15 @@ Queue non-interactive background runs that execute without a visible terminal. U
 - Session resume support
 - Run lifecycle management (start, monitor, cancel)
 
+### Usage Dashboard and Budgets
+
+Hydra aggregates usage signals parsed from CLI output into a dashboard grouped by day, project, and agent.
+
+- Daily rollups for tokens and cost-like values
+- Per-project and per-agent breakdown tables
+- Soft daily budget limits (tokens and USD)
+- Warning notifications when usage reaches threshold or exceeds budget
+
 ### Observability
 
 Built-in structured logging and diagnostics for debugging and monitoring.
@@ -157,6 +168,9 @@ App configuration is stored in `<userData>/config.json`:
 | `sessionMaxAgeDays` | Max session age to display (0 = no limit) | `7` |
 | `sessionImportLimit` | Max sessions to import (0 = unlimited) | `500` |
 | `globalYolo` | Skip all permission prompts globally | `false` |
+| `usageDailyTokenBudget` | Soft token budget per day (0 = disabled) | `0` |
+| `usageDailyCostBudgetUsd` | Soft USD budget per day (0 = disabled) | `0` |
+| `usageBudgetWarningThresholdPct` | Warning threshold percentage for budgets | `80` |
 
 Additional state files:
 

@@ -84,6 +84,9 @@ export interface AppConfig {
   sessionImportProjectPrefix: string
   hiddenSessionIds: string[]
   chatRenderMode: ChatRenderMode
+  usageDailyTokenBudget: number
+  usageDailyCostBudgetUsd: number
+  usageBudgetWarningThresholdPct: number
   enableRemoteErrorReporting: boolean
   errorReportingEndpoint: string
   includeSensitiveDiagnostics: boolean
@@ -104,6 +107,9 @@ export const DEFAULT_CONFIG: AppConfig = {
   sessionImportProjectPrefix: '',
   hiddenSessionIds: [],
   chatRenderMode: 'terminal',
+  usageDailyTokenBudget: 0,
+  usageDailyCostBudgetUsd: 0,
+  usageBudgetWarningThresholdPct: 80,
   enableRemoteErrorReporting: false,
   errorReportingEndpoint: '',
   includeSensitiveDiagnostics: false
@@ -163,6 +169,10 @@ export const IPC = {
   // Observability
   OBS_LOG_EVENT: 'obs:log-event',
   OBS_EXPORT_DIAGNOSTICS: 'obs:export-diagnostics',
+
+  // Usage dashboard
+  USAGE_DASHBOARD_GET: 'usage:dashboard-get',
+  USAGE_UPDATED: 'usage:updated',
 
   // MCP
   MCP_SERVER_STATUS: 'mcp:server-status',
@@ -275,6 +285,60 @@ export interface HeadlessRunLogPayload {
   truncated: boolean
 }
 
+// ── Usage dashboard ──────────────────────────────────────────────────────────
+
+export interface UsageAgentDailyStat {
+  agentId: string
+  agentName: string
+  projectDir: string
+  projectName: string
+  provider: ProviderId
+  model: ModelId
+  tokens: number
+  costUsd: number
+  updatedAt: string
+}
+
+export interface UsageProjectDailyStat {
+  projectDir: string
+  projectName: string
+  agentCount: number
+  tokens: number
+  costUsd: number
+}
+
+export interface UsageDailySummary {
+  date: string
+  tokens: number
+  costUsd: number
+  updatedAt: string
+  agents: UsageAgentDailyStat[]
+  projects: UsageProjectDailyStat[]
+}
+
+export interface UsageBudgetStatus {
+  dailyTokenBudget: number | null
+  dailyCostBudgetUsd: number | null
+  warningThresholdPct: number
+  tokenUsagePct: number | null
+  costUsagePct: number | null
+  tokenWarningReached: boolean
+  costWarningReached: boolean
+  tokenBudgetExceeded: boolean
+  costBudgetExceeded: boolean
+}
+
+export interface UsageDashboardSnapshot {
+  generatedAt: string
+  today: UsageDailySummary | null
+  days: UsageDailySummary[]
+  budget: UsageBudgetStatus
+}
+
+export interface UsageDashboardOptions {
+  days?: number
+}
+
 // ── Observability ──────────────────────────────────────────────────────────
 
 export type ObservabilityLogLevel = 'debug' | 'info' | 'warn' | 'error'
@@ -334,6 +398,7 @@ export type NotificationType =
   | 'agent_started'
   | 'headless_completed'
   | 'headless_errored'
+  | 'usage_budget_warning'
 
 export interface HydraNotification {
   id: string

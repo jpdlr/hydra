@@ -10,6 +10,7 @@ interface HeaderProps {
   onToggleGlobalYolo: () => void
   onOpenSettings: () => void
   onOpenHeadless: () => void
+  onOpenUsage: () => void
   selectedProjectName?: string
 }
 
@@ -21,6 +22,7 @@ export function Header({
   onToggleGlobalYolo,
   onOpenSettings,
   onOpenHeadless,
+  onOpenUsage,
   selectedProjectName
 }: HeaderProps) {
   const isMac = navigator.platform.toLowerCase().includes('mac')
@@ -52,6 +54,9 @@ export function Header({
       <div className={`${styles.right} titlebar-no-drag`}>
         <button className={styles.headlessBtn} onClick={onOpenHeadless} title="Headless Runs">
           Headless
+        </button>
+        <button className={styles.usageBtn} onClick={onOpenUsage} title="Usage Dashboard">
+          Usage
         </button>
         <button
           className={`${styles.yoloToggle} ${globalYolo ? styles.yoloActive : ''}`}

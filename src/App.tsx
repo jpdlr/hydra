@@ -6,6 +6,7 @@ import { GridView } from './components/GridView/GridView'
 import { SettingsPanel } from './components/Settings/SettingsPanel'
 import { NewAgentDialog } from './components/NewAgent/NewAgentDialog'
 import { HeadlessPanel } from './components/Headless/HeadlessPanel'
+import { UsageDashboard } from './components/UsageDashboard/UsageDashboard'
 import { NotificationToast } from './components/Notifications/NotificationToast'
 import { useAgents } from './hooks/useAgents'
 import { useConfig } from './hooks/useConfig'
@@ -102,6 +103,7 @@ export default function App() {
   const [showNewAgent, setShowNewAgent] = useState(false)
   const [newAgentPrefillDir, setNewAgentPrefillDir] = useState<string | null>(null)
   const [showHeadless, setShowHeadless] = useState(false)
+  const [showUsageDashboard, setShowUsageDashboard] = useState(false)
   const [showYoloConfirm, setShowYoloConfirm] = useState(false)
   const [showPreflightGate, setShowPreflightGate] = useState(false)
   const [selectedProject, setSelectedProject] = useState<string | null>(persistedUi.selectedProject)
@@ -304,6 +306,13 @@ export default function App() {
         return
       }
 
+      // Cmd+U — usage dashboard
+      if (meta && e.key.toLowerCase() === 'u') {
+        e.preventDefault()
+        setShowUsageDashboard(true)
+        return
+      }
+
       // Cmd+W — close selected agent
       if (meta && e.key === 'w' && selectedAgentId) {
         e.preventDefault()
@@ -348,6 +357,7 @@ export default function App() {
         if (showSettings) setShowSettings(false)
         if (showNewAgent) setShowNewAgent(false)
         if (showHeadless) setShowHeadless(false)
+        if (showUsageDashboard) setShowUsageDashboard(false)
         if (showYoloConfirm) setShowYoloConfirm(false)
         if (showPreflightGate) setShowPreflightGate(false)
         if (quitConfirmRunningCount !== null) setQuitConfirmRunningCount(null)
@@ -363,6 +373,7 @@ export default function App() {
     showSettings,
     showNewAgent,
     showHeadless,
+    showUsageDashboard,
     showYoloConfirm,
     showPreflightGate,
     quitConfirmRunningCount,
@@ -431,6 +442,7 @@ export default function App() {
         onToggleGlobalYolo={handleGlobalYoloToggle}
         onOpenSettings={() => setShowSettings(true)}
         onOpenHeadless={() => setShowHeadless(true)}
+        onOpenUsage={() => setShowUsageDashboard(true)}
         selectedProjectName={viewMode === 'grid' ? selectedProjectName : undefined}
       />
 
@@ -553,6 +565,14 @@ export default function App() {
           defaultProvider={config.defaultProvider}
           defaultModel={config.defaultModel}
           onClose={() => setShowHeadless(false)}
+        />
+      )}
+
+      {showUsageDashboard && (
+        <UsageDashboard
+          config={config}
+          onUpdateConfig={updateConfig}
+          onClose={() => setShowUsageDashboard(false)}
         />
       )}
 

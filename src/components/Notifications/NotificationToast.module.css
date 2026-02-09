@@ -36,6 +36,10 @@
   border-left: 3px solid var(--color-status-starting);
 }
 
+.toast.warning {
+  border-left: 3px solid var(--color-status-starting);
+}
+
 .icon {
   flex-shrink: 0;
   width: 18px;
@@ -53,6 +57,10 @@
 }
 
 .icon.info {
+  background: var(--color-status-starting);
+}
+
+.icon.warning {
   background: var(--color-status-starting);
 }
 

@@ -6,7 +6,7 @@ interface NotificationToastProps {
   onDismiss: (id: string) => void
 }
 
-function getVariant(type: NotificationType): 'success' | 'error' | 'info' {
+function getVariant(type: NotificationType): 'success' | 'error' | 'info' | 'warning' {
   switch (type) {
     case 'agent_idle':
     case 'headless_completed':
@@ -14,6 +14,8 @@ function getVariant(type: NotificationType): 'success' | 'error' | 'info' {
     case 'agent_errored':
     case 'headless_errored':
       return 'error'
+    case 'usage_budget_warning':
+      return 'warning'
     case 'agent_started':
       return 'info'
   }

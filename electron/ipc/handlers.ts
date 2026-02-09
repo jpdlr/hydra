@@ -1,17 +1,20 @@
 import { ipcMain, dialog, BrowserWindow, shell } from 'electron'
 import { execFile } from 'child_process'
+import { randomUUID } from 'crypto'
 import { AgentManager } from '../agents/AgentManager'
 import { ConfigStore } from '../config/ConfigStore'
 import { SessionCatalog } from '../sessions/SessionCatalog'
 import { HeadlessOrchestrator } from '../headless/HeadlessOrchestrator'
 import { NotificationService } from '../notifications/NotificationService'
+import { UsageTracker } from '../usage/UsageTracker'
 import { IPC } from '@shared/types'
 import type { HydraMcpServer } from '../mcp/McpServer'
 import type {
   CreateAgentPayload,
   AppConfig,
   ObservabilityLogEventPayload,
-  ExportDiagnosticsResult
+  ExportDiagnosticsResult,
+  UsageDashboardOptions
 } from '@shared/types'
 import { z } from 'zod'
 
@@ -60,9 +63,13 @@ const appConfigPatchSchema = z
     defaultProjectDir: z.string().max(4096).optional(),
     importSessionsOnStartup: z.boolean().optional(),
     sessionImportLimit: z.number().int().min(0).max(20000).optional(),
+    sessionMaxAgeDays: z.number().int().min(0).max(365).optional(),
     sessionImportProjectPrefix: z.string().max(4096).optional(),
     hiddenSessionIds: z.array(z.string().trim().min(1).max(128)).max(10000).optional(),
     chatRenderMode: z.enum(['terminal', 'bubbles']).optional(),
+    usageDailyTokenBudget: z.number().int().min(0).max(10_000_000).optional(),
+    usageDailyCostBudgetUsd: z.number().min(0).max(100_000).optional(),
+    usageBudgetWarningThresholdPct: z.number().int().min(1).max(99).optional(),
     enableRemoteErrorReporting: z.boolean().optional(),
     errorReportingEndpoint: z.string().max(1024).optional(),
     includeSensitiveDiagnostics: z.boolean().optional()
@@ -97,6 +104,11 @@ const headlessLogOptionsSchema = z
     maxChars: z.number().int().min(200).max(500000).optional()
   })
   .optional()
+const usageDashboardOptionsSchema = z
+  .object({
+    days: z.number().int().min(1).max(90).optional()
+  })
+  .optional()
 const observabilityLogSchema = z.object({
   level: z.enum(['debug', 'info', 'warn', 'error']),
   event: z.string().trim().min(1).max(200),
@@ -120,6 +132,7 @@ export function registerIpcHandlers(
   configStore: ConfigStore,
   sessionCatalog: SessionCatalog,
   headlessOrchestrator: HeadlessOrchestrator,
+  usageTracker: UsageTracker,
   observability: ObservabilityHandlers,
   onWorkspaceChanged?: () => void,
   mcpServer?: HydraMcpServer | null,
@@ -314,6 +327,7 @@ export function registerIpcHandlers(
     // Notify all windows
     BrowserWindow.getAllWindows().forEach((win) => {
       win.webContents.send(IPC.CONFIG_ON_CHANGE, updated)
+      win.webContents.send(IPC.USAGE_UPDATED, usageTracker.getDashboard(updated, { days: 14 }))
     })
     return updated
   })
@@ -383,6 +397,13 @@ export function registerIpcHandlers(
     return observability.exportDiagnostics()
   })
 
+  // ── Usage dashboard ───────────────────────────────────────────────────────
+
+  ipcMain.handle(IPC.USAGE_DASHBOARD_GET, (_event, options?: UsageDashboardOptions) => {
+    const parsed = usageDashboardOptionsSchema.parse(options)
+    return usageTracker.getDashboard(configStore.get(), parsed)
+  })
+
   // ── MCP ────────────────────────────────────────────────────────────────────
 
   ipcMain.handle(IPC.MCP_SERVER_STATUS, () => {
@@ -395,6 +416,40 @@ export function registerIpcHandlers(
     BrowserWindow.getAllWindows().forEach((win) => {
       win.webContents.send(IPC.AGENT_OUTPUT, payload)
     })
+
+    const agent = agentManager.get(payload.agentId)
+    if (!agent) return
+
+    const usageResult = usageTracker.recordAgentOutput(agent, payload.data, configStore.get())
+    if (!usageResult.changed) return
+
+    const dashboard = usageTracker.getDashboard(configStore.get(), { days: 14 })
+    BrowserWindow.getAllWindows().forEach((win) => {
+      win.webContents.send(IPC.USAGE_UPDATED, dashboard)
+    })
+
+    for (const alert of usageResult.alerts) {
+      if (!notificationService) continue
+      const metricLabel = alert.metric === 'tokens' ? 'Token' : 'Cost'
+      const budgetLabel =
+        alert.metric === 'tokens'
+          ? `${Math.round(alert.budget).toLocaleString()} tokens`
+          : `$${alert.budget.toFixed(2)}`
+      const usageLabel =
+        alert.metric === 'tokens'
+          ? `${Math.round(alert.usage).toLocaleString()} tokens`
+          : `$${alert.usage.toFixed(2)}`
+      const percent = Math.round(alert.percent)
+      const levelLabel = alert.level === 'exceeded' ? 'Exceeded' : 'Warning'
+
+      notificationService.push({
+        id: randomUUID().slice(0, 12),
+        type: 'usage_budget_warning',
+        title: `${metricLabel} Budget ${levelLabel}`,
+        body: `${usageLabel} of ${budgetLabel} (${percent}%) today`,
+        timestamp: new Date().toISOString()
+      })
+    }
   })
 
   agentManager.on('status', (payload) => {

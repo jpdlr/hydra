@@ -84,6 +84,21 @@
   color: var(--color-accent);
 }
 
+.usageBtn {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-hover);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.usageBtn:hover {
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+}
+
 .yoloToggle {
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);

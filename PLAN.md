@@ -617,6 +617,20 @@ Where `cli.js` opens the Electron app or connects to a running instance.
 
 ---
 
+## Future Note — Manager Swarm Improvements
+
+Hydra already supports swarm-style coordination through the **Manager Workspace** + **Manager Agent** (MCP tools for create/send/broadcast/restart). A dedicated improvement pass should focus on:
+
+- Planner-first mode: manager decomposes one objective into explicit sub-tasks before spawning workers.
+- Worker assignment contracts: each spawned agent gets scoped objective, expected output format, and completion criteria.
+- Dependency tracking: manager waits for prerequisite tasks and unblocks dependent tasks automatically.
+- Convergence checkpoint: manager validates outputs, requests fixes, and produces a final stitched summary.
+- Guardrails: max worker count, budget-aware throttling, and conflict checks for same repo/worktree targets.
+
+This is a roadmap marker so we can revisit a formal “Swarm Mode 2.0” implementation after usage telemetry and budgeting are stable.
+
+---
+
 ## Key Dependencies
 
 | Package | Purpose |

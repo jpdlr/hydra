@@ -19,7 +19,9 @@ import type {
   ObservabilityLogEventPayload,
   ExportDiagnosticsResult,
   McpServerStatus,
-  HydraNotification
+  HydraNotification,
+  UsageDashboardOptions,
+  UsageDashboardSnapshot
 } from '@shared/types'
 
 export type HydraAPI = typeof hydraApi
@@ -137,6 +139,16 @@ const hydraApi = {
     ipcRenderer.send(IPC.OBS_LOG_EVENT, payload),
   exportDiagnostics: (): Promise<ExportDiagnosticsResult> =>
     ipcRenderer.invoke(IPC.OBS_EXPORT_DIAGNOSTICS),
+
+  // Usage dashboard
+  getUsageDashboard: (options?: UsageDashboardOptions): Promise<UsageDashboardSnapshot> =>
+    ipcRenderer.invoke(IPC.USAGE_DASHBOARD_GET, options),
+  onUsageUpdated: (callback: (snapshot: UsageDashboardSnapshot) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, snapshot: UsageDashboardSnapshot) =>
+      callback(snapshot)
+    ipcRenderer.on(IPC.USAGE_UPDATED, handler)
+    return () => { ipcRenderer.removeListener(IPC.USAGE_UPDATED, handler) }
+  },
 
   // MCP
   getMcpServerStatus: (): Promise<McpServerStatus> =>
