@@ -72,6 +72,18 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Setup Python for node-gyp
+        id: setup-python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Configure node-gyp Python
+        shell: pwsh
+        run: |
+          echo "PYTHON=${{ steps.setup-python.outputs.python-path }}" >> $env:GITHUB_ENV
+          npm config set python "${{ steps.setup-python.outputs.python-path }}"
+
       - name: Install dependencies
         run: npm ci
 
