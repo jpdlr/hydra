@@ -170,6 +170,14 @@ export default function App() {
     }
   }, [ensurePreflightReady])
 
+  const handleOpenNewAgentForCurrentProject = useCallback(() => {
+    if (selectedProject) {
+      void handleNewAgentForProject(selectedProject)
+      return
+    }
+    void handleOpenNewAgent()
+  }, [selectedProject, handleNewAgentForProject, handleOpenNewAgent])
+
   const handleRemoveAgent = useCallback(
     async (agentId: string) => {
       const removed = agents.get(agentId)?.state
@@ -234,6 +242,31 @@ export default function App() {
       setSelectedProject(projectGroups[0].projectDir)
     }
   }, [projectGroups, selectedProject])
+
+  // Keep selected project synced while navigating agents in chat mode.
+  useEffect(() => {
+    if (viewMode !== 'chat') return
+    const agentProject = selectedAgent?.state.projectDir
+    if (!agentProject) return
+    if (selectedProject !== agentProject) {
+      setSelectedProject(agentProject)
+    }
+  }, [viewMode, selectedAgent, selectedProject])
+
+  // Keep selected chat agent synced to the active grid project.
+  useEffect(() => {
+    if (viewMode !== 'grid' || !selectedProject) return
+    const group = projectGroups.find((item) => item.projectDir === selectedProject)
+    if (!group || group.agents.length === 0) return
+
+    const selectedAgentProject = selectedAgentId
+      ? agents.get(selectedAgentId)?.state.projectDir
+      : null
+
+    if (selectedAgentProject !== selectedProject) {
+      setSelectedAgentId(group.agents[0].id)
+    }
+  }, [viewMode, selectedProject, projectGroups, selectedAgentId, agents, setSelectedAgentId])
 
   useEffect(() => {
     writeWorkspaceUiState({
@@ -393,6 +426,7 @@ export default function App() {
       <Header
         viewMode={viewMode}
         onToggleViewMode={toggleViewMode}
+        onOpenNewAgent={handleOpenNewAgentForCurrentProject}
         globalYolo={config.globalYolo}
         onToggleGlobalYolo={handleGlobalYoloToggle}
         onOpenSettings={() => setShowSettings(true)}
@@ -475,7 +509,7 @@ export default function App() {
                 }
               }}
               onNewAgent={() => {
-                void handleOpenNewAgent()
+                handleOpenNewAgentForCurrentProject()
               }}
               rawOutputs={rawOutputs}
               expandedTileId={expandedTileId}

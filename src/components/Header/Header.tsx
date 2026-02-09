@@ -5,6 +5,7 @@ import styles from './Header.module.css'
 interface HeaderProps {
   viewMode: ViewMode
   onToggleViewMode: () => void
+  onOpenNewAgent: () => void
   globalYolo: boolean
   onToggleGlobalYolo: () => void
   onOpenSettings: () => void
@@ -15,6 +16,7 @@ interface HeaderProps {
 export function Header({
   viewMode,
   onToggleViewMode,
+  onOpenNewAgent,
   globalYolo,
   onToggleGlobalYolo,
   onOpenSettings,
@@ -29,7 +31,16 @@ export function Header({
         </div>
         <span className={styles.logo}>HYDRA</span>
         {viewMode === 'grid' && selectedProjectName && (
-          <span className={styles.projectName}>{selectedProjectName}</span>
+          <>
+            <button
+              className={`${styles.projectAddBtn} titlebar-no-drag`}
+              onClick={onOpenNewAgent}
+              title={`New agent in ${selectedProjectName}`}
+            >
+              <PlusIcon />
+            </button>
+            <span className={styles.projectName}>{selectedProjectName}</span>
+          </>
         )}
       </div>
 
@@ -53,6 +64,15 @@ export function Header({
         </button>
       </div>
     </header>
+  )
+}
+
+function PlusIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
   )
 }
 
