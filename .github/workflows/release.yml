@@ -153,7 +153,7 @@ jobs:
         shell: pwsh
         run: |
           $tag = "${{ steps.release-tag.outputs.tag }}"
-          gh release view $tag --repo $env:GITHUB_REPOSITORY --json id | Out-Null
+          gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$tag" --silent
           if ($LASTEXITCODE -ne 0) {
             gh api `
               --method POST `
@@ -162,8 +162,9 @@ jobs:
               -f target_commitish="$env:GITHUB_SHA" `
               -f name="$tag" `
               -F draft=true `
-              -f body="Automated Windows installer build." | Out-Null
+              -f body="Automated Windows installer build."
           }
+          gh release view $tag --repo $env:GITHUB_REPOSITORY
 
       - name: Upload release assets (Windows)
         if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
