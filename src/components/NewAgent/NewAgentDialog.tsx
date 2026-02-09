@@ -314,7 +314,7 @@ export function NewAgentDialog({
                 />
                 <span>Resume existing Claude session</span>
                 <span className={styles.hint}>
-                  Import from ~/.claude/projects
+                  Import from your Claude sessions directory
                 </span>
               </label>
             </div>

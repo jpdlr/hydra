@@ -26,5 +26,13 @@ mac:
     - dmg
     - dir
   artifactName: ${name}-${version}-${arch}.${ext}
+win:
+  target:
+    - nsis
+  artifactName: ${name}-${version}-${arch}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
 dmg:
   artifactName: ${name}-${version}.${ext}

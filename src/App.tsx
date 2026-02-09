@@ -588,7 +588,7 @@ export default function App() {
             <h3>Claude CLI Required</h3>
             <p>
               Hydra could not run Claude Code from your shell environment. Install Claude Code
-              and verify the <code>claude</code> command works in Terminal before starting agents.
+              and verify the <code>claude</code> command works in your terminal before starting agents.
             </p>
             <p className={styles.preflightMeta}>
               {preflight?.error || 'Preflight check has not completed yet.'}

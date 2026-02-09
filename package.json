@@ -17,8 +17,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "pack": "electron-builder --dir",
+    "pack:win": "electron-builder --win --x64 --dir",
     "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win nsis --x64",
     "dist:dry-run": "electron-builder --publish never",
+    "dist:mac:dry-run": "electron-builder --mac --publish never",
+    "dist:win:dry-run": "electron-builder --win nsis --x64 --publish never",
     "release:preflight": "node scripts/release-preflight.mjs",
     "deploy": "bash scripts/deploy-local.sh"
   },

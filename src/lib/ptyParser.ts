@@ -31,7 +31,8 @@ const BANNER_PATTERNS = [
   /^o3\b|^o4-mini\b|^codex-mini\b/i, // Codex model banners
   /^~?\//,  // "~/Documents/Personal/..." (project path line)
   /^\/Users\//i, // "/Users/jp/..." absolute path as banner
-  /^\/home\//i // "/home/..." absolute path as banner
+  /^\/home\//i, // "/home/..." absolute path as banner
+  /^[a-z]:[\\/]/i // "C:\Users\..." absolute path as banner
 ]
 
 // Status bar / cost / usage lines

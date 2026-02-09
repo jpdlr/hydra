@@ -35,6 +35,11 @@ const INDEX_FILENAME = 'sessions-index.json'
 const JSONL_MAX_HEADER_CHARS = 64 * 1024
 const SESSION_CACHE_TTL_MS = 5000
 
+function normalizePathForComparison(input: string): string {
+  const normalized = input.replace(/\\/g, '/').replace(/\/+$/, '')
+  return process.platform === 'win32' ? normalized.toLowerCase() : normalized
+}
+
 export interface ListSessionOptions {
   limit?: number
   maxAgeDays?: number
@@ -56,13 +61,19 @@ export class SessionCatalog {
 
     const hiddenIds = new Set(options.hiddenSessionIds ?? [])
     const projectPrefix = options.projectPathPrefix?.trim()
+    const normalizedProjectPrefix = projectPrefix ? normalizePathForComparison(projectPrefix) : null
     const cutoff =
       typeof options.maxAgeDays === 'number' && options.maxAgeDays > 0
         ? Date.now() - options.maxAgeDays * 86_400_000
         : 0
     const filtered = sessions.filter((session) => {
       if (hiddenIds.has(session.sessionId)) return false
-      if (projectPrefix && !session.projectPath.startsWith(projectPrefix)) return false
+      if (normalizedProjectPrefix) {
+        const normalizedSessionPath = normalizePathForComparison(session.projectPath)
+        if (!normalizedSessionPath.startsWith(normalizedProjectPrefix)) {
+          return false
+        }
+      }
       if (cutoff > 0 && Date.parse(session.modifiedAt) < cutoff) return false
       return true
     })

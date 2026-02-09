@@ -267,6 +267,14 @@ export class AgentManager extends EventEmitter {
     return provider.buildArgs(state)
   }
 
+  private killPtyProcess(pty: IPty, force: boolean): void {
+    if (process.platform === 'win32') {
+      pty.kill()
+      return
+    }
+    pty.kill(force ? 'SIGKILL' : 'SIGTERM')
+  }
+
   private spawnProcess(managed: ManagedAgent): void {
     const provider = getProvider(managed.state.provider)
     const cmd = this.providerPaths.get(managed.state.provider) || provider.command
@@ -481,13 +489,13 @@ export class AgentManager extends EventEmitter {
 
     if (managed.pty) {
       // Graceful: send SIGTERM
-      managed.pty.kill('SIGTERM')
+      this.killPtyProcess(managed.pty, false)
 
       // Force kill after timeout
       managed.killTimeout = setTimeout(() => {
         if (managed.pty) {
           try {
-            managed.pty.kill('SIGKILL')
+            this.killPtyProcess(managed.pty, true)
           } catch {
             // Already dead
           }
@@ -518,7 +526,7 @@ export class AgentManager extends EventEmitter {
     // Kill existing process
     if (managed.pty) {
       try {
-        managed.pty.kill('SIGKILL')
+        this.killPtyProcess(managed.pty, true)
       } catch {
         // Already dead
       }
@@ -655,7 +663,7 @@ export class AgentManager extends EventEmitter {
         this.stopSessionDiscovery(managed)
         if (managed.pty) {
           try {
-            managed.pty.kill('SIGKILL')
+            this.killPtyProcess(managed.pty, true)
           } catch {
             // Already dead
           }

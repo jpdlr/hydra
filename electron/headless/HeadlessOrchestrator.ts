@@ -211,7 +211,11 @@ export class HeadlessOrchestrator extends EventEmitter {
     managed.state.status = 'canceled'
     this.persistRun(managed)
     try {
-      managed.process.kill('SIGTERM')
+      if (process.platform === 'win32') {
+        managed.process.kill()
+      } else {
+        managed.process.kill('SIGTERM')
+      }
       return true
     } catch {
       return false

@@ -203,4 +203,37 @@ describe('SessionCatalog', () => {
     const afterInvalidation = catalog.listSessions()
     expect(afterInvalidation.map((entry) => entry.sessionId)).toEqual(['cache-c', 'cache-b', 'cache-a'])
   })
+
+  it('matches project prefixes across slash styles', () => {
+    const projectsRoot = makeProjectsRoot()
+    const projectDir = join(projectsRoot, 'project-prefix')
+    mkdirSync(projectDir, { recursive: true })
+
+    writeFileSync(
+      join(projectDir, 'sessions-index.json'),
+      JSON.stringify(
+        {
+          originalPath: 'C:\\Users\\jp\\workspace',
+          entries: [
+            {
+              sessionId: 'session-win-path',
+              fullPath: 'C:\\temp\\session-win-path.jsonl',
+              projectPath: 'C:\\Users\\jp\\workspace\\ep_inventory',
+              firstPrompt: 'Windows path',
+              modified: '2026-01-20T10:00:00.000Z'
+            }
+          ]
+        },
+        null,
+        2
+      ),
+      'utf-8'
+    )
+
+    const catalog = new SessionCatalog(projectsRoot)
+    const filtered = catalog.listSessions({
+      projectPathPrefix: 'C:/Users/jp/workspace/ep_'
+    })
+    expect(filtered.map((entry) => entry.sessionId)).toEqual(['session-win-path'])
+  })
 })

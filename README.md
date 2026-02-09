@@ -4,7 +4,7 @@
 
 **Orchestrate multiple AI coding agents in parallel from a single desktop app.**
 
-Hydra is a native macOS application that lets you run, monitor, and coordinate multiple Claude Code and OpenAI Codex CLI sessions side by side — with live terminals, session resume, headless runs, and a built-in MCP orchestration layer.
+Hydra is a cross-platform desktop application (macOS + Windows) that lets you run, monitor, and coordinate multiple Claude Code and OpenAI Codex CLI sessions side by side — with live terminals, session resume, headless runs, and a built-in MCP orchestration layer.
 
 [Getting Started](#getting-started) | [Features](#features) | [Documentation](#documentation) | [Contributing](#contributing)
 
@@ -66,11 +66,11 @@ Two ways to interact with your agents:
 - **Chat view** — Focused single-agent interface with a terminal pane and input bar. Supports terminal and bubble render modes.
 - **Grid view** — Tiled overview of all agents in a project. Expandable tiles, broadcast input to all agents at once, and per-tile actions.
 
-Toggle between views with `Cmd+\`.
+Toggle between views with `Cmd+\` on macOS or `Ctrl+\` on Windows/Linux.
 
 ### Session Management
 
-Hydra imports session history from `~/.claude/projects` on startup and lets you resume any previous Claude session from the New Agent dialog.
+Hydra imports session history from your Claude sessions directory (typically `~/.claude/projects`) on startup and lets you resume any previous Claude session from the New Agent dialog.
 
 - Filter sessions by age (default: last 7 days), project prefix, or search query
 - Hidden session management
@@ -115,7 +115,7 @@ Built-in structured logging and diagnostics for debugging and monitoring.
 
 ### Prerequisites
 
-- **macOS** (x86_64 or Apple Silicon)
+- **macOS** (x86_64 or Apple Silicon) or **Windows** (x64)
 - **Node.js 20+**
 - **Claude Code CLI** available on PATH as `claude`
 - **OpenAI Codex CLI** (optional) available on PATH as `codex` for Codex provider support
@@ -131,7 +131,8 @@ git clone git@github.com:jpdlr/hydra.git
 cd hydra
 npm install
 npm run build
-npm run dist        # Package as .dmg
+npm run dist:mac    # Package macOS build
+npm run dist:win    # Package Windows installer (.exe)
 ```
 
 For development with hot reload:
@@ -173,19 +174,23 @@ Additional state files:
 | `npm run lint` | Run ESLint |
 | `npm test` | Run tests (Vitest) |
 | `npm run dist` | Package with electron-builder |
+| `npm run dist:mac` | Build macOS artifacts |
+| `npm run dist:win` | Build Windows installer artifacts |
 | `npm run dist:dry-run` | Signed build without publishing |
+| `npm run dist:mac:dry-run` | macOS dry run without publishing |
+| `npm run dist:win:dry-run` | Windows dry run without publishing |
 | `npm run release:preflight` | Verify signing/notarization environment |
 
 ### CI/CD
 
 GitHub Actions runs on every push and pull request:
 
-- **CI** (`.github/workflows/ci.yml`) — Lint, typecheck, and test on Ubuntu with Node.js 20
-- **Release** (`.github/workflows/release.yml`) — macOS signed/notarized builds on `v*` tags or manual dispatch
+- **CI** (`.github/workflows/ci.yml`) — Lint, typecheck, and test on Ubuntu + Windows with Node.js 20
+- **Release** (`.github/workflows/release.yml`) — macOS signed/notarized builds plus Windows installer builds on `v*` tags or manual dispatch
 
 ### Release
 
-Releases are published as GitHub draft releases with signed and notarized macOS binaries.
+Releases are published as GitHub draft releases with signed/notarized macOS binaries and Windows installer artifacts.
 
 ```bash
 # Tag a release
@@ -195,7 +200,7 @@ git push origin v0.1.0
 # Or trigger a dry run manually from GitHub Actions
 ```
 
-Required repository secrets for signing:
+Required repository secrets for macOS signing:
 
 `CSC_LINK` `CSC_KEY_PASSWORD` `CSC_NAME` `APPLE_ID` `APPLE_APP_SPECIFIC_PASSWORD` `APPLE_TEAM_ID`
 

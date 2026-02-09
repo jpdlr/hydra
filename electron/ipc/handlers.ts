@@ -360,9 +360,11 @@ export function registerIpcHandlers(
   ipcMain.handle(IPC.OPEN_IN_EDITOR, (_event, dir: string) => {
     const validated = projectDirSchema.parse(dir)
     return new Promise<boolean>((resolve) => {
-      execFile('code', [validated], (err) => {
+      const command = process.platform === 'win32' ? 'cmd' : 'code'
+      const args = process.platform === 'win32' ? ['/c', 'code', validated] : [validated]
+      execFile(command, args, (err) => {
         if (err) {
-          // Fallback: try opening the folder in Finder / default handler
+          // Fallback: try opening the folder in the OS default handler.
           shell.openPath(validated).then(() => resolve(true)).catch(() => resolve(false))
           return
         }

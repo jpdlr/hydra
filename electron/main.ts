@@ -33,14 +33,19 @@ const observability = new ObservabilityService({
 })
 
 function createWindow(): void {
+  const isMac = process.platform === 'darwin'
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 800,
     minHeight: 600,
     show: false,
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 16, y: 14 },
+    ...(isMac
+      ? {
+          titleBarStyle: 'hiddenInset' as const,
+          trafficLightPosition: { x: 16, y: 14 }
+        }
+      : {}),
     backgroundColor: '#262624',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

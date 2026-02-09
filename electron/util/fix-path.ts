@@ -1,15 +1,39 @@
 /**
- * Fix process.env.PATH for packaged macOS Electron apps.
+ * Fix process.env.PATH for packaged Electron apps.
  *
- * When launched from Finder / Dock, macOS gives Electron a minimal PATH
- * (/usr/bin:/bin:/usr/sbin:/sbin) that does not include user-installed
- * binaries like ~/.local/bin/claude.  This function runs the user's
- * login shell once, extracts the full PATH, and patches process.env.
+ * - macOS: Finder / Dock launches provide a minimal PATH, so we source the
+ *   login shell and fall back to common binary locations.
+ * - Windows: append common global npm / Node install locations used by CLI tools.
  */
 
 import { execSync } from 'child_process'
+import { delimiter, join } from 'path'
+
+function appendPathEntries(entries: Array<string | null | undefined>): void {
+  const current = process.env.PATH ?? ''
+  const existing = new Set(current.split(delimiter).filter((entry) => entry.length > 0))
+  const merged = [...existing]
+
+  for (const entry of entries) {
+    if (!entry || entry.length === 0 || existing.has(entry)) continue
+    existing.add(entry)
+    merged.push(entry)
+  }
+
+  process.env.PATH = merged.join(delimiter)
+}
 
 export function fixPath(): void {
+  if (process.platform === 'win32') {
+    const userHome = process.env.USERPROFILE || process.env.HOME
+    appendPathEntries([
+      process.env.APPDATA ? join(process.env.APPDATA, 'npm') : null,
+      process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, 'Programs', 'nodejs') : null,
+      userHome ? join(userHome, '.local', 'bin') : null
+    ])
+    return
+  }
+
   if (process.platform !== 'darwin') return
 
   try {
@@ -25,12 +49,12 @@ export function fixPath(): void {
     }
   } catch {
     // Fallback: append common binary locations
-    const extra = [
+    const home = process.env.HOME
+    appendPathEntries([
       '/usr/local/bin',
       '/opt/homebrew/bin',
-      `${process.env.HOME}/.local/bin`,
-      `${process.env.HOME}/.nvm/versions/node/current/bin`
-    ].join(':')
-    process.env.PATH = `${process.env.PATH}:${extra}`
+      home ? `${home}/.local/bin` : null,
+      home ? `${home}/.nvm/versions/node/current/bin` : null
+    ])
   }
 }

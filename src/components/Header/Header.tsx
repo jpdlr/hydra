@@ -23,8 +23,9 @@ export function Header({
   onOpenHeadless,
   selectedProjectName
 }: HeaderProps) {
+  const isMac = navigator.platform.toLowerCase().includes('mac')
   return (
-    <header className={`${styles.header} titlebar-drag`}>
+    <header className={`${styles.header} ${isMac ? styles.macHeader : ''} titlebar-drag`}>
       <div className={styles.left}>
         <div className={styles.logoMark}>
           <HydraLogo />

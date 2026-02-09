@@ -1,4 +1,5 @@
 import { PROVIDER_MODELS, type AgentState, type ProviderId, type ModelId } from '@shared/types'
+import { execFileSync } from 'child_process'
 
 export interface ProviderConfig {
   id: ProviderId
@@ -21,6 +22,63 @@ export interface ProviderConfig {
     version: string | null
     error: string | null
   }>
+}
+
+interface ProviderPreflightResult {
+  ok: boolean
+  path: string | null
+  version: string | null
+  error: string | null
+}
+
+function resolveCommandPath(command: string): string | null {
+  const locator = process.platform === 'win32' ? 'where' : 'which'
+  try {
+    const output = execFileSync(locator, [command], { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] })
+    const firstLine = output
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find((line) => line.length > 0)
+    return firstLine ?? null
+  } catch {
+    return null
+  }
+}
+
+function readVersion(commandPath: string, command: string): string | null {
+  const targets = commandPath === command ? [commandPath] : [command, commandPath]
+  for (const target of targets) {
+    try {
+      const output = execFileSync(target, ['--version'], {
+        encoding: 'utf-8',
+        timeout: 10000,
+        stdio: ['ignore', 'pipe', 'pipe']
+      }).trim()
+      if (output.length > 0) return output
+    } catch {
+      continue
+    }
+  }
+  return null
+}
+
+function runPreflight(command: string, missingError: string): ProviderPreflightResult {
+  const path = resolveCommandPath(command)
+  if (!path) {
+    return {
+      ok: false,
+      path: null,
+      version: null,
+      error: missingError
+    }
+  }
+
+  return {
+    ok: true,
+    path,
+    version: readVersion(path, command),
+    error: null
+  }
 }
 
 // ── Claude Provider ─────────────────────────────────────────────────────────
@@ -47,22 +105,7 @@ const claudeProvider: ProviderConfig = {
   },
 
   async preflight() {
-    try {
-      const { execSync } = await import('child_process')
-      const path = execSync('which claude', { encoding: 'utf-8' }).trim()
-      const version = execSync('claude --version', {
-        encoding: 'utf-8',
-        timeout: 10000
-      }).trim()
-      return { ok: true, path, version, error: null }
-    } catch {
-      return {
-        ok: false,
-        path: null,
-        version: null,
-        error: 'Claude CLI not found. Install it from https://claude.ai/download'
-      }
-    }
+    return runPreflight('claude', 'Claude CLI not found. Install it from https://claude.ai/download')
   }
 }
 
@@ -94,22 +137,7 @@ const codexProvider: ProviderConfig = {
   },
 
   async preflight() {
-    try {
-      const { execSync } = await import('child_process')
-      const path = execSync('which codex', { encoding: 'utf-8' }).trim()
-      const version = execSync('codex --version', {
-        encoding: 'utf-8',
-        timeout: 10000
-      }).trim()
-      return { ok: true, path, version, error: null }
-    } catch {
-      return {
-        ok: false,
-        path: null,
-        version: null,
-        error: 'Codex CLI not found. Install it with: npm install -g @openai/codex'
-      }
-    }
+    return runPreflight('codex', 'Codex CLI not found. Install it with: npm install -g @openai/codex')
   }
 }
 

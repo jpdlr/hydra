@@ -32,6 +32,15 @@ export function ChatView({
   onKillAgent,
   onToggleChatRenderMode
 }: ChatViewProps) {
+  // Prevent browser focus-scroll from moving the outer container.
+  const containerRef = useRef<HTMLDivElement>(null)
+  const handleContainerScroll = useCallback(() => {
+    const el = containerRef.current
+    if (el && el.scrollTop !== 0) {
+      el.scrollTop = 0
+    }
+  }, [])
+
   if (!agent) {
     return (
       <div className={styles.empty}>
@@ -43,15 +52,6 @@ export function ChatView({
       </div>
     )
   }
-
-  // Prevent browser focus-scroll from moving the outer container
-  const containerRef = useRef<HTMLDivElement>(null)
-  const handleContainerScroll = useCallback(() => {
-    const el = containerRef.current
-    if (el && el.scrollTop !== 0) {
-      el.scrollTop = 0
-    }
-  }, [])
 
   return (
     <div className={styles.container} ref={containerRef} onScroll={handleContainerScroll}>
