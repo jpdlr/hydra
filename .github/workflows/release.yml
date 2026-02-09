@@ -129,33 +129,47 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
         run: npm run dist:win:dry-run
 
+      - name: Resolve release tag (Windows)
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        id: release-tag
+        shell: pwsh
+        run: |
+          $tag = ""
+          $tagFromSha = (git tag --points-at $env:GITHUB_SHA | Select-Object -First 1)
+          if (-not [string]::IsNullOrWhiteSpace($tagFromSha)) {
+            $tag = $tagFromSha.Trim()
+          }
+          if ([string]::IsNullOrWhiteSpace($tag) -and $env:GITHUB_REF -like "refs/tags/*") {
+            $tag = $env:GITHUB_REF.Substring(10).Trim()
+          }
+          if ([string]::IsNullOrWhiteSpace($tag)) {
+            throw "Unable to resolve release tag. GITHUB_REF=$env:GITHUB_REF GITHUB_SHA=$env:GITHUB_SHA"
+          }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          Write-Host "Resolved release tag: $tag"
+
       - name: Ensure draft release exists (Windows)
         if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
         shell: pwsh
         run: |
-          if ($env:GITHUB_REF -notlike "refs/tags/*") {
-            throw "Release publish requires a tag ref. Found: $env:GITHUB_REF"
-          }
-          $tag = $env:GITHUB_REF.Substring(10)
-          if ([string]::IsNullOrWhiteSpace($tag)) {
-            throw "Unable to resolve release tag from GITHUB_REF=$env:GITHUB_REF"
-          }
-          gh release view $tag --repo $env:GITHUB_REPOSITORY | Out-Null
+          $tag = "${{ steps.release-tag.outputs.tag }}"
+          gh release view $tag --repo $env:GITHUB_REPOSITORY --json id | Out-Null
           if ($LASTEXITCODE -ne 0) {
-            gh release create $tag --repo $env:GITHUB_REPOSITORY --verify-tag --draft --title $tag --notes "Automated Windows installer build."
+            gh api `
+              --method POST `
+              "repos/$env:GITHUB_REPOSITORY/releases" `
+              -f tag_name="$tag" `
+              -f target_commitish="$env:GITHUB_SHA" `
+              -f name="$tag" `
+              -F draft=true `
+              -f body="Automated Windows installer build." | Out-Null
           }
 
       - name: Upload release assets (Windows)
         if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
         shell: pwsh
         run: |
-          if ($env:GITHUB_REF -notlike "refs/tags/*") {
-            throw "Release upload requires a tag ref. Found: $env:GITHUB_REF"
-          }
-          $tag = $env:GITHUB_REF.Substring(10)
-          if ([string]::IsNullOrWhiteSpace($tag)) {
-            throw "Unable to resolve release tag from GITHUB_REF=$env:GITHUB_REF"
-          }
+          $tag = "${{ steps.release-tag.outputs.tag }}"
           gh release upload $tag `
             dist/*.exe `
             dist/*.blockmap `
@@ -167,7 +181,7 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
         uses: actions/upload-artifact@v4
         with:
-          name: windows-installer-${{ github.ref_name }}
+          name: windows-installer-${{ steps.release-tag.outputs.tag }}
           path: |
             dist/*.exe
             dist/*.blockmap
