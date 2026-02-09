@@ -25,6 +25,8 @@
     "dist:mac:dry-run": "npm run build && electron-builder --mac --publish never",
     "dist:win:dry-run": "npm run build && electron-builder --win nsis --x64 --publish never",
     "release:preflight": "node scripts/release-preflight.mjs",
+    "release:guard": "node scripts/release-guard.mjs",
+    "release:validate-win-artifacts": "node scripts/validate-win-update-artifacts.mjs",
     "deploy": "bash scripts/deploy-local.sh"
   },
   "dependencies": {

@@ -13,7 +13,7 @@ publish:
   - provider: github
     owner: jpdlr
     repo: hydra
-    releaseType: draft
+    releaseType: release
 mac:
   icon: build/icon.icns
   category: public.app-category.developer-tools

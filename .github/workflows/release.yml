@@ -74,7 +74,7 @@ jobs:
         if: ${{ steps.mac-secrets.outputs.available == 'true' && github.event_name == 'workflow_dispatch' && inputs.dry_run }}
         run: npm run dist:mac:dry-run
 
-      - name: Build and Publish Draft Release
+      - name: Build and Publish Release
         if: ${{ steps.mac-secrets.outputs.available == 'true' && (github.event_name != 'workflow_dispatch' || !inputs.dry_run) }}
         run: npm run dist:mac
 
@@ -148,20 +148,39 @@ jobs:
           "tag=$tag" >> $env:GITHUB_OUTPUT
           Write-Host "Resolved release tag: $tag"
 
-      - name: Ensure draft release exists (Windows)
+      - name: Enforce release version bump
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        shell: pwsh
+        run: npm run release:guard -- "${{ steps.release-tag.outputs.tag }}"
+
+      - name: Ensure published release exists (Windows)
         if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
         shell: pwsh
         run: |
           $tag = "${{ steps.release-tag.outputs.tag }}"
-          gh release view $tag --repo $env:GITHUB_REPOSITORY --json id
+          $release = gh release view $tag --repo $env:GITHUB_REPOSITORY --json id,isDraft,isPrerelease,tagName 2>$null
           if ($LASTEXITCODE -ne 0) {
             gh release create $tag `
               --repo $env:GITHUB_REPOSITORY `
               --verify-tag `
               --title $tag `
               --notes "Automated Windows installer build."
+            $release = gh release view $tag --repo $env:GITHUB_REPOSITORY --json id,isDraft,isPrerelease,tagName
           }
-          gh release view $tag --repo $env:GITHUB_REPOSITORY
+
+          $releaseData = $release | ConvertFrom-Json
+          if ($releaseData.isPrerelease) {
+            throw "Release $tag is marked prerelease. Stable updater channel requires published releases."
+          }
+          if ($releaseData.isDraft) {
+            gh release edit $tag --repo $env:GITHUB_REPOSITORY --draft=false
+          }
+          gh release view $tag --repo $env:GITHUB_REPOSITORY --json id,isDraft,isPrerelease,url
+
+      - name: Validate Windows updater metadata
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        shell: pwsh
+        run: npm run release:validate-win-artifacts
 
       - name: Upload release assets (Windows)
         if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
