@@ -33,28 +33,26 @@ interface JsonlHeader {
 const DEFAULT_CLAUDE_PROJECTS_DIR = join(homedir(), '.claude', 'projects')
 const INDEX_FILENAME = 'sessions-index.json'
 const JSONL_MAX_HEADER_CHARS = 64 * 1024
+const SESSION_CACHE_TTL_MS = 5000
 
 export interface ListSessionOptions {
   limit?: number
   maxAgeDays?: number
   projectPathPrefix?: string
   hiddenSessionIds?: Iterable<string>
+  forceRefresh?: boolean
 }
 
 export class SessionCatalog {
-  constructor(private readonly projectsDir: string = DEFAULT_CLAUDE_PROJECTS_DIR) {}
+  private cache: { sessions: ClaudeSessionSummary[]; expiresAt: number } | null = null
+
+  constructor(
+    private readonly projectsDir: string = DEFAULT_CLAUDE_PROJECTS_DIR,
+    private readonly cacheTtlMs: number = SESSION_CACHE_TTL_MS
+  ) {}
 
   listSessions(options: ListSessionOptions = {}): ClaudeSessionSummary[] {
-    if (!existsSync(this.projectsDir)) return []
-
-    const sessions: ClaudeSessionSummary[] = []
-    const projects = readdirSync(this.projectsDir, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => join(this.projectsDir, entry.name))
-
-    for (const projectDir of projects) {
-      sessions.push(...this.readProjectSessions(projectDir))
-    }
+    const sessions = this.getSessionSnapshot(options.forceRefresh === true)
 
     const hiddenIds = new Set(options.hiddenSessionIds ?? [])
     const projectPrefix = options.projectPathPrefix?.trim()
@@ -75,6 +73,49 @@ export class SessionCatalog {
       return filtered.slice(0, options.limit)
     }
     return filtered
+  }
+
+  invalidateCache(): void {
+    this.cache = null
+  }
+
+  private getSessionSnapshot(forceRefresh: boolean): ClaudeSessionSummary[] {
+    if (forceRefresh || this.cacheTtlMs <= 0) {
+      return this.refreshCache()
+    }
+
+    const now = Date.now()
+    if (this.cache && this.cache.expiresAt > now) {
+      return this.cache.sessions
+    }
+    return this.refreshCache()
+  }
+
+  private refreshCache(): ClaudeSessionSummary[] {
+    const sessions = this.scanProjects()
+    if (this.cacheTtlMs > 0) {
+      this.cache = {
+        sessions,
+        expiresAt: Date.now() + this.cacheTtlMs
+      }
+    } else {
+      this.cache = null
+    }
+    return sessions
+  }
+
+  private scanProjects(): ClaudeSessionSummary[] {
+    if (!existsSync(this.projectsDir)) return []
+
+    const sessions: ClaudeSessionSummary[] = []
+    const projects = readdirSync(this.projectsDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => join(this.projectsDir, entry.name))
+
+    for (const projectDir of projects) {
+      sessions.push(...this.readProjectSessions(projectDir))
+    }
+    return sessions
   }
 
   private readProjectSessions(projectDir: string): ClaudeSessionSummary[] {

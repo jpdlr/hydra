@@ -24,7 +24,8 @@ interface ManagedAgent {
   rows: number
   source: 'hydra' | 'imported'
   latestUserPrompt: string | null
-  sessionSyncTimer: ReturnType<typeof setInterval> | null
+  sessionSyncTimer: ReturnType<typeof setTimeout> | null
+  sessionDiscoveryAttempts: number
 }
 
 const MAX_BUFFER_LINES = 5000
@@ -32,7 +33,9 @@ const GRACEFUL_KILL_TIMEOUT = 5000
 const INPUT_SUBMIT_DELAY_MS = 75
 const DEFAULT_PTY_COLS = 120
 const DEFAULT_PTY_ROWS = 30
-const SESSION_DISCOVERY_INTERVAL_MS = 2500
+const SESSION_DISCOVERY_INITIAL_INTERVAL_MS = 2500
+const SESSION_DISCOVERY_MAX_INTERVAL_MS = 30000
+const SESSION_DISCOVERY_BACKOFF_FACTOR = 1.6
 const SESSION_DISCOVERY_GRACE_MS = 5 * 60 * 1000
 const SESSION_HINT_MAX_LENGTH = 400
 
@@ -94,7 +97,8 @@ export class AgentManager extends EventEmitter {
       rows: DEFAULT_PTY_ROWS,
       source: 'hydra',
       latestUserPrompt: payload.initialPrompt.trim() || null,
-      sessionSyncTimer: null
+      sessionSyncTimer: null,
+      sessionDiscoveryAttempts: 0
     }
 
     this.agents.set(id, managed)
@@ -141,7 +145,8 @@ export class AgentManager extends EventEmitter {
         rows: DEFAULT_PTY_ROWS,
         source: 'imported',
         latestUserPrompt: session.firstPrompt.trim() || null,
-        sessionSyncTimer: null
+        sessionSyncTimer: null,
+        sessionDiscoveryAttempts: 0
       })
       imported++
     }
@@ -187,7 +192,8 @@ export class AgentManager extends EventEmitter {
         rows: DEFAULT_PTY_ROWS,
         source: 'hydra',
         latestUserPrompt: null,
-        sessionSyncTimer: null
+        sessionSyncTimer: null,
+        sessionDiscoveryAttempts: 0
       })
       restored++
     }
@@ -302,7 +308,7 @@ export class AgentManager extends EventEmitter {
         managed.pty = null
         managed.state.pid = null
         this.stopSessionDiscovery(managed)
-        this.probeSessionIdFromCatalog(managed)
+        this.probeSessionIdFromCatalog(managed, { forceRefresh: true })
 
         if (exitCode === 0) {
           this.updateStatus(managed.state.id, 'idle')
@@ -375,26 +381,50 @@ export class AgentManager extends EventEmitter {
     if (!provider.supportsResume) return
     if (managed.state.sessionId || managed.source !== 'hydra') return
     this.stopSessionDiscovery(managed)
-    this.probeSessionIdFromCatalog(managed)
-    managed.sessionSyncTimer = setInterval(() => {
-      this.probeSessionIdFromCatalog(managed)
-    }, SESSION_DISCOVERY_INTERVAL_MS)
+    this.probeSessionIdFromCatalog(managed, { forceRefresh: true })
+    if (!managed.state.sessionId) {
+      this.scheduleSessionDiscovery(managed)
+    }
   }
 
   private stopSessionDiscovery(managed: ManagedAgent): void {
     if (!managed.sessionSyncTimer) return
-    clearInterval(managed.sessionSyncTimer)
+    clearTimeout(managed.sessionSyncTimer)
     managed.sessionSyncTimer = null
+    managed.sessionDiscoveryAttempts = 0
   }
 
-  private probeSessionIdFromCatalog(managed: ManagedAgent): void {
+  private scheduleSessionDiscovery(managed: ManagedAgent): void {
+    if (managed.state.sessionId || managed.source !== 'hydra') return
+
+    const attempts = managed.sessionDiscoveryAttempts
+    const delay =
+      attempts === 0
+        ? SESSION_DISCOVERY_INITIAL_INTERVAL_MS
+        : Math.min(
+            SESSION_DISCOVERY_INITIAL_INTERVAL_MS * Math.pow(SESSION_DISCOVERY_BACKOFF_FACTOR, attempts),
+            SESSION_DISCOVERY_MAX_INTERVAL_MS
+          )
+
+    managed.sessionDiscoveryAttempts = attempts + 1
+    managed.sessionSyncTimer = setTimeout(() => {
+      managed.sessionSyncTimer = null
+      this.probeSessionIdFromCatalog(managed)
+      if (!managed.state.sessionId) {
+        this.scheduleSessionDiscovery(managed)
+      }
+    }, delay)
+  }
+
+  private probeSessionIdFromCatalog(managed: ManagedAgent, options: { forceRefresh?: boolean } = {}): void {
     if (managed.state.sessionId || managed.source !== 'hydra') return
     if (!managed.state.projectDir) return
 
     try {
       const sessions = this.sessionCatalog.listSessions({
         limit: 120,
-        projectPathPrefix: managed.state.projectDir
+        projectPathPrefix: managed.state.projectDir,
+        forceRefresh: options.forceRefresh === true
       })
       if (sessions.length === 0) return
 

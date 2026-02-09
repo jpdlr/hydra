@@ -100,4 +100,107 @@ describe('SessionCatalog', () => {
       firstPrompt: 'Bring in a delete button'
     })
   })
+
+  it('caches scans and refreshes via forceRefresh or explicit invalidation', () => {
+    const projectsRoot = makeProjectsRoot()
+    const projectDir = join(projectsRoot, 'project-cache')
+    mkdirSync(projectDir, { recursive: true })
+
+    const indexPath = join(projectDir, 'sessions-index.json')
+    writeFileSync(
+      indexPath,
+      JSON.stringify(
+        {
+          originalPath: '/Users/jp/workspace/cache',
+          entries: [
+            {
+              sessionId: 'cache-a',
+              fullPath: '/tmp/cache-a.jsonl',
+              projectPath: '/Users/jp/workspace/cache',
+              firstPrompt: 'Alpha',
+              modified: '2026-01-10T10:00:00.000Z'
+            }
+          ]
+        },
+        null,
+        2
+      )
+    )
+
+    const catalog = new SessionCatalog(projectsRoot, 60000)
+    const first = catalog.listSessions()
+    expect(first.map((entry) => entry.sessionId)).toEqual(['cache-a'])
+
+    // Update index with a new session while cache is still valid.
+    writeFileSync(
+      indexPath,
+      JSON.stringify(
+        {
+          originalPath: '/Users/jp/workspace/cache',
+          entries: [
+            {
+              sessionId: 'cache-a',
+              fullPath: '/tmp/cache-a.jsonl',
+              projectPath: '/Users/jp/workspace/cache',
+              firstPrompt: 'Alpha',
+              modified: '2026-01-10T10:00:00.000Z'
+            },
+            {
+              sessionId: 'cache-b',
+              fullPath: '/tmp/cache-b.jsonl',
+              projectPath: '/Users/jp/workspace/cache',
+              firstPrompt: 'Beta',
+              modified: '2026-01-11T10:00:00.000Z'
+            }
+          ]
+        },
+        null,
+        2
+      )
+    )
+
+    const stillCached = catalog.listSessions()
+    expect(stillCached.map((entry) => entry.sessionId)).toEqual(['cache-a'])
+
+    const forced = catalog.listSessions({ forceRefresh: true })
+    expect(forced.map((entry) => entry.sessionId)).toEqual(['cache-b', 'cache-a'])
+
+    // Add third entry, then invalidate cache to force refresh on next read without flag.
+    writeFileSync(
+      indexPath,
+      JSON.stringify(
+        {
+          originalPath: '/Users/jp/workspace/cache',
+          entries: [
+            {
+              sessionId: 'cache-a',
+              fullPath: '/tmp/cache-a.jsonl',
+              projectPath: '/Users/jp/workspace/cache',
+              firstPrompt: 'Alpha',
+              modified: '2026-01-10T10:00:00.000Z'
+            },
+            {
+              sessionId: 'cache-b',
+              fullPath: '/tmp/cache-b.jsonl',
+              projectPath: '/Users/jp/workspace/cache',
+              firstPrompt: 'Beta',
+              modified: '2026-01-11T10:00:00.000Z'
+            },
+            {
+              sessionId: 'cache-c',
+              fullPath: '/tmp/cache-c.jsonl',
+              projectPath: '/Users/jp/workspace/cache',
+              firstPrompt: 'Gamma',
+              modified: '2026-01-12T10:00:00.000Z'
+            }
+          ]
+        },
+        null,
+        2
+      )
+    )
+    catalog.invalidateCache()
+    const afterInvalidation = catalog.listSessions()
+    expect(afterInvalidation.map((entry) => entry.sessionId)).toEqual(['cache-c', 'cache-b', 'cache-a'])
+  })
 })
