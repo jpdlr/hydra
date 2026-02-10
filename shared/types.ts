@@ -182,7 +182,16 @@ export const IPC = {
 
   // Notifications
   NOTIFICATION: 'notification:push',
-  NOTIFICATION_DISMISS: 'notification:dismiss'
+  NOTIFICATION_DISMISS: 'notification:dismiss',
+
+  // File system (editor panel)
+  FS_READ_DIR: 'fs:read-dir',
+  FS_READ_FILE: 'fs:read-file',
+  FS_WRITE_FILE: 'fs:write-file',
+  FS_WATCH_START: 'fs:watch-start',
+  FS_WATCH_STOP: 'fs:watch-stop',
+  FS_WATCH_EVENT: 'fs:watch-event',
+  FS_SEARCH_FILES: 'fs:search-files'
 } as const
 
 // ── IPC Payloads ─────────────────────────────────────────────────────────────
@@ -414,4 +423,28 @@ export interface McpServerStatus {
   port: number | null
   error: string | null
   managerWorkspace: string | null
+}
+
+// ── File System (Editor Panel) ──────────────────────────────────────────────
+
+export interface FsDirEntry {
+  name: string
+  isDirectory: boolean
+}
+
+export interface FsReadFileResult {
+  content: string
+  path: string
+}
+
+export interface FsSearchResult {
+  path: string
+  name: string
+  isDirectory: false
+}
+
+export interface FsWatchEventPayload {
+  agentId: string
+  eventType: 'change' | 'rename'
+  path: string
 }

@@ -1,0 +1,78 @@
+.panel {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+.fileTreeSide {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--color-border);
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: var(--color-surface);
+}
+
+.fileTreeHeader {
+  display: flex;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
+  flex-shrink: 0;
+}
+
+.fileTreeTitle {
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+.filterInput {
+  width: 100%;
+  padding: 4px var(--space-3);
+  border: none;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-ui);
+  outline: none;
+  flex-shrink: 0;
+}
+
+.filterInput::placeholder {
+  color: var(--color-text-muted);
+}
+
+.filterInput:focus {
+  border-bottom-color: var(--color-accent);
+}
+
+.treeResizeHandle {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  bottom: 0;
+  width: 4px;
+  cursor: col-resize;
+  z-index: 2;
+  transition: background var(--transition-fast);
+}
+
+.treeResizeHandle:hover,
+.treeResizeActive {
+  background: var(--color-accent);
+}
+
+.editorSide {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}

@@ -8,6 +8,7 @@ import { HeadlessOrchestrator } from '../headless/HeadlessOrchestrator'
 import { NotificationService } from '../notifications/NotificationService'
 import { UsageTracker } from '../usage/UsageTracker'
 import { UpdateService } from '../updates/UpdateService'
+import { FileSystemService } from '../fs/FileSystemService'
 import { IPC } from '@shared/types'
 import type { HydraMcpServer } from '../mcp/McpServer'
 import type {
@@ -109,6 +110,9 @@ const usageDashboardOptionsSchema = z
     days: z.number().int().min(1).max(90).optional()
   })
   .optional()
+const fsPathSchema = z.string().trim().min(1).max(8192)
+const fsWriteContentSchema = z.string().max(10_000_000)
+
 const observabilityLogSchema = z.object({
   level: z.enum(['debug', 'info', 'warn', 'error']),
   event: z.string().trim().min(1).max(200),
@@ -137,7 +141,8 @@ export function registerIpcHandlers(
   observability: ObservabilityHandlers,
   onWorkspaceChanged?: () => void,
   mcpServer?: HydraMcpServer | null,
-  notificationService?: NotificationService | null
+  notificationService?: NotificationService | null,
+  fileSystemService?: FileSystemService | null
 ): void {
   // ── Preflight ────────────────────────────────────────────────────────────
 
@@ -496,6 +501,67 @@ export function registerIpcHandlers(
       win.webContents.send(IPC.UPDATE_STATE_CHANGED, state)
     })
   })
+
+  // ── File System (Editor Panel) ──────────────────────────────────────────
+
+  if (fileSystemService) {
+    ipcMain.handle(IPC.FS_READ_DIR, async (_event, agentId: string, dirPath: string) => {
+      const id = agentIdSchema.parse(agentId)
+      const path = fsPathSchema.parse(dirPath)
+      const agent = agentManager.get(id)
+      if (!agent) throw new Error(`Agent ${id} not found`)
+      return fileSystemService.readDir(path, agent.projectDir)
+    })
+
+    ipcMain.handle(IPC.FS_READ_FILE, async (_event, agentId: string, filePath: string) => {
+      const id = agentIdSchema.parse(agentId)
+      const path = fsPathSchema.parse(filePath)
+      const agent = agentManager.get(id)
+      if (!agent) throw new Error(`Agent ${id} not found`)
+      return fileSystemService.readFile(path, agent.projectDir)
+    })
+
+    ipcMain.handle(
+      IPC.FS_WRITE_FILE,
+      async (_event, agentId: string, filePath: string, content: string) => {
+        const id = agentIdSchema.parse(agentId)
+        const path = fsPathSchema.parse(filePath)
+        const body = fsWriteContentSchema.parse(content)
+        const agent = agentManager.get(id)
+        if (!agent) throw new Error(`Agent ${id} not found`)
+        await fileSystemService.writeFile(path, body, agent.projectDir)
+        return true
+      }
+    )
+
+    ipcMain.on(IPC.FS_WATCH_START, (_event, agentId: string) => {
+      const id = agentIdSchema.parse(agentId)
+      const agent = agentManager.get(id)
+      if (!agent) return
+      fileSystemService.startWatch(id, agent.projectDir, (payload) => {
+        BrowserWindow.getAllWindows().forEach((win) => {
+          win.webContents.send(IPC.FS_WATCH_EVENT, payload)
+        })
+      })
+    })
+
+    ipcMain.on(IPC.FS_WATCH_STOP, (_event, agentId: string) => {
+      const id = agentIdSchema.parse(agentId)
+      fileSystemService.stopWatch(id)
+    })
+
+    ipcMain.handle(
+      IPC.FS_SEARCH_FILES,
+      async (_event, agentId: string, query: string, maxResults?: number) => {
+        const id = agentIdSchema.parse(agentId)
+        const q = z.string().max(500).parse(query)
+        const limit = z.number().int().min(1).max(500).optional().parse(maxResults)
+        const agent = agentManager.get(id)
+        if (!agent) throw new Error(`Agent ${id} not found`)
+        return fileSystemService.searchFiles(q, agent.projectDir, limit)
+      }
+    )
+  }
 
   // ── Notifications ─────────────────────────────────────────────────────────
 

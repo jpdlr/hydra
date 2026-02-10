@@ -32,7 +32,9 @@
   "dependencies": {
     "@electron-toolkit/utils": "^4.0.0",
     "@modelcontextprotocol/sdk": "^1.26.0",
+    "@monaco-editor/react": "^4.7.0",
     "electron-updater": "^6.7.3",
+    "monaco-editor": "^0.55.1",
     "node-pty": "^1.0.0",
     "zod": "^3.23.0"
   },

@@ -54,6 +54,13 @@
   --input-bar-height: 56px;
   --tile-header-height: 36px;
 
+  /* Editor panel */
+  --editor-panel-min-width: 300px;
+  --file-tree-width: 220px;
+  --file-tree-min-width: 140px;
+  --file-tree-max-width: 400px;
+  --tab-bar-height: 36px;
+
   /* Terminal (always dark) */
   --color-terminal-bg: #262624;
   --color-terminal-text: #E8E4E0;

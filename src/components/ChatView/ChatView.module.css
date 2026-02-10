@@ -6,6 +6,30 @@
   background: var(--color-bg);
 }
 
+/* Split layout: terminal + editor side by side */
+.splitContainer {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+.terminalSide {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  min-width: 300px;
+}
+
+.editorSide {
+  flex: 1;
+  min-width: var(--editor-panel-min-width);
+  height: 100%;
+  overflow: hidden;
+}
+
 .empty {
   display: flex;
   align-items: center;
