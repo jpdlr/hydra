@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mkdtempSync, rmSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
@@ -35,12 +35,16 @@ function makeAgent(overrides: Partial<AgentState> = {}): AgentState {
 
 describe('UsageTracker', () => {
   afterEach(() => {
+    vi.useRealTimers()
     for (const dir of tempDirs.splice(0)) {
       rmSync(dir, { recursive: true, force: true })
     }
   })
 
   it('aggregates usage per day, project, and agent from PTY output', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-02-09T13:10:00.000Z'))
+
     const tracker = new UsageTracker(makeTempDir())
     const config = { ...DEFAULT_CONFIG }
 
