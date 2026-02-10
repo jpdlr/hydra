@@ -58,15 +58,16 @@ export class FileSystemService {
     const fullPath = resolve(projectDir, dirPath)
     assertWithinProject(fullPath, projectDir)
 
-    const entries = await readdir(fullPath, { withFileTypes: true }) as import('fs').Dirent[]
+    const names = await readdir(fullPath)
     const result: FsDirEntry[] = []
 
-    for (const entry of entries) {
-      const name = String(entry.name)
+    for (const name of names) {
       if (IGNORED_NAMES.has(name)) continue
       if (name.startsWith('.') && name !== '.env.example') continue
-      if (entry.isFile() || entry.isDirectory()) {
-        result.push({ name, isDirectory: entry.isDirectory() })
+      const info = await stat(join(fullPath, name)).catch(() => null)
+      if (!info) continue
+      if (info.isFile() || info.isDirectory()) {
+        result.push({ name, isDirectory: info.isDirectory() })
       }
     }
 
@@ -112,20 +113,21 @@ export class FileSystemService {
 
     const walk = async (dir: string): Promise<void> => {
       if (results.length >= maxResults) return
-      let rawEntries: import('fs').Dirent[]
+      let names: string[]
       try {
-        rawEntries = await readdir(dir, { withFileTypes: true }) as import('fs').Dirent[]
+        names = await readdir(dir)
       } catch {
         return
       }
-      for (const entry of rawEntries) {
+      for (const name of names) {
         if (results.length >= maxResults) return
-        const name = String(entry.name)
         if (IGNORED_NAMES.has(name)) continue
         if (name.startsWith('.')) continue
         const fullPath = join(dir, name)
         const relPath = relative(projectDir, fullPath)
-        if (entry.isDirectory()) {
+        const info = await stat(fullPath).catch(() => null)
+        if (!info) continue
+        if (info.isDirectory()) {
           await walk(fullPath)
         } else if (!isBinaryFile(name)) {
           if (relPath.toLowerCase().includes(lowerQuery)) {
