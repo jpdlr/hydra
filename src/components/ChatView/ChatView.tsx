@@ -1,36 +1,29 @@
 import { useRef, useCallback } from 'react'
 import { TerminalPane } from '../Terminal/TerminalPane'
 import { InputBar } from './InputBar'
-import { MessageList } from './MessageList'
-import type { AgentState, ChatMessage, ChatRenderMode } from '@shared/types'
+import type { AgentState } from '@shared/types'
 import styles from './ChatView.module.css'
 
 interface ChatViewProps {
   agent: AgentState | null
   rawOutput: string
-  messages: ChatMessage[]
-  chatRenderMode: ChatRenderMode
   onSendInput: (input: string) => void
   onTerminalData: (data: string) => void
   onTerminalResize: (cols: number, rows: number) => void
   onRestartAgent: () => void
   onToggleYolo: () => void
   onKillAgent: () => void
-  onToggleChatRenderMode: () => void
 }
 
 export function ChatView({
   agent,
   rawOutput,
-  messages,
-  chatRenderMode,
   onSendInput,
   onTerminalData,
   onTerminalResize,
   onRestartAgent,
   onToggleYolo,
-  onKillAgent,
-  onToggleChatRenderMode
+  onKillAgent
 }: ChatViewProps) {
   // Prevent browser focus-scroll from moving the outer container.
   const containerRef = useRef<HTMLDivElement>(null)
@@ -68,13 +61,6 @@ export function ChatView({
           </div>
         </div>
         <div className={styles.agentActions}>
-          <button
-            className={`${styles.actionBtn} ${chatRenderMode === 'bubbles' ? styles.actionBtnActive : ''}`}
-            onClick={onToggleChatRenderMode}
-            title={chatRenderMode === 'terminal' ? 'Switch to bubbles' : 'Switch to terminal'}
-          >
-            {chatRenderMode === 'terminal' ? <BubblesIcon /> : <TerminalIcon />}
-          </button>
           <button
             className={styles.actionBtn}
             onClick={() => window.hydra.openInEditor(agent.projectDir)}
@@ -117,19 +103,15 @@ export function ChatView({
         </div>
       )}
 
-      {/* Main content — terminal or bubbles */}
-      {chatRenderMode === 'terminal' ? (
-        <div className={styles.terminalWrapper}>
-          <TerminalPane
-            key={agent.id}
-            rawOutput={rawOutput}
-            onData={onTerminalData}
-            onResize={onTerminalResize}
-          />
-        </div>
-      ) : (
-        <MessageList messages={messages} />
-      )}
+      {/* Terminal */}
+      <div className={styles.terminalWrapper}>
+        <TerminalPane
+          key={agent.id}
+          rawOutput={rawOutput}
+          onData={onTerminalData}
+          onResize={onTerminalResize}
+        />
+      </div>
 
       {/* Input */}
       <InputBar
@@ -164,44 +146,6 @@ function VsCodeIcon() {
       <path d="M12 3v10" />
       <path d="M4 8L10.5 2.5" />
       <path d="M4 8l6.5 5.5" />
-    </svg>
-  )
-}
-
-function TerminalIcon() {
-  return (
-    <svg
-      className={styles.actionIcon}
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <rect x="2" y="3" width="12" height="10" rx="1.5" />
-      <path d="M5 7l2 1.5L5 10" />
-      <path d="M9 10h2" />
-    </svg>
-  )
-}
-
-function BubblesIcon() {
-  return (
-    <svg
-      className={styles.actionIcon}
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M3 3h10a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H6l-3 2v-2a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
-      <path d="M6 6h4" />
-      <path d="M6 8.5h2.5" />
     </svg>
   )
 }

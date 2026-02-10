@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { AppConfig, ChatRenderMode, ProviderId, ThemeId, ViewMode } from '@shared/types'
+import type { AppConfig, ProviderId, ThemeId, ViewMode } from '@shared/types'
 import { PROVIDER_MODELS, PROVIDER_LABELS, getDefaultModelForProvider } from '@shared/types'
 import styles from './SettingsPanel.module.css'
 
@@ -83,25 +83,6 @@ export function SettingsPanel({ config, onUpdate, onClose }: SettingsPanelProps)
                 onClick={() => onUpdate({ defaultViewMode: 'grid' as ViewMode })}
               >
                 Grid
-              </button>
-            </div>
-          </div>
-
-          {/* Chat render mode */}
-          <div className={styles.field}>
-            <label className={styles.label}>Chat Render Mode</label>
-            <div className={styles.segmented}>
-              <button
-                className={`${styles.segment} ${config.chatRenderMode === 'terminal' ? styles.active : ''}`}
-                onClick={() => onUpdate({ chatRenderMode: 'terminal' as ChatRenderMode })}
-              >
-                Terminal
-              </button>
-              <button
-                className={`${styles.segment} ${config.chatRenderMode === 'bubbles' ? styles.active : ''}`}
-                onClick={() => onUpdate({ chatRenderMode: 'bubbles' as ChatRenderMode })}
-              >
-                Bubbles
               </button>
             </div>
           </div>

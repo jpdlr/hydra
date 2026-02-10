@@ -98,11 +98,6 @@
   --color-input-border: #E5DFD8;
   --color-input-focus: #D97757;
 
-  --color-bubble-user: #D97757;
-  --color-bubble-user-text: #FFFFFF;
-  --color-bubble-assistant: #F0EBE4;
-  --color-bubble-assistant-text: #2D2420;
-
   --color-code-bg: #F5F0EA;
   --color-code-border: #E5DFD8;
 
@@ -151,11 +146,6 @@
   --color-input-border: #3b3b38;
   --color-input-focus: #E08B6D;
 
-  --color-bubble-user: #D97757;
-  --color-bubble-user-text: #FFFFFF;
-  --color-bubble-assistant: #30302e;
-  --color-bubble-assistant-text: #E8E4E0;
-
   --color-code-bg: #2a2a28;
   --color-code-border: #3b3b38;
 
@@ -203,11 +193,6 @@
   --color-input-bg: #232323;
   --color-input-border: #333333;
   --color-input-focus: #505050;
-
-  --color-bubble-user: #E8E8E8;
-  --color-bubble-user-text: #191919;
-  --color-bubble-assistant: #2a2a2a;
-  --color-bubble-assistant-text: #E8E8E8;
 
   --color-code-bg: #1e1e1e;
   --color-code-border: #333333;

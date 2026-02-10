@@ -67,7 +67,6 @@ const appConfigPatchSchema = z
     sessionMaxAgeDays: z.number().int().min(0).max(365).optional(),
     sessionImportProjectPrefix: z.string().max(4096).optional(),
     hiddenSessionIds: z.array(z.string().trim().min(1).max(128)).max(10000).optional(),
-    chatRenderMode: z.enum(['terminal', 'bubbles']).optional(),
     usageDailyTokenBudget: z.number().int().min(0).max(10_000_000).optional(),
     usageDailyCostBudgetUsd: z.number().min(0).max(100_000).optional(),
     usageBudgetWarningThresholdPct: z.number().int().min(1).max(99).optional(),

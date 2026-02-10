@@ -67,8 +67,6 @@ export function getProviderForModel(model: ModelId): ProviderId {
 // ── Config ───────────────────────────────────────────────────────────────────
 export type ThemeId = 'light' | 'dark' | 'midnight'
 export type ViewMode = 'grid' | 'chat'
-export type ChatRenderMode = 'terminal' | 'bubbles'
-
 export interface AppConfig {
   schemaVersion: number
   defaultProvider: ProviderId
@@ -83,7 +81,6 @@ export interface AppConfig {
   sessionMaxAgeDays: number
   sessionImportProjectPrefix: string
   hiddenSessionIds: string[]
-  chatRenderMode: ChatRenderMode
   usageDailyTokenBudget: number
   usageDailyCostBudgetUsd: number
   usageBudgetWarningThresholdPct: number
@@ -106,7 +103,6 @@ export const DEFAULT_CONFIG: AppConfig = {
   sessionMaxAgeDays: 7,
   sessionImportProjectPrefix: '',
   hiddenSessionIds: [],
-  chatRenderMode: 'terminal',
   usageDailyTokenBudget: 0,
   usageDailyCostBudgetUsd: 0,
   usageBudgetWarningThresholdPct: 80,
@@ -381,28 +377,6 @@ export interface ObservabilityLogEventPayload {
 export interface ExportDiagnosticsResult {
   path: string | null
   error: string | null
-}
-
-// ── Chat Message (parsed from PTY output) ────────────────────────────────────
-
-export type ChatMessageRole = 'user' | 'assistant' | 'system'
-
-export interface ChatMessage {
-  id: string
-  role: ChatMessageRole
-  content: string
-  timestamp: number
-  isThinking?: boolean
-  toolCall?: {
-    tool: string
-    input: string
-    output?: string
-  }
-  codeBlocks?: Array<{
-    language: string
-    code: string
-    filePath?: string
-  }>
 }
 
 // ── Project grouping ─────────────────────────────────────────────────────────

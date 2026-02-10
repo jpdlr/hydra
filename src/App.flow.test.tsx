@@ -104,7 +104,6 @@ const baseConfig: AppConfig = {
   sessionImportLimit: 500,
   sessionImportProjectPrefix: '',
   hiddenSessionIds: [],
-  chatRenderMode: 'terminal',
   usageDailyTokenBudget: 0,
   usageDailyCostBudgetUsd: 0,
   usageBudgetWarningThresholdPct: 80,

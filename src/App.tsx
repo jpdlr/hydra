@@ -489,8 +489,6 @@ export default function App() {
             <ChatView
               agent={selectedAgent?.state || null}
               rawOutput={selectedAgent?.rawOutput || ''}
-              messages={selectedAgent?.messages || []}
-              chatRenderMode={config.chatRenderMode}
               onSendInput={(input) => {
                 if (selectedAgentId) {
                   void handleSendInput(selectedAgentId, input)
@@ -514,11 +512,6 @@ export default function App() {
               }}
               onKillAgent={() => {
                 void handleKillAgent()
-              }}
-              onToggleChatRenderMode={() => {
-                updateConfig({
-                  chatRenderMode: config.chatRenderMode === 'terminal' ? 'bubbles' : 'terminal'
-                })
               }}
             />
           ) : (

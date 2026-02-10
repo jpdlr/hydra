@@ -4,17 +4,13 @@ import type {
   CreateAgentPayload,
   AgentOutputPayload,
   AgentStatusPayload,
-  ChatMessage,
   ProjectGroup
 } from '@shared/types'
-import { createPtyParser } from '@/lib/ptyParser'
 import { basename } from '@/lib/pathUtils'
 import { createTraceId, logEvent } from '@/lib/observability'
 
 interface AgentData {
   state: AgentState
-  parser: ReturnType<typeof createPtyParser>
-  messages: ChatMessage[]
   rawOutput: string
 }
 
@@ -28,54 +24,23 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
   }, [selectedAgentId])
 
   // Listen for agent output
-  const flushTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
-
   useEffect(() => {
     const unsub = window.hydra.onAgentOutput((payload: AgentOutputPayload) => {
-      // Clear any pending flush for this agent — new data arrived
-      const existing = flushTimers.current.get(payload.agentId)
-      if (existing) clearTimeout(existing)
-
       setAgents((prev) => {
         const next = new Map(prev)
         const data = next.get(payload.agentId)
         if (!data) return prev
 
-        const newMessages = data.parser.parseChunk(payload.data)
         next.set(payload.agentId, {
           ...data,
-          messages: [...data.messages, ...newMessages],
           rawOutput: data.rawOutput + payload.data
         })
         return next
       })
-
-      // Schedule a flush after 300ms of silence to emit accumulated text
-      flushTimers.current.set(
-        payload.agentId,
-        setTimeout(() => {
-          flushTimers.current.delete(payload.agentId)
-          setAgents((prev) => {
-            const next = new Map(prev)
-            const data = next.get(payload.agentId)
-            if (!data) return prev
-            const flushed = data.parser.flushPending()
-            if (flushed.length === 0) return prev
-            next.set(payload.agentId, {
-              ...data,
-              messages: [...data.messages, ...flushed]
-            })
-            return next
-          })
-        }, 300)
-      )
     })
 
     return () => {
       unsub()
-      // Clean up all flush timers
-      for (const timer of flushTimers.current.values()) clearTimeout(timer)
-      flushTimers.current.clear()
     }
   }, [])
 
@@ -106,8 +71,6 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
       for (const state of agentList) {
         map.set(state.id, {
           state,
-          parser: createPtyParser(),
-          messages: [],
           rawOutput: ''
         })
       }
@@ -140,8 +103,6 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
     const state = await window.hydra.createAgent(payload)
     const data: AgentData = {
       state,
-      parser: createPtyParser(),
-      messages: [],
       rawOutput: ''
     }
     setAgents((prev) => {
@@ -194,9 +155,7 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
           next.set(agentId, {
             ...data,
             state: updated,
-            messages: [],
-            rawOutput: '',
-            parser: createPtyParser()
+            rawOutput: ''
           })
         }
         return next
@@ -227,21 +186,6 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
       meta: { inputLength: input.length }
     })
     window.hydra.sendInput(agentId, input)
-
-    // Flush any pending assistant text, then add user message
-    setAgents((prev) => {
-      const next = new Map(prev)
-      const data = next.get(agentId)
-      if (data) {
-        const flushed = data.parser.flushPending()
-        const userMsg = data.parser.addUserMessage(input)
-        next.set(agentId, {
-          ...data,
-          messages: [...data.messages, ...flushed, userMsg]
-        })
-      }
-      return next
-    })
   }, [])
 
   const sendTerminalInput = useCallback((agentId: string, data: string) => {
@@ -260,25 +204,7 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
       projectId: projectDir,
       meta: { inputLength: input.length }
     })
-    const sentTo = await window.hydra.broadcast(projectDir, input)
-
-    // Add user message to all affected agents
-    setAgents((prev) => {
-      const next = new Map(prev)
-      for (const agentId of sentTo) {
-        const data = next.get(agentId)
-        if (data) {
-          const userMsg = data.parser.addUserMessage(input)
-          next.set(agentId, {
-            ...data,
-            messages: [...data.messages, userMsg]
-          })
-        }
-      }
-      return next
-    })
-
-    return sentTo
+    return await window.hydra.broadcast(projectDir, input)
   }, [])
 
   // Derived data
