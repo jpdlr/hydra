@@ -124,7 +124,7 @@ export class FileSystemService {
         if (IGNORED_NAMES.has(name)) continue
         if (name.startsWith('.')) continue
         const fullPath = join(dir, name)
-        const relPath = relative(projectDir, fullPath)
+        const relPath = relative(projectDir, fullPath).replaceAll('\\', '/')
         const info = await stat(fullPath).catch(() => null)
         if (!info) continue
         if (info.isDirectory()) {
