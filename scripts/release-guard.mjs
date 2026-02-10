@@ -19,6 +19,7 @@ if (!repo || !repo.trim()) {
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 const version = String(pkg.version ?? '').trim()
 const current = parseSemver(version)
+const currentWindowsTag = parseWindowsTag(tag)
 
 if (!current) {
   console.error(`Release guard failed: package.json version "${version}" is not strict semver (x.y.z).`)
@@ -54,6 +55,36 @@ if (!latestPrior) {
 }
 
 const cmp = compareSemver(current, latestPrior.semver)
+if (currentWindowsTag) {
+  if (cmp < 0) {
+    console.error(
+      `Release guard failed: package version ${version} must be at least previous published ${formatSemver(latestPrior.semver)} (${latestPrior.tagName}) for Windows release tags.`
+    )
+    process.exit(1)
+  }
+
+  const priorWindowsBuilds = releases
+    .filter((entry) => entry.tagName !== tag)
+    .map((entry) => parseWindowsTag(entry.tagName))
+    .filter((entry) => entry !== null && compareSemver(entry.semver, current) === 0)
+    .map((entry) => entry.build)
+
+  const maxPriorBuild =
+    priorWindowsBuilds.length > 0 ? priorWindowsBuilds.reduce((max, next) => Math.max(max, next), 0) : null
+
+  if (maxPriorBuild !== null && currentWindowsTag.build <= maxPriorBuild) {
+    console.error(
+      `Release guard failed: Windows tag build suffix must increase for ${version}. Got windows.${currentWindowsTag.build}, latest published is windows.${maxPriorBuild}.`
+    )
+    process.exit(1)
+  }
+
+  console.log(
+    `[ok] release-guard: Windows tag ${tag} accepted for package ${version} (latest semver baseline ${formatSemver(latestPrior.semver)}).`
+  )
+  process.exit(0)
+}
+
 if (cmp <= 0) {
   console.error(
     `Release guard failed: package version ${version} must be greater than previous published ${formatSemver(latestPrior.semver)} (${latestPrior.tagName}).`
@@ -97,6 +128,15 @@ function parseTagSemver(tagName) {
   const match = /^v(\d+)\.(\d+)\.(\d+)(?:$|[-+])/.exec(tagName)
   if (!match) return null
   return [Number(match[1]), Number(match[2]), Number(match[3])]
+}
+
+function parseWindowsTag(tagName) {
+  const match = /^v(\d+)\.(\d+)\.(\d+)-windows\.(\d+)$/.exec(tagName)
+  if (!match) return null
+  return {
+    semver: [Number(match[1]), Number(match[2]), Number(match[3])],
+    build: Number(match[4])
+  }
 }
 
 function parseSemver(raw) {
