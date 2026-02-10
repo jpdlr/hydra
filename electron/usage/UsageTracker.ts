@@ -64,7 +64,10 @@ const ANSI_REGEX =
 const CONTROL_CHARS = /[\x00-\x08\x0e-\x1f\x7f]/g // eslint-disable-line no-control-regex
 
 const TOKEN_ONLY_PATTERN = /^\s*([0-9][0-9,]*)\s*\((?:[0-9]{1,3})%\)\s*$/
-const TOKEN_CONTEXT_PATTERN = /(tokens?|token count|ccusage|context)/i
+const TOKEN_COUNT_PREFIX_PATTERN = /\b(?:token count|tokens?)\s*[:=]\s*([0-9][0-9,]*)\b/i
+const TOKEN_COUNT_SUFFIX_PATTERN = /\b([0-9][0-9,]*)\s*tokens?\b/i
+const CONTEXT_USAGE_PATTERN = /\bcontext(?:\s+used)?\s*[:=]?\s*([0-9][0-9,]*)\s*(?:\/\s*[0-9][0-9,]*)?/i
+const MAX_TOKEN_SIGNAL = 100_000_000
 
 const COST_TODAY_PATTERNS = [
   /\$([0-9]+(?:\.[0-9]+)?)\s*(?:cc|session|run|block|hr)?\s*\/\s*\$([0-9]+(?:\.[0-9]+)?)\s*today/i,
@@ -433,7 +436,7 @@ function sanitizeAgentMap(input: unknown): Record<string, StoredUsageAgent> {
       projectName: entry.projectName,
       provider: entry.provider,
       model: entry.model,
-      tokens: typeof entry.tokens === 'number' && Number.isFinite(entry.tokens) ? Math.max(0, entry.tokens) : 0,
+      tokens: sanitizeTokenCount(entry.tokens),
       costUsd: typeof entry.costUsd === 'number' && Number.isFinite(entry.costUsd) ? Math.max(0, entry.costUsd) : 0,
       updatedAt: typeof entry.updatedAt === 'string' ? entry.updatedAt : new Date().toISOString()
     }
@@ -473,25 +476,31 @@ function parseUsageSignals(rawData: string): UsageSignals {
 
     const tokenOnlyMatch = trimmed.match(TOKEN_ONLY_PATTERN)
     if (tokenOnlyMatch?.[1]) {
-      const parsed = parseNumeric(tokenOnlyMatch[1])
+      const parsed = parseTokenCount(tokenOnlyMatch[1])
       if (parsed !== null) {
         tokenCount = tokenCount === null ? parsed : Math.max(tokenCount, parsed)
       }
     }
 
-    if (TOKEN_CONTEXT_PATTERN.test(trimmed)) {
-      const numericParts = trimmed.match(/[0-9][0-9,]*/g) ?? []
-      for (const part of numericParts) {
-        const parsed = parseNumeric(part)
-        if (parsed !== null) {
-          tokenCount = tokenCount === null ? parsed : Math.max(tokenCount, parsed)
-        }
+    const tokenPrefixMatch = trimmed.match(TOKEN_COUNT_PREFIX_PATTERN)
+    if (tokenPrefixMatch?.[1]) {
+      const parsed = parseTokenCount(tokenPrefixMatch[1])
+      if (parsed !== null) {
+        tokenCount = tokenCount === null ? parsed : Math.max(tokenCount, parsed)
       }
     }
 
-    const directTokenMatch = trimmed.match(/\b([0-9][0-9,]*)\s*tokens?\b/i)
+    const contextUsageMatch = trimmed.match(CONTEXT_USAGE_PATTERN)
+    if (contextUsageMatch?.[1]) {
+      const parsed = parseTokenCount(contextUsageMatch[1])
+      if (parsed !== null) {
+        tokenCount = tokenCount === null ? parsed : Math.max(tokenCount, parsed)
+      }
+    }
+
+    const directTokenMatch = trimmed.match(TOKEN_COUNT_SUFFIX_PATTERN)
     if (directTokenMatch?.[1]) {
-      const parsed = parseNumeric(directTokenMatch[1])
+      const parsed = parseTokenCount(directTokenMatch[1])
       if (parsed !== null) {
         tokenCount = tokenCount === null ? parsed : Math.max(tokenCount, parsed)
       }
@@ -513,6 +522,23 @@ function parseNumeric(value: string): number | null {
   const parsed = Number.parseFloat(value.replace(/,/g, ''))
   if (!Number.isFinite(parsed) || parsed < 0) return null
   return parsed
+}
+
+function parseTokenCount(value: string): number | null {
+  const parsed = parseNumeric(value)
+  if (parsed === null) return null
+  if (parsed > MAX_TOKEN_SIGNAL) return null
+  return parsed
+}
+
+function sanitizeTokenCount(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    return 0
+  }
+  if (value > MAX_TOKEN_SIGNAL) {
+    return 0
+  }
+  return value
 }
 
 function toDateKey(date: Date): string {

@@ -220,8 +220,11 @@ export function UsageDashboard({ config, onUpdateConfig, onClose }: UsageDashboa
           ) : selectedSummary ? (
             <>
               <div className={styles.summaryGrid}>
-                <SummaryCard label="Total Tokens" value={formatTokens(selectedSummary.tokens)} />
-                <SummaryCard label="Total Cost" value={formatUsd(selectedSummary.costUsd)} />
+                <SummaryCard
+                  label="Selected Day Tokens"
+                  value={formatTokens(selectedSummary.tokens)}
+                />
+                <SummaryCard label="Selected Day Cost" value={formatUsd(selectedSummary.costUsd)} />
                 <SummaryCard
                   label="Token Budget"
                   value={

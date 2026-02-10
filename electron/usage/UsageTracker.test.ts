@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { mkdtempSync, rmSync } from 'fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { UsageTracker } from './UsageTracker'
@@ -138,5 +138,69 @@ describe('UsageTracker', () => {
     expect(dashboard.today?.costUsd).toBe(0)
     expect(dashboard.days).toHaveLength(1)
     expect(dashboard.days[0].date).toBe(dashboard.today?.date)
+  })
+
+  it('ignores large IDs on ccusage lines when parsing token usage', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-02-10T12:00:00.000Z'))
+
+    const tracker = new UsageTracker(makeTempDir())
+    const result = tracker.recordAgentOutput(
+      makeAgent(),
+      [
+        'ccusage report: https://example.com/ccusage/sessions/8067667186175',
+        '31,900 (8%)',
+        '$0.12 cc / $19.09 today'
+      ].join('\n'),
+      DEFAULT_CONFIG,
+      new Date('2026-02-10T12:00:00.000Z')
+    )
+
+    expect(result.changed).toBe(true)
+    expect(result.summary?.tokens).toBe(31900)
+    expect(result.summary?.costUsd).toBe(19.09)
+  })
+
+  it('sanitizes malformed persisted token outliers', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-02-10T12:00:00.000Z'))
+
+    const dir = makeTempDir()
+    writeFileSync(
+      join(dir, 'usage.json'),
+      JSON.stringify(
+        {
+          schemaVersion: 1,
+          days: {
+            '2026-02-10': {
+              date: '2026-02-10',
+              updatedAt: '2026-02-10T12:00:00.000Z',
+              agents: {
+                'agent-a': {
+                  agentId: 'agent-a',
+                  agentName: 'Agent A',
+                  projectDir: '/tmp/project-a',
+                  projectName: 'project-a',
+                  provider: 'claude',
+                  model: 'sonnet',
+                  tokens: 8_067_667_186_175,
+                  costUsd: 19.09,
+                  updatedAt: '2026-02-10T12:00:00.000Z'
+                }
+              }
+            }
+          },
+          alerts: {}
+        },
+        null,
+        2
+      ),
+      'utf-8'
+    )
+
+    const tracker = new UsageTracker(dir)
+    const dashboard = tracker.getDashboard(DEFAULT_CONFIG, { days: 7 })
+    expect(dashboard.today?.tokens).toBe(0)
+    expect(dashboard.today?.costUsd).toBe(19.09)
   })
 })
