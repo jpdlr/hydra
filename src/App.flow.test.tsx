@@ -91,6 +91,21 @@ vi.mock('./components/Notifications/NotificationToast', () => ({
   NotificationToast: () => null
 }))
 
+vi.mock('./hooks/useEditorPanel', () => ({
+  useEditorPanel: () => ({
+    isOpen: false,
+    toggle: vi.fn(),
+    tabs: [],
+    activeTabPath: null,
+    fileContents: new Map(),
+    openFile: vi.fn(),
+    closeTab: vi.fn(),
+    selectTab: vi.fn(),
+    updateContent: vi.fn(),
+    saveFile: vi.fn()
+  })
+}))
+
 const baseConfig: AppConfig = {
   schemaVersion: 1,
   defaultProvider: 'claude',
@@ -204,6 +219,18 @@ describe('App flow behavior', () => {
     setupViewModeMock()
     mockUseAgents.mockReset()
     mockUseAgents.mockReturnValue(buildAgentsState())
+
+    // Ensure FS methods are always available on window.hydra
+    window.hydra = {
+      ...window.hydra,
+      readDir: vi.fn().mockResolvedValue([]),
+      readFile: vi.fn().mockResolvedValue({ content: '', path: '' }),
+      writeFile: vi.fn().mockResolvedValue(true),
+      watchDir: vi.fn(),
+      unwatchDir: vi.fn(),
+      onFsWatchEvent: vi.fn().mockReturnValue(() => undefined),
+      searchFiles: vi.fn().mockResolvedValue([])
+    }
   })
 
   it('blocks opening new agent when preflight fails', async () => {

@@ -17,6 +17,7 @@ import { HydraMcpServer } from './mcp/McpServer'
 import { NotificationService } from './notifications/NotificationService'
 import { UsageTracker } from './usage/UsageTracker'
 import { UpdateService } from './updates/UpdateService'
+import { FileSystemService } from './fs/FileSystemService'
 import { IPC } from '@shared/types'
 
 let mainWindow: BrowserWindow | null = null
@@ -29,6 +30,7 @@ let headlessOrchestrator: HeadlessOrchestrator | null = null
 let mcpServer: HydraMcpServer | null = null
 const usageTracker = new UsageTracker(app.getPath('userData'))
 const updateService = new UpdateService()
+const fileSystemService = new FileSystemService()
 const observability = new ObservabilityService({
   getConfig: () => configStore.get(),
   getAgents: () => agentManager.list(),
@@ -197,7 +199,8 @@ app.whenReady().then(async () => {
       workspaceStore.setAgents(agentManager.exportWorkspaceAgents())
     },
     mcpServer,
-    notificationService
+    notificationService,
+    fileSystemService
   )
   createWindow()
 
@@ -225,6 +228,7 @@ app.on('window-all-closed', () => {
   })
   workspaceStore.setAgents(agentManager.exportWorkspaceAgents())
   agentManager.killAll()
+  fileSystemService.stopAll()
   mcpServer?.stop()
   app.quit()
 })
@@ -237,5 +241,6 @@ app.on('before-quit', () => {
   forceQuit = true
   workspaceStore.setAgents(agentManager.exportWorkspaceAgents())
   agentManager.killAll()
+  fileSystemService.stopAll()
   mcpServer?.stop()
 })

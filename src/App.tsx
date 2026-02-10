@@ -9,10 +9,12 @@ import { HeadlessPanel } from './components/Headless/HeadlessPanel'
 import { UsageDashboard } from './components/UsageDashboard/UsageDashboard'
 import { UpdatePanel } from './components/Updates/UpdatePanel'
 import { NotificationToast } from './components/Notifications/NotificationToast'
+import { FileSearchPopup } from './components/FileSearchPopup/FileSearchPopup'
 import { useAgents } from './hooks/useAgents'
 import { useConfig } from './hooks/useConfig'
 import { useViewMode } from './hooks/useViewMode'
 import { useNotifications } from './hooks/useNotifications'
+import { useEditorPanel } from './hooks/useEditorPanel'
 import { useUpdates } from './hooks/useUpdates'
 import type { PreflightResult, ViewMode } from '@shared/types'
 import styles from './App.module.css'
@@ -23,6 +25,7 @@ interface PersistedWorkspaceUiState {
   viewMode: ViewMode | null
   expandedTilesByProject: Record<string, string | null>
   sidebarWidth: number | null
+  editorOpen: boolean | null
 }
 
 const WORKSPACE_UI_STORAGE_KEY = 'hydra:workspace-ui:v1'
@@ -36,7 +39,8 @@ function readWorkspaceUiState(): PersistedWorkspaceUiState {
         selectedAgentId: null,
         viewMode: null,
         expandedTilesByProject: {},
-        sidebarWidth: null
+        sidebarWidth: null,
+        editorOpen: null
       }
     }
 
@@ -52,7 +56,8 @@ function readWorkspaceUiState(): PersistedWorkspaceUiState {
         parsed.expandedTilesByProject && typeof parsed.expandedTilesByProject === 'object'
           ? parsed.expandedTilesByProject
           : {},
-      sidebarWidth: typeof parsed.sidebarWidth === 'number' ? parsed.sidebarWidth : null
+      sidebarWidth: typeof parsed.sidebarWidth === 'number' ? parsed.sidebarWidth : null,
+      editorOpen: typeof parsed.editorOpen === 'boolean' ? parsed.editorOpen : null
     }
   } catch {
     return {
@@ -60,7 +65,8 @@ function readWorkspaceUiState(): PersistedWorkspaceUiState {
       selectedAgentId: null,
       viewMode: null,
       expandedTilesByProject: {},
-      sidebarWidth: null
+      sidebarWidth: null,
+      editorOpen: null
     }
   }
 }
@@ -101,6 +107,8 @@ export default function App() {
     persistedUi.viewMode ?? config.defaultViewMode
   )
 
+  const editorPanel = useEditorPanel(selectedAgentId, selectedAgent?.state.projectDir)
+
   const [sidebarWidth, setSidebarWidth] = useState(persistedUi.sidebarWidth ?? 260)
 
   const [showSettings, setShowSettings] = useState(false)
@@ -111,6 +119,7 @@ export default function App() {
   const [showUpdatePanel, setShowUpdatePanel] = useState(false)
   const [showYoloConfirm, setShowYoloConfirm] = useState(false)
   const [showPreflightGate, setShowPreflightGate] = useState(false)
+  const [showFileSearch, setShowFileSearch] = useState(false)
   const [selectedProject, setSelectedProject] = useState<string | null>(persistedUi.selectedProject)
   const [expandedTilesByProject, setExpandedTilesByProject] = useState<Record<string, string | null>>(
     persistedUi.expandedTilesByProject
@@ -281,9 +290,10 @@ export default function App() {
       selectedAgentId,
       viewMode,
       expandedTilesByProject,
-      sidebarWidth
+      sidebarWidth,
+      editorOpen: editorPanel.isOpen
     })
-  }, [selectedProject, selectedAgentId, viewMode, expandedTilesByProject, sidebarWidth])
+  }, [selectedProject, selectedAgentId, viewMode, expandedTilesByProject, sidebarWidth, editorPanel.isOpen])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -294,6 +304,20 @@ export default function App() {
       if (meta && e.key === '\\') {
         e.preventDefault()
         toggleViewMode()
+        return
+      }
+
+      // Cmd+E — toggle code editor (chat mode only)
+      if (meta && e.key === 'e' && viewMode === 'chat') {
+        e.preventDefault()
+        editorPanel.toggle()
+        return
+      }
+
+      // Cmd+P — file search (requires selected agent)
+      if (meta && e.key === 'p' && selectedAgentId) {
+        e.preventDefault()
+        setShowFileSearch(true)
         return
       }
 
@@ -368,6 +392,7 @@ export default function App() {
 
       // Escape — close dialogs
       if (e.key === 'Escape') {
+        if (showFileSearch) setShowFileSearch(false)
         if (showSettings) setShowSettings(false)
         if (showNewAgent) setShowNewAgent(false)
         if (showHeadless) setShowHeadless(false)
@@ -385,6 +410,7 @@ export default function App() {
     selectedAgentId,
     agentList,
     agents,
+    showFileSearch,
     showSettings,
     showNewAgent,
     showHeadless,
@@ -393,6 +419,8 @@ export default function App() {
     showYoloConfirm,
     showPreflightGate,
     quitConfirmRunningCount,
+    viewMode,
+    editorPanel.toggle,
     toggleViewMode,
     handleOpenNewAgent,
     handleRemoveAgent,
@@ -513,6 +541,17 @@ export default function App() {
               onKillAgent={() => {
                 void handleKillAgent()
               }}
+              editorOpen={editorPanel.isOpen}
+              onToggleEditor={editorPanel.toggle}
+              editorTabs={editorPanel.tabs}
+              editorActiveTabPath={editorPanel.activeTabPath}
+              editorFileContents={editorPanel.fileContents}
+              onEditorOpenFile={(path) => { void editorPanel.openFile(path) }}
+              onEditorCloseTab={editorPanel.closeTab}
+              onEditorSelectTab={editorPanel.selectTab}
+              onEditorContentChange={editorPanel.updateContent}
+              onEditorSaveFile={(path) => { void editorPanel.saveFile(path) }}
+              theme={config.theme}
             />
           ) : (
             <GridView
@@ -691,6 +730,17 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {showFileSearch && selectedAgentId && (
+        <FileSearchPopup
+          agentId={selectedAgentId}
+          onOpenFile={(path) => {
+            if (!editorPanel.isOpen) editorPanel.toggle()
+            void editorPanel.openFile(path)
+          }}
+          onClose={() => setShowFileSearch(false)}
+        />
       )}
 
       <NotificationToast notifications={notifications} onDismiss={dismissNotification} />

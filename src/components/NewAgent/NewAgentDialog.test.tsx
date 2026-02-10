@@ -30,7 +30,14 @@ describe('NewAgentDialog', () => {
         port: null,
         error: null,
         managerWorkspace: null
-      })
+      }),
+      readDir: vi.fn().mockResolvedValue([]),
+      readFile: vi.fn().mockResolvedValue({ content: '', path: '' }),
+      writeFile: vi.fn().mockResolvedValue(true),
+      watchDir: vi.fn(),
+      unwatchDir: vi.fn(),
+      onFsWatchEvent: vi.fn().mockReturnValue(() => undefined),
+      searchFiles: vi.fn().mockResolvedValue([])
     }
   })
 

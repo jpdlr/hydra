@@ -1,5 +1,17 @@
 # Hydra — Project Instructions
 
+## Development
+
+- **Run locally**: `npm run dev` (uses `electron-vite dev` with hot reload)
+- **Build**: `npm run build`
+- **Tests**: `npm test`
+- **Typecheck**: `npm run typecheck`
+- There is no `npm start` script — always use `npm run dev` for local development.
+
+## Agent Log
+
+Keep a running log of mistakes, gotchas, and lessons learned during development. When you encounter an error, a failed approach, or a non-obvious catch, append it to `AGENTLOG.md` in the project root. This prevents repeating the same mistakes across sessions. Format each entry with a short title and what to do instead.
+
 ## Release Build
 
 When the user says **"Release Build"**, execute all of the following steps in order:

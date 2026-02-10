@@ -49,6 +49,10 @@
   color: var(--color-text-primary);
 }
 
+.tabBar {
+  padding: var(--space-3) var(--space-5) 0;
+}
+
 .body {
   padding: var(--space-4) var(--space-5);
   overflow-y: auto;

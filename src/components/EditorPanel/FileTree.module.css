@@ -1,0 +1,105 @@
+.tree {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--space-1) 0;
+  font-size: var(--font-size-sm);
+}
+
+.loading,
+.empty {
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.node {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  padding: 3px 12px;
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 0;
+  transition: background var(--transition-fast);
+}
+
+.node:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.nodeActive {
+  background: var(--color-accent-subtle);
+  color: var(--color-text-primary);
+}
+
+.chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  transition: transform var(--transition-fast);
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+.icon {
+  font-size: 12px;
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.filterResultNode {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  padding: 4px 12px;
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  border-radius: 0;
+  transition: background var(--transition-fast);
+}
+
+.filterResultNode:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.filterResultPath {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+  min-width: 0;
+}

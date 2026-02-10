@@ -1,0 +1,17 @@
+.wrapper {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  background: var(--color-bg);
+  min-height: 0;
+  height: 100%;
+}

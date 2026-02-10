@@ -1,0 +1,86 @@
+.tabBar {
+  display: flex;
+  align-items: stretch;
+  height: var(--tab-bar-height);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-shrink: 0;
+  scrollbar-width: none;
+}
+
+.tabBar::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-ui);
+  color: var(--color-text-secondary);
+  border-right: 1px solid var(--color-border-subtle);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background var(--transition-fast);
+  position: relative;
+}
+
+.tab:hover {
+  background: var(--color-surface-hover);
+}
+
+.tabActive {
+  color: var(--color-text-primary);
+  background: var(--color-bg);
+}
+
+.tabActive::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--color-accent);
+}
+
+.tabName {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.dirtyDot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.closeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  opacity: 0;
+  transition: all var(--transition-fast);
+}
+
+.tab:hover .closeBtn {
+  opacity: 1;
+}
+
+.closeBtn:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}

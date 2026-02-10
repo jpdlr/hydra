@@ -1,7 +1,10 @@
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useState } from 'react'
 import { TerminalPane } from '../Terminal/TerminalPane'
 import { InputBar } from './InputBar'
+import { EditorPanel } from '../EditorPanel'
+import { SplitHandle } from '../EditorPanel/SplitHandle'
 import type { AgentState } from '@shared/types'
+import type { EditorTab } from '../EditorPanel/TabBar'
 import styles from './ChatView.module.css'
 
 interface ChatViewProps {
@@ -13,6 +16,18 @@ interface ChatViewProps {
   onRestartAgent: () => void
   onToggleYolo: () => void
   onKillAgent: () => void
+  // Editor panel
+  editorOpen?: boolean
+  onToggleEditor?: () => void
+  editorTabs?: EditorTab[]
+  editorActiveTabPath?: string | null
+  editorFileContents?: Map<string, string>
+  onEditorOpenFile?: (path: string) => void
+  onEditorCloseTab?: (path: string) => void
+  onEditorSelectTab?: (path: string) => void
+  onEditorContentChange?: (path: string, content: string) => void
+  onEditorSaveFile?: (path: string) => void
+  theme?: string
 }
 
 export function ChatView({
@@ -23,7 +38,18 @@ export function ChatView({
   onTerminalResize,
   onRestartAgent,
   onToggleYolo,
-  onKillAgent
+  onKillAgent,
+  editorOpen = false,
+  onToggleEditor,
+  editorTabs = [],
+  editorActiveTabPath = null,
+  editorFileContents,
+  onEditorOpenFile,
+  onEditorCloseTab,
+  onEditorSelectTab,
+  onEditorContentChange,
+  onEditorSaveFile,
+  theme = 'dark'
 }: ChatViewProps) {
   // Prevent browser focus-scroll from moving the outer container.
   const containerRef = useRef<HTMLDivElement>(null)
@@ -32,6 +58,25 @@ export function ChatView({
     if (el && el.scrollTop !== 0) {
       el.scrollTop = 0
     }
+  }, [])
+
+  // Split panel width management
+  const [splitRatio, setSplitRatio] = useState(0.5)
+  const outerRef = useRef<HTMLDivElement>(null)
+
+  const handleSplitDrag = useCallback((deltaX: number) => {
+    const outer = outerRef.current
+    if (!outer) return
+    const totalWidth = outer.offsetWidth
+    setSplitRatio((prev) => {
+      const pxWidth = prev * totalWidth + deltaX
+      const clamped = Math.max(300, Math.min(totalWidth - 300, pxWidth))
+      return clamped / totalWidth
+    })
+  }, [])
+
+  const handleSplitDoubleClick = useCallback(() => {
+    setSplitRatio(0.5)
   }, [])
 
   if (!agent) {
@@ -46,21 +91,30 @@ export function ChatView({
     )
   }
 
-  return (
-    <div className={styles.container} ref={containerRef} onScroll={handleContainerScroll}>
+  const terminalSide = (
+    <div className={styles.terminalSide} style={editorOpen ? { flex: `0 0 ${splitRatio * 100}%` } : undefined}>
       {/* Agent header */}
       <div className={styles.agentHeader}>
         <div className={styles.agentInfo}>
           <h3 className={styles.agentName}>{agent.name}</h3>
           <div className={styles.agentMeta}>
             <span className={styles.model}>{agent.provider === 'codex' ? 'Codex' : 'Claude'} / {agent.model}</span>
-            <span className={styles.separator}>·</span>
+            <span className={styles.separator}>&middot;</span>
             <StatusBadge status={agent.status} />
             {agent.isManager && <span className={styles.managerBadge}>Manager</span>}
             {agent.yolo && <span className={styles.yoloBadge}>YOLO</span>}
           </div>
         </div>
         <div className={styles.agentActions}>
+          {onToggleEditor && (
+            <button
+              className={`${styles.actionBtn} ${editorOpen ? styles.actionBtnActive : ''}`}
+              onClick={onToggleEditor}
+              title="Toggle Code Editor (Cmd+E)"
+            >
+              <CodeBracketIcon />
+            </button>
+          )}
           <button
             className={styles.actionBtn}
             onClick={() => window.hydra.openInEditor(agent.projectDir)}
@@ -127,6 +181,54 @@ export function ChatView({
         }
       />
     </div>
+  )
+
+  if (!editorOpen) {
+    return (
+      <div className={styles.container} ref={containerRef} onScroll={handleContainerScroll}>
+        {terminalSide}
+      </div>
+    )
+  }
+
+  return (
+    <div className={styles.splitContainer} ref={outerRef}>
+      {terminalSide}
+      <SplitHandle onDrag={handleSplitDrag} onDoubleClick={handleSplitDoubleClick} />
+      <div className={styles.editorSide}>
+        <EditorPanel
+          agentId={agent.id}
+          projectDir={agent.projectDir}
+          theme={theme}
+          tabs={editorTabs}
+          activeTabPath={editorActiveTabPath}
+          fileContents={editorFileContents ?? new Map()}
+          onOpenFile={onEditorOpenFile ?? (() => {})}
+          onCloseTab={onEditorCloseTab ?? (() => {})}
+          onSelectTab={onEditorSelectTab ?? (() => {})}
+          onContentChange={onEditorContentChange ?? (() => {})}
+          onSaveFile={onEditorSaveFile ?? (() => {})}
+        />
+      </div>
+    </div>
+  )
+}
+
+function CodeBracketIcon() {
+  return (
+    <svg
+      className={styles.actionIcon}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M5.5 3.5L2 8l3.5 4.5" />
+      <path d="M10.5 3.5L14 8l-3.5 4.5" />
+    </svg>
   )
 }
 

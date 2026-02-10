@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { AppConfig, ProviderId, ThemeId, ViewMode } from '@shared/types'
 import { PROVIDER_MODELS, PROVIDER_LABELS, getDefaultModelForProvider } from '@shared/types'
+import { ShortcutsTab } from './ShortcutsTab'
 import styles from './SettingsPanel.module.css'
 
 const PROVIDERS: ProviderId[] = ['claude', 'codex']
@@ -31,8 +32,11 @@ interface SettingsPanelProps {
   onClose: () => void
 }
 
+type SettingsTab = 'general' | 'shortcuts'
+
 export function SettingsPanel({ config, onUpdate, onClose }: SettingsPanelProps) {
   const [exportState, setExportState] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<SettingsTab>('general')
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -44,7 +48,26 @@ export function SettingsPanel({ config, onUpdate, onClose }: SettingsPanelProps)
           </button>
         </div>
 
-        <div className={styles.body}>
+        <div className={styles.tabBar}>
+          <div className={styles.segmented}>
+            <button
+              className={`${styles.segment} ${activeTab === 'general' ? styles.active : ''}`}
+              onClick={() => setActiveTab('general')}
+            >
+              General
+            </button>
+            <button
+              className={`${styles.segment} ${activeTab === 'shortcuts' ? styles.active : ''}`}
+              onClick={() => setActiveTab('shortcuts')}
+            >
+              Shortcuts
+            </button>
+          </div>
+        </div>
+
+        {activeTab === 'shortcuts' && <ShortcutsTab />}
+
+        {activeTab === 'general' && <div className={styles.body}>
           {/* Theme */}
           <div className={styles.field}>
             <label className={styles.label}>Color Theme</label>
@@ -301,7 +324,7 @@ export function SettingsPanel({ config, onUpdate, onClose }: SettingsPanelProps)
             </div>
             {exportState && <span className={styles.inlineHint}>{exportState}</span>}
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   )

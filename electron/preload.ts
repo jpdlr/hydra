@@ -22,7 +22,11 @@ import type {
   HydraNotification,
   UsageDashboardOptions,
   UsageDashboardSnapshot,
-  AppUpdateState
+  AppUpdateState,
+  FsDirEntry,
+  FsReadFileResult,
+  FsSearchResult,
+  FsWatchEventPayload
 } from '@shared/types'
 
 export type HydraAPI = typeof hydraApi
@@ -179,7 +183,27 @@ const hydraApi = {
     return () => { ipcRenderer.removeListener(IPC.NOTIFICATION, handler) }
   },
   dismissNotification: (id: string): void =>
-    ipcRenderer.send(IPC.NOTIFICATION_DISMISS, id)
+    ipcRenderer.send(IPC.NOTIFICATION_DISMISS, id),
+
+  // File system (editor panel)
+  readDir: (agentId: string, dirPath: string): Promise<FsDirEntry[]> =>
+    ipcRenderer.invoke(IPC.FS_READ_DIR, agentId, dirPath),
+  readFile: (agentId: string, filePath: string): Promise<FsReadFileResult> =>
+    ipcRenderer.invoke(IPC.FS_READ_FILE, agentId, filePath),
+  writeFile: (agentId: string, filePath: string, content: string): Promise<boolean> =>
+    ipcRenderer.invoke(IPC.FS_WRITE_FILE, agentId, filePath, content),
+  watchDir: (agentId: string): void =>
+    ipcRenderer.send(IPC.FS_WATCH_START, agentId),
+  unwatchDir: (agentId: string): void =>
+    ipcRenderer.send(IPC.FS_WATCH_STOP, agentId),
+  searchFiles: (agentId: string, query: string, maxResults?: number): Promise<FsSearchResult[]> =>
+    ipcRenderer.invoke(IPC.FS_SEARCH_FILES, agentId, query, maxResults),
+  onFsWatchEvent: (callback: (payload: FsWatchEventPayload) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, payload: FsWatchEventPayload) =>
+      callback(payload)
+    ipcRenderer.on(IPC.FS_WATCH_EVENT, handler)
+    return () => { ipcRenderer.removeListener(IPC.FS_WATCH_EVENT, handler) }
+  }
 }
 
 contextBridge.exposeInMainWorld('hydra', hydraApi)
