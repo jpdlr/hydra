@@ -57,13 +57,14 @@ describe('UsageTracker', () => {
 
     expect(first.changed).toBe(true)
     expect(first.summary?.tokens).toBe(106903)
-    expect(first.summary?.costUsd).toBe(3.42)
+    // Uses per-session cc cost ($0.40), not cumulative today cost ($3.42)
+    expect(first.summary?.costUsd).toBe(0.4)
     expect(first.summary?.projects).toHaveLength(1)
     expect(first.summary?.projects[0]).toMatchObject({
       projectDir: '/tmp/project-a',
       agentCount: 1,
       tokens: 106903,
-      costUsd: 3.42
+      costUsd: 0.4
     })
 
     const second = tracker.recordAgentOutput(
@@ -75,7 +76,8 @@ describe('UsageTracker', () => {
 
     expect(second.changed).toBe(true)
     expect(second.summary?.tokens).toBe(107023)
-    expect(second.summary?.costUsd).toBe(4)
+    // Sum of per-session costs: $0.40 + $0.10 = $0.50
+    expect(second.summary?.costUsd).toBe(0.5)
     expect(second.summary?.projects[0]?.agentCount).toBe(2)
     expect(second.summary?.agents).toHaveLength(2)
 
@@ -96,7 +98,7 @@ describe('UsageTracker', () => {
 
     const warning = tracker.recordAgentOutput(
       makeAgent(),
-      'token count: 820\n$0.05 cc / $7.50 today\n',
+      'token count: 820\n$5.00 cc / $7.50 today\n',
       config,
       new Date('2026-02-09T15:00:00.000Z')
     )
@@ -108,7 +110,7 @@ describe('UsageTracker', () => {
 
     const exceeded = tracker.recordAgentOutput(
       makeAgent(),
-      '1,230 (23%)\n$0.12 cc / $10.45 today\n',
+      '1,230 (23%)\n$10.50 cc / $15.00 today\n',
       config,
       new Date('2026-02-09T15:02:00.000Z')
     )
@@ -122,7 +124,7 @@ describe('UsageTracker', () => {
 
     const repeat = tracker.recordAgentOutput(
       makeAgent(),
-      '1,400 (28%)\n$0.15 cc / $12.00 today\n',
+      '1,400 (28%)\n$12.00 cc / $18.00 today\n',
       config,
       new Date('2026-02-09T15:10:00.000Z')
     )
@@ -158,7 +160,8 @@ describe('UsageTracker', () => {
 
     expect(result.changed).toBe(true)
     expect(result.summary?.tokens).toBe(31900)
-    expect(result.summary?.costUsd).toBe(19.09)
+    // Uses per-session cc cost ($0.12), not cumulative today cost ($19.09)
+    expect(result.summary?.costUsd).toBe(0.12)
   })
 
   it('sanitizes malformed persisted token outliers', () => {

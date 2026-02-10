@@ -56,6 +56,7 @@ export interface UsageBudgetAlert {
 
 interface UsageSignals {
   tokenCount: number | null
+  costSessionUsd: number | null
   costTodayUsd: number | null
 }
 
@@ -68,6 +69,8 @@ const TOKEN_COUNT_PREFIX_PATTERN = /\b(?:token count|tokens?)\s*[:=]\s*([0-9][0-
 const TOKEN_COUNT_SUFFIX_PATTERN = /\b([0-9][0-9,]*)\s*tokens?\b/i
 const CONTEXT_USAGE_PATTERN = /\bcontext(?:\s+used)?\s*[:=]?\s*([0-9][0-9,]*)\s*(?:\/\s*[0-9][0-9,]*)?/i
 const MAX_TOKEN_SIGNAL = 100_000_000
+
+const COST_SESSION_CC_PATTERN = /\$([0-9]+(?:\.[0-9]+)?)\s*cc(?!usage)\b/i
 
 const COST_TODAY_PATTERNS = [
   /\$([0-9]+(?:\.[0-9]+)?)\s*(?:cc|session|run|block|hr)?\s*\/\s*\$([0-9]+(?:\.[0-9]+)?)\s*today/i,
@@ -92,7 +95,7 @@ export class UsageTracker {
     now: Date = new Date()
   ): { changed: boolean; alerts: UsageBudgetAlert[]; summary: UsageDailySummary | null } {
     const signals = parseUsageSignals(rawData)
-    if (signals.tokenCount === null && signals.costTodayUsd === null) {
+    if (signals.tokenCount === null && signals.costSessionUsd === null && signals.costTodayUsd === null) {
       return { changed: false, alerts: [], summary: null }
     }
 
@@ -130,8 +133,9 @@ export class UsageTracker {
       existing.tokens = Math.round(signals.tokenCount)
       changed = true
     }
-    if (signals.costTodayUsd !== null && signals.costTodayUsd > existing.costUsd) {
-      existing.costUsd = roundCost(signals.costTodayUsd)
+    const agentCost = signals.costSessionUsd ?? signals.costTodayUsd
+    if (agentCost !== null && agentCost > existing.costUsd) {
+      existing.costUsd = roundCost(agentCost)
       changed = true
     }
 
@@ -468,6 +472,7 @@ function parseUsageSignals(rawData: string): UsageSignals {
   const lines = cleaned.split(/\r?\n/)
 
   let tokenCount: number | null = null
+  let costSessionUsd: number | null = null
   let costTodayUsd: number | null = null
 
   for (const line of lines) {
@@ -506,16 +511,33 @@ function parseUsageSignals(rawData: string): UsageSignals {
       }
     }
 
+    // Extract per-session cost from "$X.XX cc" (not "ccusage")
+    const sessionCcMatch = trimmed.match(COST_SESSION_CC_PATTERN)
+    if (sessionCcMatch?.[1]) {
+      const candidate = parseNumeric(sessionCcMatch[1])
+      if (candidate !== null) {
+        costSessionUsd = costSessionUsd === null ? candidate : Math.max(costSessionUsd, candidate)
+      }
+    }
+
     for (const pattern of COST_TODAY_PATTERNS) {
       const match = trimmed.match(pattern)
       if (!match) continue
       const candidate = parseNumeric(match[2] ?? match[1] ?? '')
       if (candidate === null) continue
       costTodayUsd = costTodayUsd === null ? candidate : Math.max(costTodayUsd, candidate)
+
+      // If the pattern matched "$X unit / $Y today", group 1 is the per-session cost
+      if (match[2] !== undefined && match[1] !== undefined) {
+        const sessionCandidate = parseNumeric(match[1])
+        if (sessionCandidate !== null) {
+          costSessionUsd = costSessionUsd === null ? sessionCandidate : Math.max(costSessionUsd, sessionCandidate)
+        }
+      }
     }
   }
 
-  return { tokenCount, costTodayUsd }
+  return { tokenCount, costSessionUsd, costTodayUsd }
 }
 
 function parseNumeric(value: string): number | null {
