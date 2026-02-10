@@ -144,221 +144,236 @@ export function UsageDashboard({ config, onUpdateConfig, onClose }: UsageDashboa
           </button>
         </div>
 
-        <div className={styles.controls}>
-          <div className={styles.controlGroup}>
-            <label className={styles.label}>Day</label>
-            <select
-              className={styles.select}
-              value={selectedSummary?.date ?? ''}
-              onChange={(e) => setSelectedDate(e.target.value || null)}
-            >
-              {snapshot?.days.map((day) => (
-                <option key={day.date} value={day.date}>
-                  {formatDay(day.date)}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className={styles.content}>
+          <div className={styles.controls}>
+            <div className={styles.controlGroup}>
+              <label className={styles.label}>Day</label>
+              <select
+                className={styles.select}
+                value={selectedSummary?.date ?? ''}
+                onChange={(e) => setSelectedDate(e.target.value || null)}
+              >
+                {snapshot?.days.map((day) => (
+                  <option key={day.date} value={day.date}>
+                    {formatDay(day.date)}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div className={styles.controlGroup}>
-            <label className={styles.label}>Daily Token Budget (0 disables)</label>
-            <input
-              className={styles.input}
-              type="number"
-              min={0}
-              step={1}
-              value={tokenBudgetInput}
-              onChange={(e) => setTokenBudgetInput(e.target.value)}
-              placeholder="e.g. 250000"
-            />
-          </div>
-
-          <div className={styles.controlGroup}>
-            <label className={styles.label}>Daily Cost Budget USD (0 disables)</label>
-            <input
-              className={styles.input}
-              type="number"
-              min={0}
-              step={0.01}
-              value={costBudgetInput}
-              onChange={(e) => setCostBudgetInput(e.target.value)}
-              placeholder="e.g. 25"
-            />
-          </div>
-
-          <div className={styles.controlGroup}>
-            <label className={styles.label}>Warning Threshold (%)</label>
-            <input
-              className={styles.input}
-              type="number"
-              min={1}
-              max={99}
-              step={1}
-              value={warningThresholdInput}
-              onChange={(e) => setWarningThresholdInput(e.target.value)}
-            />
-          </div>
-
-          <div className={styles.actionRow}>
-            <button className={styles.refreshBtn} type="button" onClick={() => void refresh()}>
-              Refresh
-            </button>
-            <button
-              className={styles.saveBtn}
-              type="button"
-              onClick={() => void handleSaveBudgets()}
-              disabled={isSaving}
-            >
-              {isSaving ? 'Saving...' : 'Save Budgets'}
-            </button>
-          </div>
-        </div>
-
-        {isLoading ? (
-          <div className={styles.loading}>Loading usage data...</div>
-        ) : selectedSummary ? (
-          <>
-            <div className={styles.summaryGrid}>
-              <SummaryCard label="Total Tokens" value={formatTokens(selectedSummary.tokens)} />
-              <SummaryCard label="Total Cost" value={formatUsd(selectedSummary.costUsd)} />
-              <SummaryCard
-                label="Token Budget"
-                value={
-                  budget?.dailyTokenBudget
-                    ? `${Math.round(budget.tokenUsagePct ?? 0)}%`
-                    : 'Disabled'
-                }
-                tone={budget?.tokenBudgetExceeded ? 'danger' : budget?.tokenWarningReached ? 'warn' : 'default'}
-              />
-              <SummaryCard
-                label="Cost Budget"
-                value={
-                  budget?.dailyCostBudgetUsd
-                    ? `${Math.round(budget.costUsagePct ?? 0)}%`
-                    : 'Disabled'
-                }
-                tone={budget?.costBudgetExceeded ? 'danger' : budget?.costWarningReached ? 'warn' : 'default'}
+            <div className={styles.controlGroup}>
+              <label className={styles.label}>Daily Token Budget (0 disables)</label>
+              <input
+                className={styles.input}
+                type="number"
+                min={0}
+                step={1}
+                value={tokenBudgetInput}
+                onChange={(e) => setTokenBudgetInput(e.target.value)}
+                placeholder="e.g. 250000"
               />
             </div>
 
-            <section className={styles.trendSection}>
-              <div className={styles.trendHeader}>
-                <div>
-                  <h3>Burn Rate Trend</h3>
-                  <p>
-                    {trendMetric === 'tokens' ? 'Tokens' : 'Cost'} over the last {trendWindow} days
-                  </p>
-                </div>
+            <div className={styles.controlGroup}>
+              <label className={styles.label}>Daily Cost Budget USD (0 disables)</label>
+              <input
+                className={styles.input}
+                type="number"
+                min={0}
+                step={0.01}
+                value={costBudgetInput}
+                onChange={(e) => setCostBudgetInput(e.target.value)}
+                placeholder="e.g. 25"
+              />
+            </div>
 
-                <div className={styles.trendControls}>
-                  <div className={styles.segmented}>
-                    <button
-                      className={`${styles.segmentBtn} ${trendMetric === 'tokens' ? styles.segmentBtnActive : ''}`}
-                      type="button"
-                      onClick={() => setTrendMetric('tokens')}
-                    >
-                      Tokens
-                    </button>
-                    <button
-                      className={`${styles.segmentBtn} ${trendMetric === 'cost' ? styles.segmentBtnActive : ''}`}
-                      type="button"
-                      onClick={() => setTrendMetric('cost')}
-                    >
-                      Cost
-                    </button>
-                  </div>
+            <div className={styles.controlGroup}>
+              <label className={styles.label}>Warning Threshold (%)</label>
+              <input
+                className={styles.input}
+                type="number"
+                min={1}
+                max={99}
+                step={1}
+                value={warningThresholdInput}
+                onChange={(e) => setWarningThresholdInput(e.target.value)}
+              />
+            </div>
 
-                  <div className={styles.segmented}>
-                    {TREND_WINDOWS.map((windowSize) => (
-                      <button
-                        key={windowSize}
-                        className={`${styles.segmentBtn} ${trendWindow === windowSize ? styles.segmentBtnActive : ''}`}
-                        type="button"
-                        onClick={() => setTrendWindow(windowSize)}
-                      >
-                        {windowSize}d
-                      </button>
-                    ))}
-                  </div>
-                </div>
+            <div className={styles.actionRow}>
+              <button className={styles.refreshBtn} type="button" onClick={() => void refresh()}>
+                Refresh
+              </button>
+              <button
+                className={styles.saveBtn}
+                type="button"
+                onClick={() => void handleSaveBudgets()}
+                disabled={isSaving}
+              >
+                {isSaving ? 'Saving...' : 'Save Budgets'}
+              </button>
+            </div>
+          </div>
+
+          {isLoading ? (
+            <div className={styles.loading}>Loading usage data...</div>
+          ) : selectedSummary ? (
+            <>
+              <div className={styles.summaryGrid}>
+                <SummaryCard label="Total Tokens" value={formatTokens(selectedSummary.tokens)} />
+                <SummaryCard label="Total Cost" value={formatUsd(selectedSummary.costUsd)} />
+                <SummaryCard
+                  label="Token Budget"
+                  value={
+                    budget?.dailyTokenBudget
+                      ? `${Math.round(budget.tokenUsagePct ?? 0)}%`
+                      : 'Disabled'
+                  }
+                  tone={
+                    budget?.tokenBudgetExceeded
+                      ? 'danger'
+                      : budget?.tokenWarningReached
+                        ? 'warn'
+                        : 'default'
+                  }
+                />
+                <SummaryCard
+                  label="Cost Budget"
+                  value={
+                    budget?.dailyCostBudgetUsd
+                      ? `${Math.round(budget.costUsagePct ?? 0)}%`
+                      : 'Disabled'
+                  }
+                  tone={
+                    budget?.costBudgetExceeded
+                      ? 'danger'
+                      : budget?.costWarningReached
+                        ? 'warn'
+                        : 'default'
+                  }
+                />
               </div>
 
-              <TrendChart
-                series={trendSeries}
-                metric={trendMetric}
-                total={trendTotal}
-                avgPerDay={trendAvgPerDay}
-                projected30={trendProjected30}
-                activeDays={trendActiveDays}
-                windowDays={trendWindow}
-              />
-            </section>
+              <section className={styles.trendSection}>
+                <div className={styles.trendHeader}>
+                  <div>
+                    <h3>Burn Rate Trend</h3>
+                    <p>
+                      {trendMetric === 'tokens' ? 'Tokens' : 'Cost'} over the last {trendWindow}{' '}
+                      days
+                    </p>
+                  </div>
 
-            <div className={styles.tables}>
-              <section className={styles.tableSection}>
-                <div className={styles.tableHeader}>
-                  <h3>Projects</h3>
-                  <span>{selectedSummary.projects.length}</span>
-                </div>
-                <div className={styles.tableWrap}>
-                  <table className={styles.table}>
-                    <thead>
-                      <tr>
-                        <th>Project</th>
-                        <th>Agents</th>
-                        <th>Tokens</th>
-                        <th>Cost</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedSummary.projects.map((project) => (
-                        <tr key={project.projectDir}>
-                          <td>{project.projectName}</td>
-                          <td>{project.agentCount}</td>
-                          <td>{formatTokens(project.tokens)}</td>
-                          <td>{formatUsd(project.costUsd)}</td>
-                        </tr>
+                  <div className={styles.trendControls}>
+                    <div className={styles.segmented}>
+                      <button
+                        className={`${styles.segmentBtn} ${trendMetric === 'tokens' ? styles.segmentBtnActive : ''}`}
+                        type="button"
+                        onClick={() => setTrendMetric('tokens')}
+                      >
+                        Tokens
+                      </button>
+                      <button
+                        className={`${styles.segmentBtn} ${trendMetric === 'cost' ? styles.segmentBtnActive : ''}`}
+                        type="button"
+                        onClick={() => setTrendMetric('cost')}
+                      >
+                        Cost
+                      </button>
+                    </div>
+
+                    <div className={styles.segmented}>
+                      {TREND_WINDOWS.map((windowSize) => (
+                        <button
+                          key={windowSize}
+                          className={`${styles.segmentBtn} ${trendWindow === windowSize ? styles.segmentBtnActive : ''}`}
+                          type="button"
+                          onClick={() => setTrendWindow(windowSize)}
+                        >
+                          {windowSize}d
+                        </button>
                       ))}
-                    </tbody>
-                  </table>
+                    </div>
+                  </div>
                 </div>
+
+                <TrendChart
+                  series={trendSeries}
+                  metric={trendMetric}
+                  total={trendTotal}
+                  avgPerDay={trendAvgPerDay}
+                  projected30={trendProjected30}
+                  activeDays={trendActiveDays}
+                  windowDays={trendWindow}
+                />
               </section>
 
-              <section className={styles.tableSection}>
-                <div className={styles.tableHeader}>
-                  <h3>Agents</h3>
-                  <span>{selectedSummary.agents.length}</span>
-                </div>
-                <div className={styles.tableWrap}>
-                  <table className={styles.table}>
-                    <thead>
-                      <tr>
-                        <th>Agent</th>
-                        <th>Provider</th>
-                        <th>Tokens</th>
-                        <th>Cost</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedSummary.agents.map((agent) => (
-                        <tr key={`${agent.agentId}-${agent.updatedAt}`}>
-                          <td>{agent.agentName}</td>
-                          <td>{agent.provider === 'codex' ? 'Codex' : 'Claude'}</td>
-                          <td>{formatTokens(agent.tokens)}</td>
-                          <td>{formatUsd(agent.costUsd)}</td>
+              <div className={styles.tables}>
+                <section className={styles.tableSection}>
+                  <div className={styles.tableHeader}>
+                    <h3>Projects</h3>
+                    <span>{selectedSummary.projects.length}</span>
+                  </div>
+                  <div className={styles.tableWrap}>
+                    <table className={styles.table}>
+                      <thead>
+                        <tr>
+                          <th>Project</th>
+                          <th>Agents</th>
+                          <th>Tokens</th>
+                          <th>Cost</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
+                      </thead>
+                      <tbody>
+                        {selectedSummary.projects.map((project) => (
+                          <tr key={project.projectDir}>
+                            <td>{project.projectName}</td>
+                            <td>{project.agentCount}</td>
+                            <td>{formatTokens(project.tokens)}</td>
+                            <td>{formatUsd(project.costUsd)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+
+                <section className={styles.tableSection}>
+                  <div className={styles.tableHeader}>
+                    <h3>Agents</h3>
+                    <span>{selectedSummary.agents.length}</span>
+                  </div>
+                  <div className={styles.tableWrap}>
+                    <table className={styles.table}>
+                      <thead>
+                        <tr>
+                          <th>Agent</th>
+                          <th>Provider</th>
+                          <th>Tokens</th>
+                          <th>Cost</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedSummary.agents.map((agent) => (
+                          <tr key={`${agent.agentId}-${agent.updatedAt}`}>
+                            <td>{agent.agentName}</td>
+                            <td>{agent.provider === 'codex' ? 'Codex' : 'Claude'}</td>
+                            <td>{formatTokens(agent.tokens)}</td>
+                            <td>{formatUsd(agent.costUsd)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </div>
+            </>
+          ) : (
+            <div className={styles.empty}>
+              No usage data yet. Start an agent and run prompts to populate the dashboard.
             </div>
-          </>
-        ) : (
-          <div className={styles.empty}>
-            No usage data yet. Start an agent and run prompts to populate the dashboard.
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   )
@@ -486,9 +501,32 @@ function TrendChart({
 }
 
 const tokenFormatter = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 })
+const compactTokenFormatter = new Intl.NumberFormat(undefined, {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 1
+})
 
 function formatTokens(value: number): string {
-  return tokenFormatter.format(Math.round(value))
+  const rounded = Math.round(value)
+  const absolute = Math.abs(rounded)
+
+  if (absolute >= 1_000_000_000) {
+    return `${formatCompactTokenNumber(rounded / 1_000_000_000)}B`
+  }
+  if (absolute >= 1_000_000) {
+    return `${formatCompactTokenNumber(rounded / 1_000_000)}M`
+  }
+  if (absolute >= 1_000) {
+    return `${formatCompactTokenNumber(rounded / 1_000)}K`
+  }
+
+  return tokenFormatter.format(rounded)
+}
+
+function formatCompactTokenNumber(value: number): string {
+  const precision = Math.abs(value) >= 100 ? 0 : 1
+  const rounded = Number(value.toFixed(precision))
+  return compactTokenFormatter.format(rounded)
 }
 
 function formatUsd(value: number): string {
