@@ -175,7 +175,7 @@ export function TerminalPane({
     const handleDragEnter = (e: DragEvent) => {
       e.preventDefault()
       dragCounterRef.current++
-      if (e.dataTransfer?.types.includes('Files')) {
+      if (e.dataTransfer?.types.includes('Files') || e.dataTransfer?.types.includes('text/plain')) {
         setIsDragOver(true)
       }
     }
@@ -197,10 +197,17 @@ export function TerminalPane({
       dragCounterRef.current = 0
       setIsDragOver(false)
 
+      // OS file drops
       const files = Array.from(e.dataTransfer?.files ?? [])
       const paths = files.map((f) => f.path).filter(Boolean)
       if (paths.length > 0) {
         onDataRef.current?.(paths.join(' '))
+        return
+      }
+      // Internal editor drag (text/plain with file path)
+      const textData = e.dataTransfer?.getData('text/plain')
+      if (textData) {
+        onDataRef.current?.(textData)
       }
     }
 

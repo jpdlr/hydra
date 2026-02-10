@@ -34,6 +34,14 @@
   background: var(--color-surface-hover);
 }
 
+.tab[draggable='true'] {
+  cursor: grab;
+}
+
+.tab[draggable='true']:active {
+  cursor: grabbing;
+}
+
 .tabActive {
   color: var(--color-text-primary);
   background: var(--color-bg);

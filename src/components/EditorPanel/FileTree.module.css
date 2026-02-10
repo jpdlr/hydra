@@ -39,6 +39,14 @@
   color: var(--color-text-primary);
 }
 
+.node[draggable='true'] {
+  cursor: grab;
+}
+
+.node[draggable='true']:active {
+  cursor: grabbing;
+}
+
 .nodeActive {
   background: var(--color-accent-subtle);
   color: var(--color-text-primary);
@@ -93,6 +101,14 @@
 .filterResultNode:hover {
   background: var(--color-surface-hover);
   color: var(--color-text-primary);
+}
+
+.filterResultNode[draggable='true'] {
+  cursor: grab;
+}
+
+.filterResultNode[draggable='true']:active {
+  cursor: grabbing;
 }
 
 .filterResultPath {

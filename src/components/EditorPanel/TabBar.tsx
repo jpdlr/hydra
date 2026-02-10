@@ -8,11 +8,12 @@ export interface EditorTab {
 interface TabBarProps {
   tabs: EditorTab[]
   activeTabPath: string | null
+  projectDir?: string
   onSelectTab: (path: string) => void
   onCloseTab: (path: string) => void
 }
 
-export function TabBar({ tabs, activeTabPath, onSelectTab, onCloseTab }: TabBarProps) {
+export function TabBar({ tabs, activeTabPath, projectDir, onSelectTab, onCloseTab }: TabBarProps) {
   if (tabs.length === 0) return null
 
   return (
@@ -20,6 +21,9 @@ export function TabBar({ tabs, activeTabPath, onSelectTab, onCloseTab }: TabBarP
       {tabs.map((tab) => {
         const fileName = tab.path.split('/').pop() || tab.path
         const isActive = tab.path === activeTabPath
+        const absolutePath = projectDir
+          ? (projectDir.endsWith('/') ? `${projectDir}${tab.path}` : `${projectDir}/${tab.path}`)
+          : tab.path
 
         return (
           <div
@@ -33,6 +37,12 @@ export function TabBar({ tabs, activeTabPath, onSelectTab, onCloseTab }: TabBarP
               }
             }}
             title={tab.path}
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setData('text/plain', absolutePath)
+              e.dataTransfer.setData('application/x-hydra-filepath', absolutePath)
+              e.dataTransfer.effectAllowed = 'copy'
+            }}
           >
             <span className={styles.tabName}>
               {tab.dirty && <span className={styles.dirtyDot} />}

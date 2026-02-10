@@ -51,13 +51,23 @@ export function InputBar({
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault()
+      // OS file drops
       const files = Array.from(e.dataTransfer.files)
-      const paths = files.map((f) => f.path).filter(Boolean)
-      if (paths.length > 0) {
-        const text = paths.join(' ')
+      const osPaths = files.map((f) => f.path).filter(Boolean)
+      if (osPaths.length > 0) {
+        const text = osPaths.join(' ')
         setValue((prev) => {
           const prefix = prev.length > 0 && !prev.endsWith(' ') ? ' ' : ''
           return prev + prefix + text
+        })
+        return
+      }
+      // Internal editor drag (text/plain with file path)
+      const textData = e.dataTransfer.getData('text/plain')
+      if (textData) {
+        setValue((prev) => {
+          const prefix = prev.length > 0 && !prev.endsWith(' ') ? ' ' : ''
+          return prev + prefix + textData
         })
       }
     },

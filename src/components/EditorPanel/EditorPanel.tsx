@@ -127,6 +127,7 @@ export function EditorPanel({
           <FileTreeFilterResults
             results={filterResults}
             activeFilePath={activeTabPath}
+            rootPath={projectDir}
             onOpenFile={onOpenFile}
           />
         ) : (
@@ -147,6 +148,7 @@ export function EditorPanel({
         <TabBar
           tabs={tabs}
           activeTabPath={activeTabPath}
+          projectDir={projectDir}
           onSelectTab={onSelectTab}
           onCloseTab={onCloseTab}
         />

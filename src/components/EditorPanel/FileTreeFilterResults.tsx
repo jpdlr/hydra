@@ -5,12 +5,14 @@ import styles from './FileTree.module.css'
 interface FileTreeFilterResultsProps {
   results: FsSearchResult[]
   activeFilePath: string | null
+  rootPath: string
   onOpenFile: (path: string) => void
 }
 
 export function FileTreeFilterResults({
   results,
   activeFilePath,
+  rootPath,
   onOpenFile
 }: FileTreeFilterResultsProps) {
   if (results.length === 0) {
@@ -22,6 +24,9 @@ export function FileTreeFilterResults({
       {results.map((result) => {
         const isActive = activeFilePath === result.path
         const dir = result.path.slice(0, result.path.length - result.name.length)
+        const absolutePath = rootPath.endsWith('/')
+          ? `${rootPath}${result.path}`
+          : `${rootPath}/${result.path}`
 
         return (
           <button
@@ -29,6 +34,12 @@ export function FileTreeFilterResults({
             className={`${styles.filterResultNode} ${isActive ? styles.nodeActive : ''}`}
             onClick={() => onOpenFile(result.path)}
             title={result.path}
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setData('text/plain', absolutePath)
+              e.dataTransfer.setData('application/x-hydra-filepath', absolutePath)
+              e.dataTransfer.effectAllowed = 'copy'
+            }}
           >
             <span className={styles.icon}>{getFileIcon(result)}</span>
             <span className={styles.name}>{result.name}</span>

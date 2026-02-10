@@ -114,6 +114,10 @@ export function FileTree({ agentId, rootPath, activeFilePath, onOpenFile }: File
       const isActive = activeFilePath === entryPath
       const children = childrenCache.get(entryPath)
 
+      const absolutePath = rootPath.endsWith('/')
+        ? `${rootPath}${entryPath}`
+        : `${rootPath}/${entryPath}`
+
       return (
         <div key={entryPath}>
           <button
@@ -121,6 +125,16 @@ export function FileTree({ agentId, rootPath, activeFilePath, onOpenFile }: File
             style={{ paddingLeft: `${12 + depth * 16}px` }}
             onClick={() => handleClickEntry(entry, entryPath)}
             title={entryPath}
+            draggable={!entry.isDirectory}
+            onDragStart={(e) => {
+              if (entry.isDirectory) {
+                e.preventDefault()
+                return
+              }
+              e.dataTransfer.setData('text/plain', absolutePath)
+              e.dataTransfer.setData('application/x-hydra-filepath', absolutePath)
+              e.dataTransfer.effectAllowed = 'copy'
+            }}
           >
             {entry.isDirectory && (
               <span className={`${styles.chevron} ${isExpanded ? styles.chevronOpen : ''}`}>
