@@ -58,14 +58,15 @@ export class FileSystemService {
     const fullPath = resolve(projectDir, dirPath)
     assertWithinProject(fullPath, projectDir)
 
-    const entries = await readdir(fullPath, { withFileTypes: true })
+    const entries = await readdir(fullPath, { withFileTypes: true }) as import('fs').Dirent[]
     const result: FsDirEntry[] = []
 
     for (const entry of entries) {
-      if (IGNORED_NAMES.has(entry.name)) continue
-      if (entry.name.startsWith('.') && entry.name !== '.env.example') continue
+      const name = String(entry.name)
+      if (IGNORED_NAMES.has(name)) continue
+      if (name.startsWith('.') && name !== '.env.example') continue
       if (entry.isFile() || entry.isDirectory()) {
-        result.push({ name: entry.name, isDirectory: entry.isDirectory() })
+        result.push({ name, isDirectory: entry.isDirectory() })
       }
     }
 
@@ -111,23 +112,24 @@ export class FileSystemService {
 
     const walk = async (dir: string): Promise<void> => {
       if (results.length >= maxResults) return
-      let entries: Awaited<ReturnType<typeof readdir>>
+      let rawEntries: import('fs').Dirent[]
       try {
-        entries = await readdir(dir, { withFileTypes: true })
+        rawEntries = await readdir(dir, { withFileTypes: true }) as import('fs').Dirent[]
       } catch {
         return
       }
-      for (const entry of entries) {
+      for (const entry of rawEntries) {
         if (results.length >= maxResults) return
-        if (IGNORED_NAMES.has(entry.name)) continue
-        if (entry.name.startsWith('.')) continue
-        const fullPath = join(dir, entry.name)
+        const name = String(entry.name)
+        if (IGNORED_NAMES.has(name)) continue
+        if (name.startsWith('.')) continue
+        const fullPath = join(dir, name)
         const relPath = relative(projectDir, fullPath)
         if (entry.isDirectory()) {
           await walk(fullPath)
-        } else if (!isBinaryFile(entry.name)) {
+        } else if (!isBinaryFile(name)) {
           if (relPath.toLowerCase().includes(lowerQuery)) {
-            results.push({ path: relPath, name: entry.name, isDirectory: false })
+            results.push({ path: relPath, name, isDirectory: false })
           }
         }
       }
