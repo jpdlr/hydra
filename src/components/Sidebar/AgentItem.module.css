@@ -75,3 +75,10 @@
   border-radius: var(--radius-sm);
   line-height: 1.4;
 }
+
+.age {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  margin-left: auto;
+}
