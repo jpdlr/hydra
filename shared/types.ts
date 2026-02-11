@@ -84,6 +84,7 @@ export interface AppConfig {
   usageDailyTokenBudget: number
   usageDailyCostBudgetUsd: number
   usageBudgetWarningThresholdPct: number
+  enableSoundEffects: boolean
   enableRemoteErrorReporting: boolean
   errorReportingEndpoint: string
   includeSensitiveDiagnostics: boolean
@@ -106,6 +107,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   usageDailyTokenBudget: 0,
   usageDailyCostBudgetUsd: 0,
   usageBudgetWarningThresholdPct: 80,
+  enableSoundEffects: true,
   enableRemoteErrorReporting: false,
   errorReportingEndpoint: '',
   includeSensitiveDiagnostics: false
@@ -191,7 +193,14 @@ export const IPC = {
   FS_WATCH_START: 'fs:watch-start',
   FS_WATCH_STOP: 'fs:watch-stop',
   FS_WATCH_EVENT: 'fs:watch-event',
-  FS_SEARCH_FILES: 'fs:search-files'
+  FS_SEARCH_FILES: 'fs:search-files',
+
+  // Git
+  GIT_STATUS: 'git:status',
+  GIT_LOG: 'git:log',
+  GIT_DIFF: 'git:diff',
+  GIT_COMMIT: 'git:commit',
+  GIT_PUSH: 'git:push'
 } as const
 
 // ── IPC Payloads ─────────────────────────────────────────────────────────────
@@ -400,6 +409,7 @@ export interface ProjectGroup {
 
 export type NotificationType =
   | 'agent_idle'
+  | 'agent_waiting'
   | 'agent_errored'
   | 'agent_started'
   | 'headless_completed'
@@ -447,4 +457,22 @@ export interface FsWatchEventPayload {
   agentId: string
   eventType: 'change' | 'rename'
   path: string
+}
+
+// ── Git ──────────────────────────────────────────────────────────────────────
+
+export interface GitStatus {
+  branch: string
+  ahead: number
+  behind: number
+  modified: string[]
+  staged: string[]
+  untracked: string[]
+}
+
+export interface GitCommit {
+  hash: string
+  message: string
+  author: string
+  date: string
 }

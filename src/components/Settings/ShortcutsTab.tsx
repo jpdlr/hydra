@@ -42,7 +42,9 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     label: 'Panels',
     shortcuts: [
+      { keys: [MOD, 'Shift', 'P'], description: 'Command palette' },
       { keys: [MOD, ','], description: 'Settings' },
+      { keys: [MOD, 'G'], description: 'Git panel' },
       { keys: [MOD, 'U'], description: 'Usage dashboard' },
       { keys: [MOD, 'Shift', 'U'], description: 'Updates' },
     ],

@@ -55,7 +55,7 @@ describe('NewAgentDialog', () => {
       />
     )
 
-    const nameInput = screen.getByPlaceholderText('Auth Module')
+    const nameInput = screen.getByPlaceholderText('Optional — auto-generated from prompt')
     fireEvent.change(nameInput, { target: { value: 'EP inventory' } })
 
     const resumeCheckbox = screen.getByRole('checkbox', { name: /resume existing claude session/i })

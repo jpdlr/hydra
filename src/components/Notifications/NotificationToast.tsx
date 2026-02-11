@@ -9,6 +9,7 @@ interface NotificationToastProps {
 function getVariant(type: NotificationType): 'success' | 'error' | 'info' | 'warning' {
   switch (type) {
     case 'agent_idle':
+    case 'agent_waiting':
     case 'headless_completed':
       return 'success'
     case 'agent_errored':

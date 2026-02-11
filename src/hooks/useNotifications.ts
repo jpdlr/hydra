@@ -1,10 +1,20 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { HydraNotification } from '@shared/types'
+import type { HydraNotification, NotificationType } from '@shared/types'
+import { playChime, playWarning, playPop } from '../lib/sounds'
 
 const MAX_VISIBLE = 5
 const AUTO_DISMISS_MS = 6000
 
-export function useNotifications() {
+const SOUND_MAP: Partial<Record<NotificationType, () => void>> = {
+  agent_idle: playChime,
+  agent_waiting: playChime,
+  headless_completed: playChime,
+  agent_errored: playWarning,
+  headless_errored: playWarning,
+  agent_started: playPop
+}
+
+export function useNotifications(enableSoundEffects = true) {
   const [notifications, setNotifications] = useState<HydraNotification[]>([])
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
@@ -18,8 +28,17 @@ export function useNotifications() {
     window.hydra.dismissNotification(id)
   }, [])
 
+  const soundEnabledRef = useRef(enableSoundEffects)
+  soundEnabledRef.current = enableSoundEffects
+
   useEffect(() => {
     const unsubscribe = window.hydra.onNotification((notification: HydraNotification) => {
+      // Play sound effect
+      if (soundEnabledRef.current) {
+        const play = SOUND_MAP[notification.type]
+        if (play) play()
+      }
+
       setNotifications((prev) => {
         const next = [...prev, notification]
         if (next.length > MAX_VISIBLE) {

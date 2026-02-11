@@ -122,6 +122,7 @@ const baseConfig: AppConfig = {
   usageDailyTokenBudget: 0,
   usageDailyCostBudgetUsd: 0,
   usageBudgetWarningThresholdPct: 80,
+  enableSoundEffects: true,
   enableRemoteErrorReporting: false,
   errorReportingEndpoint: '',
   includeSensitiveDiagnostics: false,

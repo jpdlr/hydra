@@ -100,7 +100,6 @@ export function NewAgentDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim()) return
     if (!isManager && !projectDir.trim()) return
     if (resumeExisting && !selectedSessionId) return
     if (!effectiveModel) return
@@ -146,9 +145,8 @@ export function NewAgentDialog({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Auth Module"
+              placeholder="Optional — auto-generated from prompt"
               autoFocus
-              required
             />
           </div>
 
@@ -400,7 +398,7 @@ export function NewAgentDialog({
           <button
             className={styles.submitBtn}
             type="submit"
-            disabled={!name.trim() || (!isManager && !projectDir.trim()) || (resumeExisting && !selectedSessionId) || !effectiveModel}
+            disabled={(!isManager && !projectDir.trim()) || (resumeExisting && !selectedSessionId) || !effectiveModel}
           >
             Create Agent
           </button>

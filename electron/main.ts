@@ -18,6 +18,7 @@ import { NotificationService } from './notifications/NotificationService'
 import { UsageTracker } from './usage/UsageTracker'
 import { UpdateService } from './updates/UpdateService'
 import { FileSystemService } from './fs/FileSystemService'
+import { GitService } from './git/GitService'
 import { IPC } from '@shared/types'
 
 let mainWindow: BrowserWindow | null = null
@@ -31,6 +32,7 @@ let mcpServer: HydraMcpServer | null = null
 const usageTracker = new UsageTracker(app.getPath('userData'))
 const updateService = new UpdateService()
 const fileSystemService = new FileSystemService()
+const gitService = new GitService()
 const observability = new ObservabilityService({
   getConfig: () => configStore.get(),
   getAgents: () => agentManager.list(),
@@ -157,6 +159,7 @@ app.whenReady().then(async () => {
 
   // Notification service
   const notificationService = new NotificationService()
+  notificationService.connectAgentEvents(agentManager, headlessOrchestrator)
 
   // Start MCP server for manager agents (non-fatal if it fails)
   mcpServer = new HydraMcpServer(agentManager, app.getPath('userData'))
@@ -200,7 +203,8 @@ app.whenReady().then(async () => {
     },
     mcpServer,
     notificationService,
-    fileSystemService
+    fileSystemService,
+    gitService
   )
   createWindow()
 

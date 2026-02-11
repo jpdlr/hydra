@@ -9,6 +9,7 @@ import { NotificationService } from '../notifications/NotificationService'
 import { UsageTracker } from '../usage/UsageTracker'
 import { UpdateService } from '../updates/UpdateService'
 import { FileSystemService } from '../fs/FileSystemService'
+import { GitService } from '../git/GitService'
 import { IPC } from '@shared/types'
 import type { HydraMcpServer } from '../mcp/McpServer'
 import type {
@@ -26,7 +27,7 @@ const providerSchema = z.enum(['claude', 'codex'])
 const modelSchema = z.string().trim().min(1).max(128)
 const reasoningEffortSchema = z.string().trim().max(32).optional()
 const createAgentPayloadSchema = z.object({
-  name: z.string().trim().min(1).max(120),
+  name: z.string().trim().max(120),
   projectDir: projectDirSchema,
   provider: providerSchema,
   model: modelSchema,
@@ -71,6 +72,7 @@ const appConfigPatchSchema = z
     usageDailyTokenBudget: z.number().int().min(0).max(10_000_000).optional(),
     usageDailyCostBudgetUsd: z.number().min(0).max(100_000).optional(),
     usageBudgetWarningThresholdPct: z.number().int().min(1).max(99).optional(),
+    enableSoundEffects: z.boolean().optional(),
     enableRemoteErrorReporting: z.boolean().optional(),
     errorReportingEndpoint: z.string().max(1024).optional(),
     includeSensitiveDiagnostics: z.boolean().optional()
@@ -142,7 +144,8 @@ export function registerIpcHandlers(
   onWorkspaceChanged?: () => void,
   mcpServer?: HydraMcpServer | null,
   notificationService?: NotificationService | null,
-  fileSystemService?: FileSystemService | null
+  fileSystemService?: FileSystemService | null,
+  gitService?: GitService | null
 ): void {
   // ── Preflight ────────────────────────────────────────────────────────────
 
@@ -171,6 +174,9 @@ export function registerIpcHandlers(
     }
 
     const parsedPayload = createAgentPayloadSchema.parse(payload)
+    if (!parsedPayload.name) {
+      parsedPayload.name = AgentManager.generateName(parsedPayload.initialPrompt, parsedPayload.projectDir)
+    }
     const preflight = await agentManager.preflight(parsedPayload.provider)
     if (!preflight.ok) {
       throw new Error(preflight.error || `${parsedPayload.provider} CLI preflight check failed`)
@@ -577,5 +583,41 @@ export function registerIpcHandlers(
   // Connect NotificationService to agent/headless events
   if (notificationService) {
     notificationService.connectAgentEvents(agentManager, headlessOrchestrator)
+  }
+
+  // ── Git ───────────────────────────────────────────────────────────────────
+
+  if (gitService) {
+    ipcMain.handle(IPC.GIT_STATUS, async (_event, projectDir: string) => {
+      const dir = projectDirSchema.parse(projectDir)
+      return gitService.getStatus(dir)
+    })
+
+    ipcMain.handle(IPC.GIT_LOG, async (_event, projectDir: string, limit?: number) => {
+      const dir = projectDirSchema.parse(projectDir)
+      const n = z.number().int().min(1).max(200).optional().parse(limit)
+      return gitService.getLog(dir, n)
+    })
+
+    ipcMain.handle(IPC.GIT_DIFF, async (_event, projectDir: string, filePath?: string) => {
+      const dir = projectDirSchema.parse(projectDir)
+      const fp = filePath ? z.string().max(8192).parse(filePath) : undefined
+      return gitService.getDiff(dir, fp)
+    })
+
+    ipcMain.handle(
+      IPC.GIT_COMMIT,
+      async (_event, projectDir: string, message: string, files?: string[]) => {
+        const dir = projectDirSchema.parse(projectDir)
+        const msg = z.string().trim().min(1).max(4000).parse(message)
+        const f = files ? z.array(z.string().max(4096)).max(500).parse(files) : undefined
+        return gitService.stageAndCommit(dir, msg, f)
+      }
+    )
+
+    ipcMain.handle(IPC.GIT_PUSH, async (_event, projectDir: string) => {
+      const dir = projectDirSchema.parse(projectDir)
+      return gitService.push(dir)
+    })
   }
 }

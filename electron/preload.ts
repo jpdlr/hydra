@@ -26,7 +26,9 @@ import type {
   FsDirEntry,
   FsReadFileResult,
   FsSearchResult,
-  FsWatchEventPayload
+  FsWatchEventPayload,
+  GitStatus,
+  GitCommit
 } from '@shared/types'
 
 export type HydraAPI = typeof hydraApi
@@ -203,7 +205,19 @@ const hydraApi = {
       callback(payload)
     ipcRenderer.on(IPC.FS_WATCH_EVENT, handler)
     return () => { ipcRenderer.removeListener(IPC.FS_WATCH_EVENT, handler) }
-  }
+  },
+
+  // Git
+  getGitStatus: (projectDir: string): Promise<GitStatus> =>
+    ipcRenderer.invoke(IPC.GIT_STATUS, projectDir),
+  getGitLog: (projectDir: string, limit?: number): Promise<GitCommit[]> =>
+    ipcRenderer.invoke(IPC.GIT_LOG, projectDir, limit),
+  getGitDiff: (projectDir: string, filePath?: string): Promise<string> =>
+    ipcRenderer.invoke(IPC.GIT_DIFF, projectDir, filePath),
+  gitCommit: (projectDir: string, message: string, files?: string[]): Promise<string> =>
+    ipcRenderer.invoke(IPC.GIT_COMMIT, projectDir, message, files),
+  gitPush: (projectDir: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.GIT_PUSH, projectDir)
 }
 
 contextBridge.exposeInMainWorld('hydra', hydraApi)

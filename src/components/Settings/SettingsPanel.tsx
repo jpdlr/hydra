@@ -264,6 +264,19 @@ export function SettingsPanel({ config, onUpdate, onClose }: SettingsPanelProps)
             </div>
           </div>
 
+          {/* Sound effects */}
+          <div className={styles.field}>
+            <label className={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={config.enableSoundEffects}
+                onChange={(e) => onUpdate({ enableSoundEffects: e.target.checked })}
+                className={styles.checkbox}
+              />
+              <span>Play sound on agent events</span>
+            </label>
+          </div>
+
           <div className={styles.field}>
             <label className={styles.sectionLabel}>Observability</label>
             <label className={styles.checkboxLabel}>

@@ -60,6 +60,20 @@ export class NotificationService {
     agentManager: AgentManager,
     headlessOrchestrator: HeadlessOrchestrator
   ): void {
+    agentManager.on('agent_waiting', (payload: { agentId: string }) => {
+      const agent = agentManager.get(payload.agentId)
+      const agentName = agent?.name ?? payload.agentId
+
+      this.push({
+        id: randomUUID().slice(0, 12),
+        type: 'agent_waiting',
+        title: 'Agent Finished',
+        body: `${agentName} is waiting for input`,
+        agentId: payload.agentId,
+        timestamp: new Date().toISOString()
+      })
+    })
+
     agentManager.on('status', (payload: AgentStatusPayload) => {
       const agent = agentManager.get(payload.agentId)
       const agentName = agent?.name ?? payload.agentId

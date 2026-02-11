@@ -1,0 +1,109 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  padding-top: 80px;
+}
+
+.popup {
+  width: 520px;
+  max-height: 420px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  align-self: flex-start;
+}
+
+.input {
+  width: 100%;
+  padding: var(--space-3);
+  border: none;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-family: var(--font-ui);
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.results {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-1) 0;
+}
+
+.empty {
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.resultItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 6px var(--space-3);
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.resultItem:hover,
+.resultItemSelected {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.category {
+  font-size: 9px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-tertiary);
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+  line-height: 1.5;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+.label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shortcut {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.shortcut kbd {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  padding: 0 3px;
+  margin-left: 2px;
+}

@@ -26,6 +26,8 @@ interface ManagedAgent {
   latestUserPrompt: string | null
   sessionSyncTimer: ReturnType<typeof setTimeout> | null
   sessionDiscoveryAttempts: number
+  idleTimer: ReturnType<typeof setTimeout> | null
+  notifiedIdle: boolean
 }
 
 const MAX_BUFFER_LINES = 5000
@@ -38,6 +40,7 @@ const SESSION_DISCOVERY_MAX_INTERVAL_MS = 30000
 const SESSION_DISCOVERY_BACKOFF_FACTOR = 1.6
 const SESSION_DISCOVERY_GRACE_MS = 5 * 60 * 1000
 const SESSION_HINT_MAX_LENGTH = 400
+const IDLE_DETECTION_MS = 5000
 
 export class AgentManager extends EventEmitter {
   private agents: Map<string, ManagedAgent> = new Map()
@@ -98,7 +101,9 @@ export class AgentManager extends EventEmitter {
       source: 'hydra',
       latestUserPrompt: payload.initialPrompt.trim() || null,
       sessionSyncTimer: null,
-      sessionDiscoveryAttempts: 0
+      sessionDiscoveryAttempts: 0,
+      idleTimer: null,
+      notifiedIdle: false
     }
 
     this.agents.set(id, managed)
@@ -146,7 +151,9 @@ export class AgentManager extends EventEmitter {
         source: 'imported',
         latestUserPrompt: session.firstPrompt.trim() || null,
         sessionSyncTimer: null,
-        sessionDiscoveryAttempts: 0
+        sessionDiscoveryAttempts: 0,
+        idleTimer: null,
+        notifiedIdle: false
       })
       imported++
     }
@@ -193,7 +200,9 @@ export class AgentManager extends EventEmitter {
         source: 'hydra',
         latestUserPrompt: null,
         sessionSyncTimer: null,
-        sessionDiscoveryAttempts: 0
+        sessionDiscoveryAttempts: 0,
+        idleTimer: null,
+        notifiedIdle: false
       })
       restored++
     }
@@ -238,18 +247,22 @@ export class AgentManager extends EventEmitter {
     return `${baseId}-${suffix}`
   }
 
-  private buildImportedAgentName(session: ClaudeSessionSummary): string {
-    const prompt = session.firstPrompt
+  static generateName(prompt: string, projectDir: string): string {
+    const cleaned = prompt
       .replace(/\s+/g, ' ')
       .trim()
       .replace(/^<[^>]+>/, '')
 
-    if (prompt) {
-      return prompt.length > 44 ? `${prompt.slice(0, 44)}...` : prompt
+    if (cleaned) {
+      return cleaned.length > 44 ? `${cleaned.slice(0, 44)}...` : cleaned
     }
 
-    const projectName = basename(session.projectPath) || 'Session'
-    return `${projectName} ${session.sessionId.slice(0, 6)}`
+    const projectName = basename(projectDir) || 'Agent'
+    return `${projectName} ${randomUUID().slice(0, 6)}`
+  }
+
+  private buildImportedAgentName(session: ClaudeSessionSummary): string {
+    return AgentManager.generateName(session.firstPrompt, session.projectPath)
   }
 
   private buildHydraAgentId(preferredId: string): string {
@@ -310,11 +323,15 @@ export class AgentManager extends EventEmitter {
         }
 
         this.emit('output', { agentId: managed.state.id, data })
+
+        // Idle detection: reset timer on every output chunk
+        this.resetIdleTimer(managed)
       })
 
       pty.onExit(({ exitCode }) => {
         managed.pty = null
         managed.state.pid = null
+        this.clearIdleTimer(managed)
         this.stopSessionDiscovery(managed)
         this.probeSessionIdFromCatalog(managed, { forceRefresh: true })
 
@@ -336,6 +353,25 @@ export class AgentManager extends EventEmitter {
     } catch (err) {
       console.error(`Failed to spawn agent ${managed.state.id}:`, err)
       this.updateStatus(managed.state.id, 'errored')
+    }
+  }
+
+  private resetIdleTimer(managed: ManagedAgent): void {
+    this.clearIdleTimer(managed)
+    if (managed.state.status !== 'running') return
+    managed.idleTimer = setTimeout(() => {
+      managed.idleTimer = null
+      if (managed.state.status !== 'running' || !managed.pty) return
+      if (managed.notifiedIdle) return
+      managed.notifiedIdle = true
+      this.emit('agent_waiting', { agentId: managed.state.id })
+    }, IDLE_DETECTION_MS)
+  }
+
+  private clearIdleTimer(managed: ManagedAgent): void {
+    if (managed.idleTimer) {
+      clearTimeout(managed.idleTimer)
+      managed.idleTimer = null
     }
   }
 
@@ -537,6 +573,8 @@ export class AgentManager extends EventEmitter {
     managed.state.status = 'starting'
     managed.outputBuffer = []
     managed.submitQueue = Promise.resolve()
+    managed.notifiedIdle = false
+    this.clearIdleTimer(managed)
     this.stopSessionDiscovery(managed)
 
     this.spawnProcess(managed)
@@ -555,6 +593,10 @@ export class AgentManager extends EventEmitter {
   private queueSubmittedInput(managed: ManagedAgent, input: string): boolean {
     const pty = managed.pty
     if (!pty) return false
+
+    // Reset idle detection so we notify again after this task completes
+    managed.notifiedIdle = false
+    this.clearIdleTimer(managed)
 
     managed.submitQueue = managed.submitQueue
       .catch(() => undefined)

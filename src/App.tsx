@@ -10,6 +10,8 @@ import { UsageDashboard } from './components/UsageDashboard/UsageDashboard'
 import { UpdatePanel } from './components/Updates/UpdatePanel'
 import { NotificationToast } from './components/Notifications/NotificationToast'
 import { FileSearchPopup } from './components/FileSearchPopup/FileSearchPopup'
+import { CommandPalette } from './components/CommandPalette/CommandPalette'
+import { GitPanel } from './components/GitPanel/GitPanel'
 import { useAgents } from './hooks/useAgents'
 import { useConfig } from './hooks/useConfig'
 import { useViewMode } from './hooks/useViewMode'
@@ -82,7 +84,7 @@ function writeWorkspaceUiState(state: PersistedWorkspaceUiState): void {
 export default function App() {
   const persistedUi = useMemo(() => readWorkspaceUiState(), [])
   const { config, updateConfig } = useConfig()
-  const { notifications, dismiss: dismissNotification } = useNotifications()
+  const { notifications, dismiss: dismissNotification } = useNotifications(config.enableSoundEffects)
   const { updateState, check: checkForUpdates, download: downloadUpdate, install: installUpdate } =
     useUpdates()
   const {
@@ -120,6 +122,8 @@ export default function App() {
   const [showYoloConfirm, setShowYoloConfirm] = useState(false)
   const [showPreflightGate, setShowPreflightGate] = useState(false)
   const [showFileSearch, setShowFileSearch] = useState(false)
+  const [showCommandPalette, setShowCommandPalette] = useState(false)
+  const [showGitPanel, setShowGitPanel] = useState(false)
   const [selectedProject, setSelectedProject] = useState<string | null>(persistedUi.selectedProject)
   const [expandedTilesByProject, setExpandedTilesByProject] = useState<Record<string, string | null>>(
     persistedUi.expandedTilesByProject
@@ -314,6 +318,13 @@ export default function App() {
         return
       }
 
+      // Cmd+Shift+P — command palette
+      if (meta && e.shiftKey && e.key.toLowerCase() === 'p') {
+        e.preventDefault()
+        setShowCommandPalette(true)
+        return
+      }
+
       // Cmd+P — file search (requires selected agent)
       if (meta && e.key === 'p' && selectedAgentId) {
         e.preventDefault()
@@ -348,6 +359,13 @@ export default function App() {
       if (meta && !e.shiftKey && e.key.toLowerCase() === 'u') {
         e.preventDefault()
         setShowUsageDashboard(true)
+        return
+      }
+
+      // Cmd+G — git panel
+      if (meta && !e.shiftKey && e.key.toLowerCase() === 'g') {
+        e.preventDefault()
+        setShowGitPanel(true)
         return
       }
 
@@ -392,12 +410,14 @@ export default function App() {
 
       // Escape — close dialogs
       if (e.key === 'Escape') {
+        if (showCommandPalette) setShowCommandPalette(false)
         if (showFileSearch) setShowFileSearch(false)
         if (showSettings) setShowSettings(false)
         if (showNewAgent) setShowNewAgent(false)
         if (showHeadless) setShowHeadless(false)
         if (showUsageDashboard) setShowUsageDashboard(false)
         if (showUpdatePanel) setShowUpdatePanel(false)
+        if (showGitPanel) setShowGitPanel(false)
         if (showYoloConfirm) setShowYoloConfirm(false)
         if (showPreflightGate) setShowPreflightGate(false)
         if (quitConfirmRunningCount !== null) setQuitConfirmRunningCount(null)
@@ -410,12 +430,14 @@ export default function App() {
     selectedAgentId,
     agentList,
     agents,
+    showCommandPalette,
     showFileSearch,
     showSettings,
     showNewAgent,
     showHeadless,
     showUsageDashboard,
     showUpdatePanel,
+    showGitPanel,
     showYoloConfirm,
     showPreflightGate,
     quitConfirmRunningCount,
@@ -741,6 +763,43 @@ export default function App() {
             void editorPanel.openFile(path)
           }}
           onClose={() => setShowFileSearch(false)}
+        />
+      )}
+
+      {showCommandPalette && (
+        <CommandPalette
+          onExecute={(id) => {
+            switch (id) {
+              case 'toggle-view': toggleViewMode(); break
+              case 'new-agent': void handleOpenNewAgent(); break
+              case 'kill-agent': if (selectedAgentId) void handleRemoveAgent(selectedAgentId); break
+              case 'restart-agent': if (selectedAgentId) void handleRestartAgent(selectedAgentId); break
+              case 'toggle-yolo': {
+                if (selectedAgentId) {
+                  const agent = agents.get(selectedAgentId)
+                  if (agent) toggleYolo(selectedAgentId, !agent.state.yolo)
+                }
+                break
+              }
+              case 'toggle-global-yolo': setShowYoloConfirm(true); break
+              case 'toggle-editor': if (viewMode === 'chat') editorPanel.toggle(); break
+              case 'file-search': if (selectedAgentId) setShowFileSearch(true); break
+              case 'settings': setShowSettings(true); break
+              case 'usage-dashboard': setShowUsageDashboard(true); break
+              case 'updates': if (updateState.supported) setShowUpdatePanel(true); break
+              case 'headless': setShowHeadless(true); break
+              case 'git-panel': setShowGitPanel(true); break
+              case 'export-diagnostics': void window.hydra.exportDiagnostics(); break
+            }
+          }}
+          onClose={() => setShowCommandPalette(false)}
+        />
+      )}
+
+      {showGitPanel && selectedAgent?.state.projectDir && (
+        <GitPanel
+          projectDir={selectedAgent.state.projectDir}
+          onClose={() => setShowGitPanel(false)}
         />
       )}
 
