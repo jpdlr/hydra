@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useMemo } from 'react'
 import { ProjectTree } from './ProjectTree'
 import { SearchBar } from './SearchBar'
 import type { ProjectGroup } from '@shared/types'
@@ -12,6 +12,7 @@ interface SidebarProps {
   onNewAgentForProject: (projectDir: string) => void
   width: number
   onWidthChange: (width: number) => void
+  sessionMaxAgeDays: number
 }
 
 const MIN_WIDTH = 200
@@ -24,7 +25,8 @@ export function Sidebar({
   onNewAgent,
   onNewAgentForProject,
   width,
-  onWidthChange
+  onWidthChange,
+  sessionMaxAgeDays
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [isDragging, setIsDragging] = useState(false)
@@ -60,8 +62,24 @@ export function Sidebar({
     [width, onWidthChange]
   )
 
+  const recentGroups = useMemo(() => {
+    if (sessionMaxAgeDays <= 0) return projectGroups
+    const cutoff = Date.now() - sessionMaxAgeDays * 24 * 60 * 60 * 1000
+    return projectGroups
+      .map((group) => ({
+        ...group,
+        agents: group.agents.filter(
+          (a) =>
+            a.status === 'running' ||
+            a.status === 'starting' ||
+            new Date(a.createdAt).getTime() > cutoff
+        )
+      }))
+      .filter((group) => group.agents.length > 0)
+  }, [projectGroups, sessionMaxAgeDays])
+
   const filteredGroups = searchQuery
-    ? projectGroups
+    ? recentGroups
         .map((group) => ({
           ...group,
           agents: group.agents.filter(
@@ -71,7 +89,7 @@ export function Sidebar({
           )
         }))
         .filter((group) => group.agents.length > 0)
-    : projectGroups
+    : recentGroups
 
   return (
     <aside className={styles.sidebar} style={{ width }}>

@@ -509,6 +509,7 @@ export default function App() {
               }}
               width={sidebarWidth}
               onWidthChange={setSidebarWidth}
+              sessionMaxAgeDays={config.sessionMaxAgeDays}
             />
           )}
 
