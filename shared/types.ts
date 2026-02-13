@@ -64,6 +64,26 @@ export function getProviderForModel(model: ModelId): ProviderId {
   return 'claude'
 }
 
+// ── Editors ──────────────────────────────────────────────────────────────────
+
+export type EditorId = 'vscode' | 'cursor' | 'windsurf' | 'zed' | 'finder' | 'terminal'
+
+export interface EditorDefinition {
+  id: EditorId
+  label: string
+  command: string
+  extraArgs?: string[]
+}
+
+export const EDITOR_REGISTRY: EditorDefinition[] = [
+  { id: 'vscode', label: 'VS Code', command: 'code' },
+  { id: 'cursor', label: 'Cursor', command: 'cursor' },
+  { id: 'windsurf', label: 'Windsurf', command: 'windsurf' },
+  { id: 'zed', label: 'Zed', command: 'zed' },
+  { id: 'finder', label: 'Finder', command: 'open' },
+  { id: 'terminal', label: 'Terminal', command: 'open', extraArgs: ['-a', 'Terminal'] }
+]
+
 // ── Config ───────────────────────────────────────────────────────────────────
 export type ThemeId = 'light' | 'dark' | 'midnight'
 export type ViewMode = 'grid' | 'chat'
@@ -76,6 +96,7 @@ export interface AppConfig {
   theme: ThemeId
   defaultViewMode: ViewMode
   defaultProjectDir: string
+  defaultEditor: EditorId
   importSessionsOnStartup: boolean
   sessionImportLimit: number
   sessionMaxAgeDays: number
@@ -99,6 +120,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   theme: 'dark',
   defaultViewMode: 'chat',
   defaultProjectDir: '',
+  defaultEditor: 'vscode',
   importSessionsOnStartup: true,
   sessionImportLimit: 500,
   sessionMaxAgeDays: 7,
@@ -145,6 +167,7 @@ export const IPC = {
 
   // Shell
   OPEN_IN_EDITOR: 'shell:open-in-editor',
+  OPEN_IN_APP: 'shell:open-in-app',
 
   // Broadcast
   AGENT_BROADCAST: 'agent:broadcast',

@@ -28,7 +28,8 @@ import type {
   FsSearchResult,
   FsWatchEventPayload,
   GitStatus,
-  GitCommit
+  GitCommit,
+  EditorId
 } from '@shared/types'
 
 export type HydraAPI = typeof hydraApi
@@ -104,6 +105,8 @@ const hydraApi = {
   // Shell
   openInEditor: (dir: string): Promise<boolean> =>
     ipcRenderer.invoke(IPC.OPEN_IN_EDITOR, dir),
+  openInApp: (editorId: EditorId, dir: string): Promise<boolean> =>
+    ipcRenderer.invoke(IPC.OPEN_IN_APP, editorId, dir),
 
   // Session catalog
   listClaudeSessions: (options?: ListClaudeSessionsOptions): Promise<ClaudeSessionSummary[]> =>

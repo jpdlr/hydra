@@ -18,7 +18,7 @@ import { useViewMode } from './hooks/useViewMode'
 import { useNotifications } from './hooks/useNotifications'
 import { useEditorPanel } from './hooks/useEditorPanel'
 import { useUpdates } from './hooks/useUpdates'
-import type { PreflightResult, ViewMode } from '@shared/types'
+import type { PreflightResult, ViewMode, EditorId } from '@shared/types'
 import styles from './App.module.css'
 
 interface PersistedWorkspaceUiState {
@@ -486,6 +486,15 @@ export default function App() {
     (g) => g.projectDir === selectedProject
   )?.projectName
 
+  const headerProjectDir = selectedAgent?.state.projectDir ?? selectedProject ?? null
+
+  const handleSetDefaultEditor = useCallback(
+    (editorId: EditorId) => {
+      void updateConfig({ defaultEditor: editorId })
+    },
+    [updateConfig]
+  )
+
   const expandedTileId = selectedProject ? expandedTilesByProject[selectedProject] ?? null : null
 
   const handleExpandedTileChange = useCallback(
@@ -515,6 +524,9 @@ export default function App() {
         updateReadyToInstall={updateState.downloaded}
         updateAvailable={updateState.available}
         selectedProjectName={viewMode === 'grid' ? selectedProjectName : undefined}
+        projectDir={headerProjectDir}
+        defaultEditor={config.defaultEditor}
+        onSetDefaultEditor={handleSetDefaultEditor}
       />
 
       <div className={styles.body}>

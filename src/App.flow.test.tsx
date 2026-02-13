@@ -115,6 +115,7 @@ const baseConfig: AppConfig = {
   theme: 'dark',
   defaultViewMode: 'chat',
   defaultProjectDir: '/tmp',
+  defaultEditor: 'vscode',
   importSessionsOnStartup: true,
   sessionImportLimit: 500,
   sessionImportProjectPrefix: '',

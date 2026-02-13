@@ -10,7 +10,7 @@ import { UsageTracker } from '../usage/UsageTracker'
 import { UpdateService } from '../updates/UpdateService'
 import { FileSystemService } from '../fs/FileSystemService'
 import { GitService } from '../git/GitService'
-import { IPC } from '@shared/types'
+import { IPC, EDITOR_REGISTRY } from '@shared/types'
 import type { HydraMcpServer } from '../mcp/McpServer'
 import type {
   CreateAgentPayload,
@@ -21,6 +21,7 @@ import type {
 } from '@shared/types'
 import { z } from 'zod'
 
+const editorIdSchema = z.enum(['vscode', 'cursor', 'windsurf', 'zed', 'finder', 'terminal'])
 const agentIdSchema = z.string().trim().min(1).max(128)
 const projectDirSchema = z.string().trim().min(1).max(4096)
 const providerSchema = z.enum(['claude', 'codex'])
@@ -64,6 +65,7 @@ const appConfigPatchSchema = z
     theme: z.enum(['light', 'dark', 'midnight']).optional(),
     defaultViewMode: z.enum(['grid', 'chat']).optional(),
     defaultProjectDir: z.string().max(4096).optional(),
+    defaultEditor: editorIdSchema.optional(),
     importSessionsOnStartup: z.boolean().optional(),
     sessionImportLimit: z.number().int().min(0).max(20000).optional(),
     sessionMaxAgeDays: z.number().int().min(0).max(365).optional(),
@@ -391,6 +393,27 @@ export function registerIpcHandlers(
       execFile(command, args, (err) => {
         if (err) {
           // Fallback: try opening the folder in the OS default handler.
+          shell.openPath(validated).then(() => resolve(true)).catch(() => resolve(false))
+          return
+        }
+        resolve(true)
+      })
+    })
+  })
+
+  ipcMain.handle(IPC.OPEN_IN_APP, (_event, editorId: string, dir: string) => {
+    const validEditor = editorIdSchema.parse(editorId)
+    const validated = projectDirSchema.parse(dir)
+
+    const editorDef = EDITOR_REGISTRY.find((e) => e.id === validEditor)
+    if (!editorDef) {
+      return shell.openPath(validated).then(() => true).catch(() => false)
+    }
+
+    return new Promise<boolean>((resolve) => {
+      const args = [...(editorDef.extraArgs || []), validated]
+      execFile(editorDef.command, args, (err) => {
+        if (err) {
           shell.openPath(validated).then(() => resolve(true)).catch(() => resolve(false))
           return
         }

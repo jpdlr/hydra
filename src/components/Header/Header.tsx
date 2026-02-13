@@ -1,5 +1,6 @@
 import { ViewSwitcher } from './ViewSwitcher'
-import type { ViewMode } from '@shared/types'
+import { OpenInButton } from './OpenInButton'
+import type { ViewMode, EditorId } from '@shared/types'
 import styles from './Header.module.css'
 
 interface HeaderProps {
@@ -16,6 +17,9 @@ interface HeaderProps {
   updateReadyToInstall: boolean
   updateAvailable: boolean
   selectedProjectName?: string
+  projectDir: string | null
+  defaultEditor: EditorId
+  onSetDefaultEditor: (id: EditorId) => void
 }
 
 export function Header({
@@ -31,7 +35,10 @@ export function Header({
   showUpdateAction,
   updateReadyToInstall,
   updateAvailable,
-  selectedProjectName
+  selectedProjectName,
+  projectDir,
+  defaultEditor,
+  onSetDefaultEditor
 }: HeaderProps) {
   const isMac = navigator.platform.toLowerCase().includes('mac')
   return (
@@ -60,6 +67,11 @@ export function Header({
       </div>
 
       <div className={`${styles.right} titlebar-no-drag`}>
+        <OpenInButton
+          projectDir={projectDir}
+          defaultEditor={defaultEditor}
+          onSetDefaultEditor={onSetDefaultEditor}
+        />
         {showUpdateAction && (
           <button
             className={`${styles.updateBtn} ${updateReadyToInstall ? styles.updateReady : updateAvailable ? styles.updateAvailable : ''}`}

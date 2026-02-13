@@ -1,0 +1,110 @@
+.container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.mainBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-hover);
+  border: none;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.mainBtn:hover {
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+}
+
+.label {
+  white-space: nowrap;
+}
+
+.chevronBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1) 5px;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-hover);
+  border: none;
+  border-left: 1px solid var(--color-border-subtle);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.chevronBtn:hover,
+.chevronBtnOpen {
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 170px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-1) 0;
+  z-index: 50;
+}
+
+.dropdownHeader {
+  padding: 6px var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  user-select: none;
+}
+
+.dropdownItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px var(--space-3);
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.dropdownItem:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.dropdownItemDefault {
+  color: var(--color-accent);
+}
+
+.editorLabel {
+  flex: 1;
+}
+
+.defaultBadge {
+  font-size: 9px;
+  color: var(--color-text-muted);
+  background: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+  margin-left: var(--space-2);
+}
