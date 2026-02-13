@@ -544,6 +544,7 @@ export default function App() {
               width={sidebarWidth}
               onWidthChange={setSidebarWidth}
               sessionMaxAgeDays={config.sessionMaxAgeDays}
+              defaultEditor={config.defaultEditor}
             />
           )}
 
@@ -587,6 +588,8 @@ export default function App() {
               onEditorContentChange={editorPanel.updateContent}
               onEditorSaveFile={(path) => { void editorPanel.saveFile(path) }}
               theme={config.theme}
+              defaultEditor={config.defaultEditor}
+              onSetDefaultEditor={handleSetDefaultEditor}
             />
           ) : (
             <GridView

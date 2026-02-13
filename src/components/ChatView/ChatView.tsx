@@ -3,7 +3,8 @@ import { TerminalPane } from '../Terminal/TerminalPane'
 import { InputBar } from './InputBar'
 import { EditorPanel } from '../EditorPanel'
 import { SplitHandle } from '../EditorPanel/SplitHandle'
-import type { AgentState } from '@shared/types'
+import { OpenInButton } from '../Header/OpenInButton'
+import type { AgentState, EditorId } from '@shared/types'
 import type { EditorTab } from '../EditorPanel/TabBar'
 import styles from './ChatView.module.css'
 
@@ -28,6 +29,8 @@ interface ChatViewProps {
   onEditorContentChange?: (path: string, content: string) => void
   onEditorSaveFile?: (path: string) => void
   theme?: string
+  defaultEditor?: EditorId
+  onSetDefaultEditor?: (editorId: EditorId) => void
 }
 
 export function ChatView({
@@ -49,7 +52,9 @@ export function ChatView({
   onEditorSelectTab,
   onEditorContentChange,
   onEditorSaveFile,
-  theme = 'dark'
+  theme = 'dark',
+  defaultEditor = 'vscode',
+  onSetDefaultEditor
 }: ChatViewProps) {
   // Prevent browser focus-scroll from moving the outer container.
   const containerRef = useRef<HTMLDivElement>(null)
@@ -115,13 +120,11 @@ export function ChatView({
               <CodeBracketIcon />
             </button>
           )}
-          <button
-            className={styles.actionBtn}
-            onClick={() => window.hydra.openInEditor(agent.projectDir)}
-            title="Open in VS Code"
-          >
-            <VsCodeIcon />
-          </button>
+          <OpenInButton
+            projectDir={agent.projectDir}
+            defaultEditor={defaultEditor}
+            onSetDefaultEditor={onSetDefaultEditor ?? (() => {})}
+          />
           <button
             className={styles.actionBtn}
             onClick={onToggleYolo}
@@ -228,26 +231,6 @@ function CodeBracketIcon() {
     >
       <path d="M5.5 3.5L2 8l3.5 4.5" />
       <path d="M10.5 3.5L14 8l-3.5 4.5" />
-    </svg>
-  )
-}
-
-function VsCodeIcon() {
-  return (
-    <svg
-      className={styles.actionIcon}
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M10.5 2.5L4 8l6.5 5.5" />
-      <path d="M12 3v10" />
-      <path d="M4 8L10.5 2.5" />
-      <path d="M4 8l6.5 5.5" />
     </svg>
   )
 }

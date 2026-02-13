@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import type { EditorId } from '@shared/types'
 import { EDITOR_REGISTRY } from '@shared/types'
+import { EditorIcon } from '../shared/EditorIcon'
 import styles from './OpenInButton.module.css'
 
 interface OpenInButtonProps {
@@ -47,7 +48,7 @@ export function OpenInButton({ projectDir, defaultEditor, onSetDefaultEditor }: 
         onClick={handleMainClick}
         title={`Open in ${defaultLabel}`}
       >
-        <OpenIcon />
+        <EditorIcon editor={defaultEditor} size={14} />
         <span className={styles.label}>Open</span>
       </button>
       <button
@@ -67,6 +68,7 @@ export function OpenInButton({ projectDir, defaultEditor, onSetDefaultEditor }: 
               className={`${styles.dropdownItem} ${editor.id === defaultEditor ? styles.dropdownItemDefault : ''}`}
               onClick={() => handleItemClick(editor.id)}
             >
+              <EditorIcon editor={editor.id} size={14} />
               <span className={styles.editorLabel}>{editor.label}</span>
               {editor.id === defaultEditor && (
                 <span className={styles.defaultBadge}>default</span>
@@ -76,16 +78,6 @@ export function OpenInButton({ projectDir, defaultEditor, onSetDefaultEditor }: 
         </div>
       )}
     </div>
-  )
-}
-
-function OpenIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-      <polyline points="15 3 21 3 21 9" />
-      <line x1="10" y1="14" x2="21" y2="3" />
-    </svg>
   )
 }
 

@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useMemo } from 'react'
 import { ProjectTree } from './ProjectTree'
 import { SearchBar } from './SearchBar'
-import type { ProjectGroup } from '@shared/types'
+import type { ProjectGroup, EditorId } from '@shared/types'
 import styles from './Sidebar.module.css'
 
 interface SidebarProps {
@@ -13,6 +13,7 @@ interface SidebarProps {
   width: number
   onWidthChange: (width: number) => void
   sessionMaxAgeDays: number
+  defaultEditor?: EditorId
 }
 
 const MIN_WIDTH = 200
@@ -26,7 +27,8 @@ export function Sidebar({
   onNewAgentForProject,
   width,
   onWidthChange,
-  sessionMaxAgeDays
+  sessionMaxAgeDays,
+  defaultEditor = 'vscode'
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [isDragging, setIsDragging] = useState(false)
@@ -112,6 +114,7 @@ export function Sidebar({
               selectedAgentId={selectedAgentId}
               onSelectAgent={onSelectAgent}
               onNewAgentForProject={onNewAgentForProject}
+              defaultEditor={defaultEditor}
             />
           ))
         )}

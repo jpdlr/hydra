@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { AgentItem } from './AgentItem'
-import type { ProjectGroup } from '@shared/types'
+import { EditorIcon } from '../shared/EditorIcon'
+import type { ProjectGroup, EditorId } from '@shared/types'
+import { EDITOR_REGISTRY } from '@shared/types'
 import styles from './ProjectTree.module.css'
 
 interface ProjectTreeProps {
@@ -8,9 +10,10 @@ interface ProjectTreeProps {
   selectedAgentId: string | null
   onSelectAgent: (agentId: string) => void
   onNewAgentForProject: (projectDir: string) => void
+  defaultEditor?: EditorId
 }
 
-export function ProjectTree({ group, selectedAgentId, onSelectAgent, onNewAgentForProject }: ProjectTreeProps) {
+export function ProjectTree({ group, selectedAgentId, onSelectAgent, onNewAgentForProject, defaultEditor = 'vscode' }: ProjectTreeProps) {
   const [expanded, setExpanded] = useState(true)
 
   return (
@@ -27,10 +30,10 @@ export function ProjectTree({ group, selectedAgentId, onSelectAgent, onNewAgentF
         </button>
         <button
           className={styles.addBtn}
-          onClick={() => window.hydra.openInEditor(group.projectDir)}
-          title={`Open in VS Code`}
+          onClick={() => window.hydra.openInApp(defaultEditor, group.projectDir)}
+          title={`Open in ${EDITOR_REGISTRY.find((e) => e.id === defaultEditor)?.label ?? 'Editor'}`}
         >
-          <VsCodeIcon />
+          <EditorIcon editor={defaultEditor} size={12} />
         </button>
         <button
           className={styles.addBtn}
@@ -62,15 +65,6 @@ function ChevronIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <polyline points="9 18 15 12 9 6" />
-    </svg>
-  )
-}
-
-function VsCodeIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M10.5 2.5L4 8l6.5 5.5" />
-      <path d="M12 3v10" />
     </svg>
   )
 }
