@@ -26,8 +26,8 @@ interface ManagedAgent {
   latestUserPrompt: string | null
   sessionSyncTimer: ReturnType<typeof setTimeout> | null
   sessionDiscoveryAttempts: number
-  idleTimer: ReturnType<typeof setTimeout> | null
   notifiedIdle: boolean
+  lastOutputAt: number
 }
 
 const MAX_BUFFER_LINES = 5000
@@ -45,8 +45,27 @@ const IDLE_DETECTION_MS = 5000
 export class AgentManager extends EventEmitter {
   private agents: Map<string, ManagedAgent> = new Map()
   private providerPaths: Map<ProviderId, string> = new Map()
+  private activityPollInterval: ReturnType<typeof setInterval> | null = null
+
   constructor(private readonly sessionCatalog: SessionCatalog = new SessionCatalog()) {
     super()
+    this.startActivityPolling()
+  }
+
+  private startActivityPolling(): void {
+    this.activityPollInterval = setInterval(() => {
+      const now = Date.now()
+      for (const managed of this.agents.values()) {
+        if (managed.state.status !== 'running') continue
+        if (!managed.pty) continue
+        if (managed.notifiedIdle) continue
+        if (managed.lastOutputAt === 0) continue
+        if (now - managed.lastOutputAt >= IDLE_DETECTION_MS) {
+          managed.notifiedIdle = true
+          this.emit('agent_waiting', { agentId: managed.state.id })
+        }
+      }
+    }, 2000)
   }
 
   async preflight(providerId: ProviderId = 'claude'): Promise<{
@@ -102,8 +121,8 @@ export class AgentManager extends EventEmitter {
       latestUserPrompt: payload.initialPrompt.trim() || null,
       sessionSyncTimer: null,
       sessionDiscoveryAttempts: 0,
-      idleTimer: null,
-      notifiedIdle: false
+      notifiedIdle: false,
+      lastOutputAt: 0
     }
 
     this.agents.set(id, managed)
@@ -152,8 +171,8 @@ export class AgentManager extends EventEmitter {
         latestUserPrompt: session.firstPrompt.trim() || null,
         sessionSyncTimer: null,
         sessionDiscoveryAttempts: 0,
-        idleTimer: null,
-        notifiedIdle: false
+        notifiedIdle: false,
+      lastOutputAt: 0
       })
       imported++
     }
@@ -201,8 +220,8 @@ export class AgentManager extends EventEmitter {
         latestUserPrompt: null,
         sessionSyncTimer: null,
         sessionDiscoveryAttempts: 0,
-        idleTimer: null,
-        notifiedIdle: false
+        notifiedIdle: false,
+      lastOutputAt: 0
       })
       restored++
     }
@@ -324,14 +343,13 @@ export class AgentManager extends EventEmitter {
 
         this.emit('output', { agentId: managed.state.id, data })
 
-        // Idle detection: reset timer on every output chunk
-        this.resetIdleTimer(managed)
+        // Track last output time for activity polling
+        managed.lastOutputAt = Date.now()
       })
 
       pty.onExit(({ exitCode }) => {
         managed.pty = null
         managed.state.pid = null
-        this.clearIdleTimer(managed)
         this.stopSessionDiscovery(managed)
         this.probeSessionIdFromCatalog(managed, { forceRefresh: true })
 
@@ -356,24 +374,6 @@ export class AgentManager extends EventEmitter {
     }
   }
 
-  private resetIdleTimer(managed: ManagedAgent): void {
-    this.clearIdleTimer(managed)
-    if (managed.state.status !== 'running') return
-    managed.idleTimer = setTimeout(() => {
-      managed.idleTimer = null
-      if (managed.state.status !== 'running' || !managed.pty) return
-      if (managed.notifiedIdle) return
-      managed.notifiedIdle = true
-      this.emit('agent_waiting', { agentId: managed.state.id })
-    }, IDLE_DETECTION_MS)
-  }
-
-  private clearIdleTimer(managed: ManagedAgent): void {
-    if (managed.idleTimer) {
-      clearTimeout(managed.idleTimer)
-      managed.idleTimer = null
-    }
-  }
 
   private updateStatus(agentId: string, status: AgentStatus): void {
     const managed = this.agents.get(agentId)
@@ -574,7 +574,7 @@ export class AgentManager extends EventEmitter {
     managed.outputBuffer = []
     managed.submitQueue = Promise.resolve()
     managed.notifiedIdle = false
-    this.clearIdleTimer(managed)
+    managed.lastOutputAt = 0
     this.stopSessionDiscovery(managed)
 
     this.spawnProcess(managed)
@@ -596,7 +596,7 @@ export class AgentManager extends EventEmitter {
 
     // Reset idle detection so we notify again after this task completes
     managed.notifiedIdle = false
-    this.clearIdleTimer(managed)
+    managed.lastOutputAt = Date.now()
 
     managed.submitQueue = managed.submitQueue
       .catch(() => undefined)
@@ -695,6 +695,10 @@ export class AgentManager extends EventEmitter {
   }
 
   killAll(): void {
+    if (this.activityPollInterval) {
+      clearInterval(this.activityPollInterval)
+      this.activityPollInterval = null
+    }
     for (const [id] of this.agents) {
       this.kill(id)
     }
