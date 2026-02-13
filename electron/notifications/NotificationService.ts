@@ -12,6 +12,7 @@ type Subscriber = (notification: HydraNotification) => void
 export class NotificationService {
   private recent: HydraNotification[] = []
   private subscribers = new Set<Subscriber>()
+  private lastAgentStatus = new Map<string, string>()
 
   push(notification: HydraNotification): void {
     this.recent.push(notification)
@@ -75,6 +76,11 @@ export class NotificationService {
     })
 
     agentManager.on('status', (payload: AgentStatusPayload) => {
+      // Deduplicate: skip if same agent already emitted this status
+      const prev = this.lastAgentStatus.get(payload.agentId)
+      if (prev === payload.status) return
+      this.lastAgentStatus.set(payload.agentId, payload.status)
+
       const agent = agentManager.get(payload.agentId)
       const agentName = agent?.name ?? payload.agentId
 
