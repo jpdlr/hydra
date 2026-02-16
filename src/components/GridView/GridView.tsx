@@ -1,9 +1,25 @@
-import { useMemo, useEffect } from 'react'
+import { useMemo, useEffect, useCallback, useState } from 'react'
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  rectSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { TerminalTile } from './TerminalTile'
 import { BroadcastBar } from './BroadcastBar'
 import { RUNNING_PROJECT_ID } from '@shared/types'
 import type { ProjectGroup } from '@shared/types'
 import { basename } from '@/lib/pathUtils'
+import { useTileOrder } from '@/hooks/useTileOrder'
 import styles from './GridView.module.css'
 
 interface GridViewProps {
@@ -22,6 +38,38 @@ interface GridViewProps {
 }
 
 const ACTIVE_STATUSES = ['running', 'starting']
+
+function SortableTileWrapper({
+  id,
+  disabled,
+  children
+}: {
+  id: string
+  disabled: boolean
+  children: (dragListeners: Record<string, unknown> | undefined) => React.ReactNode
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id, disabled })
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      {children(disabled ? undefined : listeners)}
+    </div>
+  )
+}
 
 export function GridView({
   projectGroups,
@@ -53,6 +101,45 @@ export function GridView({
     const currentGroup = projectGroups.find((g) => g.projectDir === selectedProject)
     return currentGroup?.agents || []
   }, [projectGroups, selectedProject, isRunning])
+
+  const { orderedIds, handleReorder } = useTileOrder(selectedProject, agents, isRunning)
+
+  const sortedAgents = useMemo(() => {
+    const idIndex = new Map(orderedIds.map((id, i) => [id, i]))
+    return [...agents].sort((a, b) => {
+      const ai = idIndex.get(a.id) ?? Infinity
+      const bi = idIndex.get(b.id) ?? Infinity
+      return ai - bi
+    })
+  }, [agents, orderedIds])
+
+  const isDragDisabled = !!expandedTileId || isRunning
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 }
+    })
+  )
+
+  const [, setActiveDragId] = useState<string | null>(null)
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveDragId(String(event.active.id))
+  }, [])
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      setActiveDragId(null)
+      const { active, over } = event
+      if (!over || active.id === over.id) return
+      handleReorder(String(active.id), String(over.id))
+    },
+    [handleReorder]
+  )
+
+  const handleDragCancel = useCallback(() => {
+    setActiveDragId(null)
+  }, [])
 
   const runningCount = useMemo(
     () => projectGroups
@@ -111,25 +198,47 @@ export function GridView({
       </div>
 
       {/* Grid */}
-      <div className={gridClass}>
-        {agents.map((agent) => (
-          <TerminalTile
-            key={agent.id}
-            agent={agent}
-            projectName={isRunning ? basename(agent.projectDir) : undefined}
-            rawOutput={rawOutputs.get(agent.id) || ''}
-            isExpanded={expandedTileId === agent.id}
-            onToggleExpand={() =>
-              onExpandedTileChange(expandedTileId === agent.id ? null : agent.id)
-            }
-            onTerminalData={(data) => onTerminalData(agent.id, data)}
-            onTerminalResize={(cols, rows) => onTerminalResize(agent.id, cols, rows)}
-            onStartOrRestart={() => onStartAgent(agent.id)}
-            onRemove={() => onRemoveAgent(agent.id)}
-            hidden={expandedTileId !== null && expandedTileId !== agent.id}
-          />
-        ))}
-      </div>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
+        <SortableContext
+          items={sortedAgents.map((a) => a.id)}
+          strategy={rectSortingStrategy}
+          disabled={isDragDisabled}
+        >
+          <div className={gridClass}>
+            {sortedAgents.map((agent) => (
+              <SortableTileWrapper
+                key={agent.id}
+                id={agent.id}
+                disabled={isDragDisabled}
+              >
+                {(dragListeners) => (
+                  <TerminalTile
+                    agent={agent}
+                    projectName={isRunning ? basename(agent.projectDir) : undefined}
+                    rawOutput={rawOutputs.get(agent.id) || ''}
+                    isExpanded={expandedTileId === agent.id}
+                    onToggleExpand={() =>
+                      onExpandedTileChange(expandedTileId === agent.id ? null : agent.id)
+                    }
+                    onTerminalData={(data) => onTerminalData(agent.id, data)}
+                    onTerminalResize={(cols, rows) => onTerminalResize(agent.id, cols, rows)}
+                    onStartOrRestart={() => onStartAgent(agent.id)}
+                    onRemove={() => onRemoveAgent(agent.id)}
+                    hidden={expandedTileId !== null && expandedTileId !== agent.id}
+                    dragListeners={dragListeners}
+                  />
+                )}
+              </SortableTileWrapper>
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       {/* Broadcast bar */}
       <BroadcastBar

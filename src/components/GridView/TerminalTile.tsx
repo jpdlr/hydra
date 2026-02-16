@@ -13,6 +13,7 @@ interface TerminalTileProps {
   onStartOrRestart: () => void
   onRemove: () => void
   hidden: boolean
+  dragListeners?: Record<string, unknown>
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -32,7 +33,8 @@ export function TerminalTile({
   onTerminalResize,
   onStartOrRestart,
   onRemove,
-  hidden
+  hidden,
+  dragListeners
 }: TerminalTileProps) {
   if (hidden) return null
 
@@ -42,6 +44,15 @@ export function TerminalTile({
     >
       {/* Tile header */}
       <div className={styles.header} onClick={onToggleExpand}>
+        {dragListeners && (
+          <span
+            className={styles.dragHandle}
+            {...dragListeners}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+          >
+            ⠿
+          </span>
+        )}
         <span
           className={styles.statusDot}
           style={{ color: STATUS_COLORS[agent.status] }}

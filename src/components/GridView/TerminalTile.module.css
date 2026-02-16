@@ -37,6 +37,32 @@
   background: var(--color-surface-hover);
 }
 
+.dragHandle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 20px;
+  color: var(--color-text-muted);
+  cursor: grab;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast), background var(--transition-fast);
+  font-size: 12px;
+  user-select: none;
+  touch-action: none;
+}
+
+.dragHandle:hover {
+  color: var(--color-text-secondary);
+  background: var(--color-surface-hover);
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+  color: var(--color-accent);
+}
+
 .statusDot {
   font-size: 10px;
   flex-shrink: 0;
