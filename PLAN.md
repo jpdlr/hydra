@@ -513,17 +513,17 @@ Where `cli.js` opens the Electron app or connects to a running instance.
 - No orphan processes remain after app quit in smoke tests
 
 ### Phase 1 — Scaffold + Single Agent (Chat View)
-- [ ] electron-vite + React project scaffold
-- [ ] Claude-inspired theme tokens (`tokens.css`) with light + dark
-- [ ] Basic layout: sidebar + chat view + input bar
-- [ ] Spawn one Claude CLI process via node-pty in main process
-- [ ] Stream PTY output to renderer via IPC
+- [x] electron-vite + React project scaffold
+- [x] Claude-inspired theme tokens (`tokens.css`) with light + dark
+- [x] Basic layout: sidebar + chat view + input bar
+- [x] Spawn one Claude CLI process via node-pty in main process
+- [x] Stream PTY output to renderer via IPC
 - [ ] PTY output parser: convert terminal output into structured chat messages
 - [ ] Render chat messages with styled bubbles (user / Claude)
-- [ ] Send input from input bar to PTY stdin
-- [ ] Track and persist `sessionId` from Claude CLI
+- [x] Send input from input bar to PTY stdin
+- [x] Track and persist `sessionId` from Claude CLI
 - [ ] Enable Electron security defaults
-- [ ] Enforce IPC schema validation
+- [x] Enforce IPC schema validation
 
 **Exit criteria:**
 - Single-agent chat flow works end-to-end (spawn, parsed output, input, stop)
@@ -532,12 +532,12 @@ Where `cli.js` opens the Electron app or connects to a running instance.
 - Renderer crash does not break main process lifecycle controls
 
 ### Phase 2 — Multi-Agent + Grid View
-- [ ] AgentManager: create, list, kill, restart (with `--resume`) agents
-- [ ] Sidebar: project tree with agent/session list
-- [ ] Switch between agents in chat view
-- [ ] Grid view: auto-arranging terminal tiles per project
-- [ ] Per-tile xterm.js instances with mini input bars
-- [ ] View switcher (grid / chat) with `Cmd+\`
+- [x] AgentManager: create, list, kill, restart (with `--resume`) agents
+- [x] Sidebar: project tree with agent/session list
+- [x] Switch between agents in chat view
+- [x] Grid view: auto-arranging terminal tiles per project
+- [x] Per-tile xterm.js instances with mini input bars
+- [x] View switcher (grid / chat) with `Cmd+\`
 - [ ] Per-project grouping and collapsible sections
 - [ ] Same-workspace collision warning
 - [ ] Process cleanup guarantees on delete/quit
@@ -550,11 +550,11 @@ Where `cli.js` opens the Electron app or connects to a running instance.
 - Same-workspace warning is reliable
 
 ### Phase 3 — YOLO & Settings
-- [ ] Per-agent YOLO toggle (restart with `--dangerously-skip-permissions --resume`)
-- [ ] Global YOLO toggle with confirmation dialog
-- [ ] Settings panel (model, theme, max agents, default dir, default view)
-- [ ] ConfigStore: persist to `<userData>/config.json`
-- [ ] Theme switching (light / dark) via CSS variables
+- [x] Per-agent YOLO toggle (restart with `--dangerously-skip-permissions --resume`)
+- [x] Global YOLO toggle with confirmation dialog
+- [x] Settings panel (model, theme, max agents, default dir, default view)
+- [x] ConfigStore: persist to `<userData>/config.json`
+- [x] Theme switching (light / dark) via CSS variables
 - [ ] Persist YOLO audit events
 
 **Exit criteria:**
@@ -565,13 +565,13 @@ Where `cli.js` opens the Electron app or connects to a running instance.
 
 ### Phase 4 — Polish
 - [ ] Agent templates / presets
-- [ ] Broadcast mode (input to all agents in a project)
-- [ ] Session logging to `<userData>/logs/`
-- [ ] New Agent dialog (directory picker + name + model + YOLO)
-- [ ] Search bar in sidebar (filter projects and sessions)
-- [ ] Raw terminal toggle within chat view
-- [ ] Keyboard shortcuts
-- [ ] Click-to-expand tile in grid view
+- [x] Broadcast mode (input to all agents in a project)
+- [x] Session logging to `<userData>/logs/`
+- [x] New Agent dialog (directory picker + name + model + YOLO)
+- [x] Search bar in sidebar (filter projects and sessions)
+- [x] Raw terminal toggle within chat view
+- [x] Keyboard shortcuts
+- [x] Click-to-expand tile in grid view
 
 **Exit criteria:**
 - Log rotation prevents unbounded disk growth
@@ -579,12 +579,12 @@ Where `cli.js` opens the Electron app or connects to a running instance.
 - Keyboard shortcuts are conflict-checked on macOS
 
 ### Phase 5 — Package & Ship
-- [ ] electron-builder config for macOS .app + DMG
+- [x] electron-builder config for macOS .app + DMG
 - [ ] CLI launcher script
-- [ ] App icon (Hydra heads in terracotta/Claude palette)
+- [x] App icon (Hydra heads in terracotta/Claude palette)
 - [ ] README + demo GIF
-- [ ] GitHub repo: `jpdlr/hydra`
-- [ ] First release
+- [x] GitHub repo: `jpdlr/hydra`
+- [x] First release
 
 **Exit criteria:**
 - Packaging commands are documented and repeatable
