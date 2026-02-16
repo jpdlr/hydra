@@ -428,6 +428,9 @@ export interface ProjectGroup {
   agents: AgentState[]
 }
 
+/** Sentinel value for the "Running" meta-tab in GridView. */
+export const RUNNING_PROJECT_ID = '__running__' as const
+
 // ── Notifications ────────────────────────────────────────────────────────────
 
 export type NotificationType =

@@ -4,6 +4,7 @@ import styles from './TerminalTile.module.css'
 
 interface TerminalTileProps {
   agent: AgentState
+  projectName?: string
   rawOutput: string
   isExpanded: boolean
   onToggleExpand: () => void
@@ -23,6 +24,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export function TerminalTile({
   agent,
+  projectName,
   rawOutput,
   isExpanded,
   onToggleExpand,
@@ -47,6 +49,7 @@ export function TerminalTile({
           {agent.status === 'running' ? '●' : agent.status === 'errored' ? '✖' : '○'}
         </span>
         <span className={styles.name}>{agent.name}</span>
+        {projectName && <span className={styles.projectBadge}>{projectName}</span>}
         <span className={styles.model}>{agent.model}</span>
         {agent.yolo && <span className={styles.yoloBadge}>YOLO</span>}
         <div className={styles.actions}>

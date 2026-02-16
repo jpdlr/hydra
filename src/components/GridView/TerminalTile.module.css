@@ -52,6 +52,18 @@
   white-space: nowrap;
 }
 
+.projectBadge {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  background: var(--color-accent-subtle);
+  padding: 0 5px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
 .model {
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);

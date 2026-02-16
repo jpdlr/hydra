@@ -18,6 +18,7 @@ import { useViewMode } from './hooks/useViewMode'
 import { useNotifications } from './hooks/useNotifications'
 import { useEditorPanel } from './hooks/useEditorPanel'
 import { useUpdates } from './hooks/useUpdates'
+import { RUNNING_PROJECT_ID } from '@shared/types'
 import type { PreflightResult, ViewMode, EditorId } from '@shared/types'
 import styles from './App.module.css'
 
@@ -191,7 +192,7 @@ export default function App() {
   }, [ensurePreflightReady])
 
   const handleOpenNewAgentForCurrentProject = useCallback(() => {
-    if (selectedProject) {
+    if (selectedProject && selectedProject !== RUNNING_PROJECT_ID) {
       void handleNewAgentForProject(selectedProject)
       return
     }
@@ -255,6 +256,7 @@ export default function App() {
   // Auto-select project for grid view
   useEffect(() => {
     if (projectGroups.length === 0) return
+    if (selectedProject === RUNNING_PROJECT_ID) return
     const currentExists = selectedProject
       ? projectGroups.some((group) => group.projectDir === selectedProject)
       : false
@@ -276,6 +278,7 @@ export default function App() {
   // Keep selected chat agent synced to the active grid project.
   useEffect(() => {
     if (viewMode !== 'grid' || !selectedProject) return
+    if (selectedProject === RUNNING_PROJECT_ID) return
     const group = projectGroups.find((item) => item.projectDir === selectedProject)
     if (!group || group.agents.length === 0) return
 
@@ -482,11 +485,12 @@ export default function App() {
   }, [agents])
 
   // Selected project name for header
-  const selectedProjectName = projectGroups.find(
-    (g) => g.projectDir === selectedProject
-  )?.projectName
+  const selectedProjectName = selectedProject === RUNNING_PROJECT_ID
+    ? 'Running'
+    : projectGroups.find((g) => g.projectDir === selectedProject)?.projectName
 
-  const headerProjectDir = selectedAgent?.state.projectDir ?? selectedProject ?? null
+  const headerProjectDir = selectedAgent?.state.projectDir
+    ?? (selectedProject && selectedProject !== RUNNING_PROJECT_ID ? selectedProject : null)
 
   const handleSetDefaultEditor = useCallback(
     (editorId: EditorId) => {
@@ -607,7 +611,11 @@ export default function App() {
                 void handleRemoveAgent(agentId)
               }}
               onBroadcast={(input) => {
-                if (selectedProject) {
+                if (selectedProject === RUNNING_PROJECT_ID) {
+                  for (const group of projectGroups) {
+                    void handleBroadcast(group.projectDir, input)
+                  }
+                } else if (selectedProject) {
                   void handleBroadcast(selectedProject, input)
                 }
               }}
@@ -652,7 +660,7 @@ export default function App() {
 
       {showHeadless && (
         <HeadlessPanel
-          defaultProjectDir={selectedProject || config.defaultProjectDir}
+          defaultProjectDir={(selectedProject && selectedProject !== RUNNING_PROJECT_ID ? selectedProject : null) || config.defaultProjectDir}
           defaultProvider={config.defaultProvider}
           defaultModel={config.defaultModel}
           onClose={() => setShowHeadless(false)}

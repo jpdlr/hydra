@@ -1,7 +1,9 @@
 import { useMemo, useEffect } from 'react'
 import { TerminalTile } from './TerminalTile'
 import { BroadcastBar } from './BroadcastBar'
+import { RUNNING_PROJECT_ID } from '@shared/types'
 import type { ProjectGroup } from '@shared/types'
+import { basename } from '@/lib/pathUtils'
 import styles from './GridView.module.css'
 
 interface GridViewProps {
@@ -19,6 +21,8 @@ interface GridViewProps {
   onExpandedTileChange: (agentId: string | null) => void
 }
 
+const ACTIVE_STATUSES = ['running', 'starting']
+
 export function GridView({
   projectGroups,
   selectedProject,
@@ -33,12 +37,29 @@ export function GridView({
   expandedTileId,
   onExpandedTileChange
 }: GridViewProps) {
-  const currentGroup = useMemo(
-    () => projectGroups.find((g) => g.projectDir === selectedProject),
-    [projectGroups, selectedProject]
-  )
+  const isRunning = selectedProject === RUNNING_PROJECT_ID
 
-  const agents = currentGroup?.agents || []
+  const agents = useMemo(() => {
+    if (isRunning) {
+      const all = projectGroups.flatMap((g) => g.agents)
+      return all
+        .filter((a) => ACTIVE_STATUSES.includes(a.status))
+        .sort((a, b) => {
+          const aTime = Date.parse(a.startedAt || a.createdAt)
+          const bTime = Date.parse(b.startedAt || b.createdAt)
+          return bTime - aTime
+        })
+    }
+    const currentGroup = projectGroups.find((g) => g.projectDir === selectedProject)
+    return currentGroup?.agents || []
+  }, [projectGroups, selectedProject, isRunning])
+
+  const runningCount = useMemo(
+    () => projectGroups
+      .flatMap((g) => g.agents)
+      .filter((a) => ACTIVE_STATUSES.includes(a.status)).length,
+    [projectGroups]
+  )
 
   // Auto-select first project if none selected
   useEffect(() => {
@@ -69,20 +90,25 @@ export function GridView({
   return (
     <div className={styles.container}>
       {/* Project selector */}
-      {projectGroups.length > 1 && (
-        <div className={styles.projectSelector}>
-          {projectGroups.map((g) => (
-            <button
-              key={g.projectDir}
-              className={`${styles.projectTab} ${g.projectDir === selectedProject ? styles.activeTab : ''}`}
-              onClick={() => onSelectProject(g.projectDir)}
-            >
-              {g.projectName}
-              <span className={styles.tabCount}>{g.agents.length}</span>
-            </button>
-          ))}
-        </div>
-      )}
+      <div className={styles.projectSelector}>
+        <button
+          className={`${styles.projectTab} ${isRunning ? styles.activeTab : ''}`}
+          onClick={() => onSelectProject(RUNNING_PROJECT_ID)}
+        >
+          Running
+          <span className={styles.tabCount}>{runningCount}</span>
+        </button>
+        {projectGroups.map((g) => (
+          <button
+            key={g.projectDir}
+            className={`${styles.projectTab} ${g.projectDir === selectedProject ? styles.activeTab : ''}`}
+            onClick={() => onSelectProject(g.projectDir)}
+          >
+            {g.projectName}
+            <span className={styles.tabCount}>{g.agents.length}</span>
+          </button>
+        ))}
+      </div>
 
       {/* Grid */}
       <div className={gridClass}>
@@ -90,6 +116,7 @@ export function GridView({
           <TerminalTile
             key={agent.id}
             agent={agent}
+            projectName={isRunning ? basename(agent.projectDir) : undefined}
             rawOutput={rawOutputs.get(agent.id) || ''}
             isExpanded={expandedTileId === agent.id}
             onToggleExpand={() =>
