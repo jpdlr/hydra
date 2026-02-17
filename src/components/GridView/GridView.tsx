@@ -35,6 +35,7 @@ interface GridViewProps {
   rawOutputs: Map<string, string>
   expandedTileId: string | null
   onExpandedTileChange: (agentId: string | null) => void
+  sessionMaxAgeDays: number
 }
 
 const ACTIVE_STATUSES = ['running', 'starting']
@@ -83,13 +84,30 @@ export function GridView({
   onNewAgent,
   rawOutputs,
   expandedTileId,
-  onExpandedTileChange
+  onExpandedTileChange,
+  sessionMaxAgeDays
 }: GridViewProps) {
   const isRunning = selectedProject === RUNNING_PROJECT_ID
 
+  const recentGroups = useMemo(() => {
+    if (sessionMaxAgeDays <= 0) return projectGroups
+    const cutoff = Date.now() - sessionMaxAgeDays * 24 * 60 * 60 * 1000
+    return projectGroups
+      .map((group) => ({
+        ...group,
+        agents: group.agents.filter(
+          (a) =>
+            a.status === 'running' ||
+            a.status === 'starting' ||
+            new Date(a.createdAt).getTime() > cutoff
+        )
+      }))
+      .filter((group) => group.agents.length > 0)
+  }, [projectGroups, sessionMaxAgeDays])
+
   const agents = useMemo(() => {
     if (isRunning) {
-      const all = projectGroups.flatMap((g) => g.agents)
+      const all = recentGroups.flatMap((g) => g.agents)
       return all
         .filter((a) => ACTIVE_STATUSES.includes(a.status))
         .sort((a, b) => {
@@ -98,9 +116,9 @@ export function GridView({
           return bTime - aTime
         })
     }
-    const currentGroup = projectGroups.find((g) => g.projectDir === selectedProject)
+    const currentGroup = recentGroups.find((g) => g.projectDir === selectedProject)
     return currentGroup?.agents || []
-  }, [projectGroups, selectedProject, isRunning])
+  }, [recentGroups, selectedProject, isRunning])
 
   const { orderedIds, handleReorder } = useTileOrder(selectedProject, agents, isRunning)
 
@@ -142,18 +160,18 @@ export function GridView({
   }, [])
 
   const runningCount = useMemo(
-    () => projectGroups
+    () => recentGroups
       .flatMap((g) => g.agents)
       .filter((a) => ACTIVE_STATUSES.includes(a.status)).length,
-    [projectGroups]
+    [recentGroups]
   )
 
   // Auto-select first project if none selected
   useEffect(() => {
-    if (!selectedProject && projectGroups.length > 0) {
-      onSelectProject(projectGroups[0].projectDir)
+    if (!selectedProject && recentGroups.length > 0) {
+      onSelectProject(recentGroups[0].projectDir)
     }
-  }, [selectedProject, projectGroups, onSelectProject])
+  }, [selectedProject, recentGroups, onSelectProject])
 
   useEffect(() => {
     if (expandedTileId && !agents.some((agent) => agent.id === expandedTileId)) {
@@ -161,7 +179,7 @@ export function GridView({
     }
   }, [expandedTileId, agents, onExpandedTileChange])
 
-  if (projectGroups.length === 0) {
+  if (recentGroups.length === 0) {
     return (
       <div className={styles.empty}>
         <p>No agents running.</p>
@@ -185,7 +203,7 @@ export function GridView({
           Running
           <span className={styles.tabCount}>{runningCount}</span>
         </button>
-        {projectGroups.map((g) => (
+        {recentGroups.map((g) => (
           <button
             key={g.projectDir}
             className={`${styles.projectTab} ${g.projectDir === selectedProject ? styles.activeTab : ''}`}

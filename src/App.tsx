@@ -625,6 +625,7 @@ export default function App() {
               rawOutputs={rawOutputs}
               expandedTileId={expandedTileId}
               onExpandedTileChange={handleExpandedTileChange}
+              sessionMaxAgeDays={config.sessionMaxAgeDays}
             />
           )}
         </main>
