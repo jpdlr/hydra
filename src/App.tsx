@@ -823,6 +823,9 @@ export default function App() {
       {showGitPanel && selectedAgent?.state.projectDir && (
         <GitPanel
           projectDir={selectedAgent.state.projectDir}
+          theme={config.theme}
+          defaultProvider={config.defaultProvider}
+          defaultModel={config.defaultModel}
           onClose={() => setShowGitPanel(false)}
         />
       )}

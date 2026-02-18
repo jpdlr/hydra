@@ -223,7 +223,19 @@ export const IPC = {
   GIT_LOG: 'git:log',
   GIT_DIFF: 'git:diff',
   GIT_COMMIT: 'git:commit',
-  GIT_PUSH: 'git:push'
+  GIT_PUSH: 'git:push',
+
+  // Git — branches
+  GIT_LIST_BRANCHES: 'git:list-branches',
+  GIT_CHECKOUT: 'git:checkout',
+  GIT_CREATE_BRANCH: 'git:create-branch',
+
+  // Git — file contents for diff viewer
+  GIT_FILE_CONTENTS: 'git:file-contents',
+
+  // Git — PR review
+  GIT_PR_FETCH: 'git:pr-fetch',
+  GIT_PR_FILE_DIFF: 'git:pr-file-diff'
 } as const
 
 // ── IPC Payloads ─────────────────────────────────────────────────────────────
@@ -501,4 +513,48 @@ export interface GitCommit {
   message: string
   author: string
   date: string
+}
+
+export interface GitBranch {
+  name: string
+  isCurrent: boolean
+  isRemote: boolean
+  upstream: string | null
+  aheadOfUpstream: number
+  behindUpstream: number
+}
+
+export interface GitFileContents {
+  original: string
+  modified: string
+  language: string
+}
+
+export interface GitPrMetadata {
+  number: number
+  title: string
+  author: string
+  state: string
+  baseRef: string
+  headRef: string
+  body: string
+  url: string
+  additions: number
+  deletions: number
+  changedFiles: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface GitPrFile {
+  path: string
+  status: string
+  additions: number
+  deletions: number
+  patch: string
+}
+
+export interface GitPrDiff {
+  metadata: GitPrMetadata
+  files: GitPrFile[]
 }

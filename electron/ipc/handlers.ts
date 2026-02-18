@@ -642,5 +642,57 @@ export function registerIpcHandlers(
       const dir = projectDirSchema.parse(projectDir)
       return gitService.push(dir)
     })
+
+    // Branch operations
+    ipcMain.handle(IPC.GIT_LIST_BRANCHES, async (_event, projectDir: string) => {
+      const dir = projectDirSchema.parse(projectDir)
+      return gitService.listBranches(dir)
+    })
+
+    ipcMain.handle(IPC.GIT_CHECKOUT, async (_event, projectDir: string, branchName: string) => {
+      const dir = projectDirSchema.parse(projectDir)
+      const branch = z.string().trim().min(1).max(256).parse(branchName)
+      return gitService.checkout(dir, branch)
+    })
+
+    ipcMain.handle(
+      IPC.GIT_CREATE_BRANCH,
+      async (_event, projectDir: string, branchName: string, startPoint?: string) => {
+        const dir = projectDirSchema.parse(projectDir)
+        const branch = z
+          .string()
+          .trim()
+          .min(1)
+          .max(256)
+          .regex(/^[a-zA-Z0-9._\-/]+$/, 'Invalid branch name characters')
+          .parse(branchName)
+        const sp = startPoint ? z.string().trim().max(256).parse(startPoint) : undefined
+        return gitService.createBranch(dir, branch, sp)
+      }
+    )
+
+    // File contents for diff viewer
+    ipcMain.handle(IPC.GIT_FILE_CONTENTS, async (_event, projectDir: string, filePath: string) => {
+      const dir = projectDirSchema.parse(projectDir)
+      const fp = z.string().max(8192).parse(filePath)
+      return gitService.getFileContents(dir, fp)
+    })
+
+    // PR review
+    ipcMain.handle(IPC.GIT_PR_FETCH, async (_event, projectDir: string, prIdentifier: string) => {
+      const dir = projectDirSchema.parse(projectDir)
+      const pr = z.string().trim().min(1).max(1024).parse(prIdentifier)
+      return gitService.fetchPr(dir, pr)
+    })
+
+    ipcMain.handle(
+      IPC.GIT_PR_FILE_DIFF,
+      async (_event, projectDir: string, prNumber: number, filePath: string) => {
+        const dir = projectDirSchema.parse(projectDir)
+        const num = z.number().int().min(1).parse(prNumber)
+        const fp = z.string().max(8192).parse(filePath)
+        return gitService.getPrFileDiff(dir, num, fp)
+      }
+    )
   }
 }

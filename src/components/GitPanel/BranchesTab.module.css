@@ -1,0 +1,247 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  flex: 1;
+  min-height: 0;
+}
+
+.currentBranch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.currentLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.currentName {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-accent);
+}
+
+.upstream {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.toolbar {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.filterInput {
+  flex: 1;
+  padding: 6px var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-input-bg);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  outline: none;
+}
+
+.filterInput:focus {
+  border-color: var(--color-input-focus);
+}
+
+.filterInput::placeholder {
+  color: var(--color-text-muted);
+}
+
+.newBranchBtn {
+  padding: 6px var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--transition-fast);
+}
+
+.newBranchBtn:hover {
+  background: var(--color-surface-hover);
+}
+
+.createForm {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.createInput {
+  flex: 1;
+  padding: 6px var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-input-bg);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-mono);
+  outline: none;
+}
+
+.createInput:focus {
+  border-color: var(--color-input-focus);
+}
+
+.createInput::placeholder {
+  color: var(--color-text-muted);
+}
+
+.createBtn {
+  padding: 6px var(--space-3);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity var(--transition-fast);
+}
+
+.createBtn:hover {
+  opacity: 0.9;
+}
+
+.createBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sectionLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: var(--space-1) 0;
+}
+
+.branchList {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.branchItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  border: none;
+  background: none;
+  text-align: left;
+  color: var(--color-text-secondary);
+  width: 100%;
+  transition: background var(--transition-fast);
+}
+
+.branchItem:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+}
+
+.branchItem:disabled {
+  cursor: default;
+}
+
+.branchItemCurrent {
+  color: var(--color-text-primary);
+}
+
+.branchIndicator {
+  width: 12px;
+  text-align: center;
+  flex-shrink: 0;
+  font-size: 8px;
+  color: var(--color-accent);
+}
+
+.branchName {
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.branchUpstream {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 120px;
+}
+
+.badgeAhead {
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+  line-height: 1.5;
+  color: var(--color-status-running);
+  background: rgba(76, 175, 80, 0.12);
+  flex-shrink: 0;
+}
+
+.badgeBehind {
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+  line-height: 1.5;
+  color: var(--color-status-error);
+  background: rgba(229, 57, 53, 0.12);
+  flex-shrink: 0;
+}
+
+.switchingLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-style: italic;
+  flex-shrink: 0;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  padding: var(--space-6);
+}
+
+.error {
+  color: var(--color-status-error);
+  font-size: var(--font-size-sm);
+  padding: var(--space-2);
+}

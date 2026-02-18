@@ -16,6 +16,11 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: width 0.2s ease;
+}
+
+.panelExpanded {
+  width: min(900px, 90vw);
 }
 
 .header {
@@ -31,7 +36,6 @@
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
   margin: 0;
-  flex: 1;
 }
 
 .branchName {
@@ -39,6 +43,7 @@
   font-size: var(--font-size-sm);
   color: var(--color-accent);
   font-weight: var(--font-weight-medium);
+  margin-left: auto;
 }
 
 .badge {
@@ -77,200 +82,51 @@
   color: var(--color-text-primary);
 }
 
+/* Tab bar */
+.tabBar {
+  padding: var(--space-3) var(--space-4) 0;
+  flex-shrink: 0;
+}
+
+.segmented {
+  display: flex;
+  background: var(--color-surface-hover);
+  border-radius: var(--radius-md);
+  padding: 2px;
+}
+
+.segment {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+  text-align: center;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.segment:hover {
+  color: var(--color-text-secondary);
+}
+
+.active {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Body */
 .body {
   flex: 1;
   overflow-y: auto;
   padding: var(--space-3) var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-}
-
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.sectionLabel {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.fileList {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.fileItem {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 3px var(--space-2);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
-  font-family: var(--font-mono);
-  cursor: pointer;
-  border: none;
-  background: none;
-  text-align: left;
-  color: var(--color-text-secondary);
-  width: 100%;
-}
-
-.fileItem:hover {
-  background: var(--color-surface-hover);
-}
-
-.fileItemActive {
-  background: var(--color-surface-hover);
-  color: var(--color-text-primary);
-}
-
-.fileStatus {
-  font-size: 10px;
-  font-weight: var(--font-weight-semibold);
-  width: 14px;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.statusStaged { color: var(--color-status-running); }
-.statusModified { color: #E6A23C; }
-.statusUntracked { color: var(--color-text-muted); }
-
-.fileName {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.commitSection {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.commitInput {
-  width: 100%;
-  padding: var(--space-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-elevated);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
-  font-family: var(--font-ui);
-  resize: vertical;
-  min-height: 60px;
-  outline: none;
-}
-
-.commitInput:focus {
-  border-color: var(--color-accent);
-}
-
-.commitInput::placeholder {
-  color: var(--color-text-muted);
-}
-
-.commitActions {
-  display: flex;
-  gap: var(--space-2);
-}
-
-.commitBtn {
-  flex: 1;
-  padding: 6px var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-elevated);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-  transition: background var(--transition-fast);
-}
-
-.commitBtn:hover {
-  background: var(--color-surface-hover);
-}
-
-.commitBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.commitBtnPrimary {
-  background: var(--color-accent);
-  color: white;
-  border-color: var(--color-accent);
-}
-
-.commitBtnPrimary:hover {
-  opacity: 0.9;
-}
-
-.commitLog {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.logEntry {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  padding: 3px var(--space-2);
-  font-size: var(--font-size-sm);
-}
-
-.logHash {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-  color: var(--color-accent);
-  flex-shrink: 0;
-}
-
-.logMessage {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--color-text-secondary);
-}
-
-.logDate {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-  flex-shrink: 0;
-}
-
-.diffView {
-  background: var(--color-surface-elevated);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-  line-height: 1.5;
-  overflow-x: auto;
-  max-height: 300px;
-  overflow-y: auto;
-  white-space: pre;
-}
-
-.diffAdd { color: var(--color-status-running); }
-.diffRemove { color: var(--color-status-error); }
-.diffHunk { color: var(--color-accent); }
-
-.empty {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  padding: var(--space-2);
+  min-height: 0;
 }
 
 .error {

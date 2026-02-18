@@ -1,0 +1,243 @@
+.normalLayout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  flex: 1;
+  min-height: 0;
+}
+
+.splitLayout {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  min-height: 0;
+  gap: 0;
+}
+
+.fileListSide {
+  width: 240px;
+  min-width: 200px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--color-border);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.diffSide {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--space-3);
+}
+
+.diffHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+  flex-shrink: 0;
+}
+
+.closeDiffBtn {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  line-height: 1;
+}
+
+.closeDiffBtn:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sectionLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.fileList {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.fileItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 3px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-mono);
+  cursor: pointer;
+  border: none;
+  background: none;
+  text-align: left;
+  color: var(--color-text-secondary);
+  width: 100%;
+}
+
+.fileItem:hover {
+  background: var(--color-surface-hover);
+}
+
+.fileItemActive {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.fileStatus {
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.statusStaged { color: var(--color-status-running); }
+.statusModified { color: #E6A23C; }
+.statusUntracked { color: var(--color-text-muted); }
+
+.fileName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commitSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.commitInput {
+  width: 100%;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-ui);
+  resize: vertical;
+  min-height: 60px;
+  outline: none;
+}
+
+.commitInput:focus {
+  border-color: var(--color-accent);
+}
+
+.commitInput::placeholder {
+  color: var(--color-text-muted);
+}
+
+.commitActions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.commitBtn {
+  flex: 1;
+  padding: 6px var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.commitBtn:hover {
+  background: var(--color-surface-hover);
+}
+
+.commitBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.commitBtnPrimary {
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+  border-color: var(--color-accent);
+}
+
+.commitBtnPrimary:hover {
+  opacity: 0.9;
+}
+
+.commitLog {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.logEntry {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 3px var(--space-2);
+  font-size: var(--font-size-sm);
+}
+
+.logHash {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.logMessage {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-secondary);
+}
+
+.logDate {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.empty {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  padding: var(--space-2);
+}
+
+.error {
+  color: var(--color-status-error);
+  font-size: var(--font-size-sm);
+  padding: var(--space-2);
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}

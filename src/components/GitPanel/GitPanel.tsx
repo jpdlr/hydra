@@ -1,32 +1,38 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { GitStatus, GitCommit } from '@shared/types'
+import type { GitStatus, GitCommit, ProviderId, ModelId } from '@shared/types'
+import { ChangesTab } from './ChangesTab'
+import { BranchesTab } from './BranchesTab'
+import { PrReviewTab } from './PrReviewTab'
 import styles from './GitPanel.module.css'
+
+type GitTab = 'changes' | 'branches' | 'pr-review'
+
+const TAB_LABELS: Record<GitTab, string> = {
+  changes: 'Changes',
+  branches: 'Branches',
+  'pr-review': 'PR Review'
+}
 
 interface GitPanelProps {
   projectDir: string
+  theme: string
+  defaultProvider: ProviderId
+  defaultModel: ModelId
   onClose: () => void
 }
 
-function relativeDate(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  if (diff < 0) return 'now'
-  const mins = Math.floor(diff / 60_000)
-  if (mins < 1) return 'now'
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  const days = Math.floor(hrs / 24)
-  return `${days}d ago`
-}
-
-export function GitPanel({ projectDir, onClose }: GitPanelProps) {
+export function GitPanel({
+  projectDir,
+  theme,
+  defaultProvider,
+  defaultModel,
+  onClose
+}: GitPanelProps) {
+  const [activeTab, setActiveTab] = useState<GitTab>('changes')
   const [status, setStatus] = useState<GitStatus | null>(null)
   const [commits, setCommits] = useState<GitCommit[]>([])
-  const [diff, setDiff] = useState<string | null>(null)
-  const [selectedFile, setSelectedFile] = useState<string | null>(null)
-  const [commitMsg, setCommitMsg] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
+  const [expanded, setExpanded] = useState(false)
 
   const refresh = useCallback(async () => {
     setError(null)
@@ -46,55 +52,14 @@ export function GitPanel({ projectDir, onClose }: GitPanelProps) {
     void refresh()
   }, [refresh])
 
-  const handleSelectFile = useCallback(
-    async (file: string) => {
-      setSelectedFile(file)
-      try {
-        const d = await window.hydra.getGitDiff(projectDir, file)
-        setDiff(d || '(no changes)')
-      } catch {
-        setDiff('(unable to load diff)')
-      }
-    },
-    [projectDir]
-  )
-
-  const handleCommit = useCallback(
-    async (push: boolean) => {
-      if (!commitMsg.trim()) return
-      setBusy(true)
-      setError(null)
-      try {
-        await window.hydra.gitCommit(projectDir, commitMsg.trim())
-        if (push) {
-          await window.hydra.gitPush(projectDir)
-        }
-        setCommitMsg('')
-        setDiff(null)
-        setSelectedFile(null)
-        await refresh()
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Commit failed')
-      } finally {
-        setBusy(false)
-      }
-    },
-    [projectDir, commitMsg, refresh]
-  )
-
-  const allFiles = status
-    ? [
-        ...status.staged.map((f) => ({ file: f, type: 'staged' as const })),
-        ...status.modified
-          .filter((f) => !status.staged.includes(f))
-          .map((f) => ({ file: f, type: 'modified' as const })),
-        ...status.untracked.map((f) => ({ file: f, type: 'untracked' as const }))
-      ]
-    : []
+  const isExpanded = expanded || activeTab === 'pr-review'
 
   return (
     <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
+      <div
+        className={`${styles.panel} ${isExpanded ? styles.panelExpanded : ''}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className={styles.header}>
           <h2>Git</h2>
           {status && (
@@ -116,108 +81,46 @@ export function GitPanel({ projectDir, onClose }: GitPanelProps) {
           </button>
         </div>
 
+        <div className={styles.tabBar}>
+          <div className={styles.segmented}>
+            {(Object.keys(TAB_LABELS) as GitTab[]).map((tab) => (
+              <button
+                key={tab}
+                className={`${styles.segment} ${activeTab === tab ? styles.active : ''}`}
+                onClick={() => {
+                  setActiveTab(tab)
+                  if (tab !== 'changes') setExpanded(false)
+                }}
+              >
+                {TAB_LABELS[tab]}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className={styles.body}>
           {error && <div className={styles.error}>{error}</div>}
 
-          {/* File status */}
-          {status && (
-            <div className={styles.section}>
-              <span className={styles.sectionLabel}>
-                Changes ({allFiles.length})
-              </span>
-              {allFiles.length === 0 ? (
-                <div className={styles.empty}>Working tree clean</div>
-              ) : (
-                <div className={styles.fileList}>
-                  {allFiles.map(({ file, type }) => (
-                    <button
-                      key={`${type}-${file}`}
-                      className={`${styles.fileItem} ${selectedFile === file ? styles.fileItemActive : ''}`}
-                      onClick={() => void handleSelectFile(file)}
-                    >
-                      <span
-                        className={`${styles.fileStatus} ${
-                          type === 'staged'
-                            ? styles.statusStaged
-                            : type === 'modified'
-                              ? styles.statusModified
-                              : styles.statusUntracked
-                        }`}
-                      >
-                        {type === 'staged' ? 'S' : type === 'modified' ? 'M' : '?'}
-                      </span>
-                      <span className={styles.fileName}>{file}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+          {activeTab === 'changes' && (
+            <ChangesTab
+              projectDir={projectDir}
+              theme={theme}
+              status={status}
+              commits={commits}
+              onRefresh={refresh}
+              onExpandedChange={setExpanded}
+            />
           )}
-
-          {/* Diff */}
-          {diff && selectedFile && (
-            <div className={styles.section}>
-              <span className={styles.sectionLabel}>Diff: {selectedFile}</span>
-              <div className={styles.diffView}>
-                {diff.split('\n').map((line, i) => {
-                  let cls = ''
-                  if (line.startsWith('+') && !line.startsWith('+++')) cls = styles.diffAdd
-                  else if (line.startsWith('-') && !line.startsWith('---')) cls = styles.diffRemove
-                  else if (line.startsWith('@@')) cls = styles.diffHunk
-                  return (
-                    <div key={i} className={cls}>
-                      {line}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
+          {activeTab === 'branches' && (
+            <BranchesTab projectDir={projectDir} onRefresh={refresh} />
           )}
-
-          {/* Commit */}
-          {status && allFiles.length > 0 && (
-            <div className={styles.commitSection}>
-              <span className={styles.sectionLabel}>Commit</span>
-              <textarea
-                className={styles.commitInput}
-                value={commitMsg}
-                onChange={(e) => setCommitMsg(e.target.value)}
-                placeholder="Commit message..."
-                rows={2}
-              />
-              <div className={styles.commitActions}>
-                <button
-                  className={styles.commitBtn}
-                  disabled={!commitMsg.trim() || busy}
-                  onClick={() => void handleCommit(false)}
-                >
-                  Commit
-                </button>
-                <button
-                  className={`${styles.commitBtn} ${styles.commitBtnPrimary}`}
-                  disabled={!commitMsg.trim() || busy}
-                  onClick={() => void handleCommit(true)}
-                >
-                  Commit & Push
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Recent commits */}
-          {commits.length > 0 && (
-            <div className={styles.section}>
-              <span className={styles.sectionLabel}>Recent Commits</span>
-              <div className={styles.commitLog}>
-                {commits.map((c) => (
-                  <div key={c.hash} className={styles.logEntry}>
-                    <span className={styles.logHash}>{c.hash}</span>
-                    <span className={styles.logMessage}>{c.message}</span>
-                    <span className={styles.logDate}>{relativeDate(c.date)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {activeTab === 'pr-review' && (
+            <PrReviewTab
+              projectDir={projectDir}
+              theme={theme}
+              defaultProvider={defaultProvider}
+              defaultModel={defaultModel}
+            />
           )}
         </div>
       </div>

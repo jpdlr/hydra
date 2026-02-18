@@ -29,6 +29,9 @@ import type {
   FsWatchEventPayload,
   GitStatus,
   GitCommit,
+  GitBranch,
+  GitFileContents,
+  GitPrDiff,
   EditorId
 } from '@shared/types'
 
@@ -220,7 +223,25 @@ const hydraApi = {
   gitCommit: (projectDir: string, message: string, files?: string[]): Promise<string> =>
     ipcRenderer.invoke(IPC.GIT_COMMIT, projectDir, message, files),
   gitPush: (projectDir: string): Promise<void> =>
-    ipcRenderer.invoke(IPC.GIT_PUSH, projectDir)
+    ipcRenderer.invoke(IPC.GIT_PUSH, projectDir),
+
+  // Git — branches
+  gitListBranches: (projectDir: string): Promise<GitBranch[]> =>
+    ipcRenderer.invoke(IPC.GIT_LIST_BRANCHES, projectDir),
+  gitCheckout: (projectDir: string, branchName: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.GIT_CHECKOUT, projectDir, branchName),
+  gitCreateBranch: (projectDir: string, branchName: string, startPoint?: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.GIT_CREATE_BRANCH, projectDir, branchName, startPoint),
+
+  // Git — file contents for diff viewer
+  gitFileContents: (projectDir: string, filePath: string): Promise<GitFileContents> =>
+    ipcRenderer.invoke(IPC.GIT_FILE_CONTENTS, projectDir, filePath),
+
+  // Git — PR review
+  gitFetchPr: (projectDir: string, prIdentifier: string): Promise<GitPrDiff> =>
+    ipcRenderer.invoke(IPC.GIT_PR_FETCH, projectDir, prIdentifier),
+  gitPrFileDiff: (projectDir: string, prNumber: number, filePath: string): Promise<string> =>
+    ipcRenderer.invoke(IPC.GIT_PR_FILE_DIFF, projectDir, prNumber, filePath)
 }
 
 contextBridge.exposeInMainWorld('hydra', hydraApi)
