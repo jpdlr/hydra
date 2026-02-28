@@ -151,3 +151,9 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Context**: Enable could stall indefinitely if Firebase init/session creation never resolved.
 **Mistake**: Awaiting remote setup phases without timeout leaves UI stuck in spinner state forever.
 **Fix**: Wrap `initFirebase`, `createSession`, and `syncAgentState` in bounded timeouts and transition to error state on timeout.
+
+### Desktop mobile-presence status depends on first inbox event
+**Date**: 2026-03-01
+**Context**: Desktop Remote modal stayed on `Waiting for mobile` even while mobile app showed connected agent list.
+**Mistake**: Mobile connect flow authenticated and subscribed to Firestore but never wrote an inbox message, so desktop never flipped `mobileConnected`.
+**Fix**: Send a handshake inbox message immediately after mobile token sign-in.

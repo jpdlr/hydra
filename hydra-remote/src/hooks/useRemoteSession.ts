@@ -40,6 +40,8 @@ interface OutboxMessage {
   timestamp: string
 }
 
+type InboxMessageType = 'handshake' | 'prompt' | 'kill' | 'create' | 'restart' | 'broadcast'
+
 interface QrPayload {
   sessionId: string
   mobileToken: string
@@ -58,6 +60,21 @@ export function useRemoteSession() {
   const firestoreRef = useRef<Firestore | null>(null)
   const authRef = useRef<Auth | null>(null)
   const unsubscribesRef = useRef<Unsubscribe[]>([])
+
+  const sendInboxMessage = useCallback(
+    async (type: InboxMessageType, payload: Record<string, unknown>) => {
+      if (!firestoreRef.current || !sessionId) return
+
+      const inboxRef = collection(firestoreRef.current, 'sessions', sessionId, 'inbox')
+      await addDoc(inboxRef, {
+        type,
+        payload,
+        timestamp: new Date().toISOString(),
+        processed: false
+      })
+    },
+    [sessionId]
+  )
 
   const connect = useCallback(async (qrData: string) => {
     setConnecting(true)
@@ -85,6 +102,14 @@ export function useRemoteSession() {
       // Auth with mobile token
       await signInWithCustomToken(auth, payload.mobileToken)
       setSessionId(payload.sessionId)
+      // Signal desktop that mobile has successfully connected.
+      const inboxRef = collection(firestore, 'sessions', payload.sessionId, 'inbox')
+      await addDoc(inboxRef, {
+        type: 'handshake',
+        payload: { source: 'hydra-remote-mobile' },
+        timestamp: new Date().toISOString(),
+        processed: false
+      })
 
       // Listen to agent state
       const stateRef = collection(firestore, 'sessions', payload.sessionId, 'state')
@@ -121,17 +146,9 @@ export function useRemoteSession() {
       type: 'prompt' | 'kill' | 'create' | 'restart' | 'broadcast',
       payload: Record<string, unknown>
     ) => {
-      if (!firestoreRef.current || !sessionId) return
-
-      const inboxRef = collection(firestoreRef.current, 'sessions', sessionId, 'inbox')
-      await addDoc(inboxRef, {
-        type,
-        payload,
-        timestamp: new Date().toISOString(),
-        processed: false
-      })
+      await sendInboxMessage(type, payload)
     },
-    [sessionId]
+    [sendInboxMessage]
   )
 
   const disconnect = useCallback(() => {

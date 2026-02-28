@@ -495,7 +495,7 @@ export interface RemoteControlState {
 
 export interface RemoteInboxMessage {
   id: string
-  type: 'prompt' | 'kill' | 'create' | 'restart' | 'broadcast'
+  type: 'handshake' | 'prompt' | 'kill' | 'create' | 'restart' | 'broadcast'
   payload: Record<string, unknown>
   timestamp: string
   processed: boolean

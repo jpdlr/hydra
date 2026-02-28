@@ -295,6 +295,10 @@ export class RemoteControlService extends EventEmitter {
     const payload = msg.payload
 
     switch (msg.type) {
+      case 'handshake': {
+        // Presence signal from mobile app after authentication.
+        break
+      }
       case 'prompt': {
         const agentId = payload.agentId as string
         const input = payload.input as string
