@@ -1,4 +1,3 @@
-import { app } from 'electron'
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs'
 import { join } from 'path'
 import type { AppConfig } from '@shared/types'
@@ -8,8 +7,7 @@ export class ConfigStore {
   private configPath: string
   private config: AppConfig
 
-  constructor() {
-    const userDataPath = app.getPath('userData')
+  constructor(userDataPath: string) {
     mkdirSync(userDataPath, { recursive: true })
     this.configPath = join(userDataPath, 'config.json')
     this.config = this.load()

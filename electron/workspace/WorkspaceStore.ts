@@ -1,4 +1,3 @@
-import { app } from 'electron'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import type { ModelId, ProviderId } from '@shared/types'
@@ -29,8 +28,7 @@ export class WorkspaceStore {
   private readonly workspacePath: string
   private cache: WorkspaceData
 
-  constructor() {
-    const userDataPath = app.getPath('userData')
+  constructor(userDataPath: string) {
     mkdirSync(userDataPath, { recursive: true })
     this.workspacePath = join(userDataPath, 'workspace.json')
     this.cache = this.load()

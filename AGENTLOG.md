@@ -28,3 +28,14 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Date**: 2026-02-10
 **Context**: Added `searchFiles` to `window.hydra` in preload.
 **Fix**: Update mocks in `App.flow.test.tsx`, `NewAgentDialog.test.tsx`, `EditorPanel.test.tsx`, and any other test file that sets `window.hydra = { ... }`. Missing methods cause runtime errors in unrelated tests.
+
+### vi.clearAllMocks() breaks vi.mock() factory return values
+**Date**: 2026-02-28
+**Context**: Remote control tests used `vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn(() => ...) }))` with `vi.clearAllMocks()` in `beforeEach`.
+**Mistake**: `vi.clearAllMocks()` resets the mock implementations set in `vi.mock()` factory functions, causing subsequent tests to get `undefined` return values from mocked modules.
+**Fix**: Use `.mockReturnValue()` / `.mockResolvedValue()` in the factory (these survive `clearAllMocks`), or avoid `clearAllMocks` and just create fresh service instances in `beforeEach`.
+
+### New AppConfig fields must be added to test config objects
+**Date**: 2026-02-28
+**Context**: Added `remoteControlEnabled` and `remoteSessionTimeoutMinutes` to `AppConfig`.
+**Fix**: Always check `App.flow.test.tsx` for `baseConfig` objects typed as `AppConfig` — they'll fail typecheck if new required fields are missing.

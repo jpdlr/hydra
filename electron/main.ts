@@ -19,14 +19,17 @@ import { UsageTracker } from './usage/UsageTracker'
 import { UpdateService } from './updates/UpdateService'
 import { FileSystemService } from './fs/FileSystemService'
 import { GitService } from './git/GitService'
+import { RemoteControlService } from './remote/RemoteControlService'
 import { IPC } from '@shared/types'
 
 let mainWindow: BrowserWindow | null = null
 let forceQuit = false
+let remoteControlService: RemoteControlService | null = null
+const userDataPath = app.getPath('userData')
 const agentManager = new AgentManager()
-const configStore = new ConfigStore()
+const configStore = new ConfigStore(userDataPath)
 const sessionCatalog = new SessionCatalog()
-const workspaceStore = new WorkspaceStore()
+const workspaceStore = new WorkspaceStore(userDataPath)
 let headlessOrchestrator: HeadlessOrchestrator | null = null
 let mcpServer: HydraMcpServer | null = null
 const usageTracker = new UsageTracker(app.getPath('userData'))
@@ -161,6 +164,25 @@ app.whenReady().then(async () => {
   const notificationService = new NotificationService()
   notificationService.connectAgentEvents(agentManager, headlessOrchestrator)
 
+  // Remote control service
+  const remoteControlConfig = configStore.get()
+  remoteControlService = new RemoteControlService(
+    agentManager,
+    notificationService,
+    remoteControlConfig.remoteSessionTimeoutMinutes
+  )
+
+  // Auto-enable remote control if configured
+  if (remoteControlConfig.remoteControlEnabled) {
+    remoteControlService.enable().catch((err) => {
+      observability.logMain({
+        level: 'warn',
+        event: 'remote.auto-enable-failed',
+        message: err instanceof Error ? err.message : String(err)
+      })
+    })
+  }
+
   // Start MCP server for manager agents (non-fatal if it fails)
   mcpServer = new HydraMcpServer(agentManager, app.getPath('userData'))
   mcpServer.setNotificationService(notificationService)
@@ -204,7 +226,8 @@ app.whenReady().then(async () => {
     mcpServer,
     notificationService,
     fileSystemService,
-    gitService
+    gitService,
+    remoteControlService
   )
   createWindow()
 
@@ -234,6 +257,7 @@ app.on('window-all-closed', () => {
   agentManager.killAll()
   fileSystemService.stopAll()
   mcpServer?.stop()
+  remoteControlService?.destroy()
   app.quit()
 })
 
@@ -247,4 +271,5 @@ app.on('before-quit', () => {
   agentManager.killAll()
   fileSystemService.stopAll()
   mcpServer?.stop()
+  remoteControlService?.destroy()
 })

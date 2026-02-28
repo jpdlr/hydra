@@ -277,6 +277,36 @@ export function SettingsPanel({ config, onUpdate, onClose }: SettingsPanelProps)
             </label>
           </div>
 
+          {/* Remote Control */}
+          <div className={styles.field}>
+            <label className={styles.sectionLabel}>Remote Control</label>
+            <label className={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={config.remoteControlEnabled}
+                onChange={(e) => onUpdate({ remoteControlEnabled: e.target.checked })}
+                className={styles.checkbox}
+              />
+              <span>Auto-enable remote control on startup</span>
+            </label>
+          </div>
+
+          <div className={styles.field}>
+            <label className={styles.label}>Session Timeout (minutes)</label>
+            <input
+              className={styles.numberInput}
+              type="number"
+              min={30}
+              max={1440}
+              value={config.remoteSessionTimeoutMinutes}
+              onChange={(e) =>
+                onUpdate({
+                  remoteSessionTimeoutMinutes: Math.max(30, Math.min(1440, parseInt(e.target.value, 10) || 480))
+                })
+              }
+            />
+          </div>
+
           <div className={styles.field}>
             <label className={styles.sectionLabel}>Observability</label>
             <label className={styles.checkboxLabel}>

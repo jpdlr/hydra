@@ -32,7 +32,8 @@ import type {
   GitBranch,
   GitFileContents,
   GitPrDiff,
-  EditorId
+  EditorId,
+  RemoteControlState
 } from '@shared/types'
 
 export type HydraAPI = typeof hydraApi
@@ -241,7 +242,21 @@ const hydraApi = {
   gitFetchPr: (projectDir: string, prIdentifier: string): Promise<GitPrDiff> =>
     ipcRenderer.invoke(IPC.GIT_PR_FETCH, projectDir, prIdentifier),
   gitPrFileDiff: (projectDir: string, prNumber: number, filePath: string): Promise<string> =>
-    ipcRenderer.invoke(IPC.GIT_PR_FILE_DIFF, projectDir, prNumber, filePath)
+    ipcRenderer.invoke(IPC.GIT_PR_FILE_DIFF, projectDir, prNumber, filePath),
+
+  // Remote control
+  enableRemoteControl: (): Promise<RemoteControlState> =>
+    ipcRenderer.invoke(IPC.REMOTE_ENABLE),
+  disableRemoteControl: (): Promise<RemoteControlState> =>
+    ipcRenderer.invoke(IPC.REMOTE_DISABLE),
+  getRemoteControlState: (): Promise<RemoteControlState> =>
+    ipcRenderer.invoke(IPC.REMOTE_GET_STATE),
+  onRemoteStateChange: (callback: (state: RemoteControlState) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, state: RemoteControlState) =>
+      callback(state)
+    ipcRenderer.on(IPC.REMOTE_STATE_CHANGED, handler)
+    return () => { ipcRenderer.removeListener(IPC.REMOTE_STATE_CHANGED, handler) }
+  }
 }
 
 contextBridge.exposeInMainWorld('hydra', hydraApi)

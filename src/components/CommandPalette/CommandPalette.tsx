@@ -28,6 +28,7 @@ const COMMANDS: Command[] = [
   { id: 'usage-dashboard', label: 'Usage Dashboard', category: 'Panels', shortcut: `${MOD}+U` },
   { id: 'updates', label: 'Check for Updates', category: 'Panels', shortcut: `${MOD}+Shift+U` },
   { id: 'headless', label: 'Headless Runs', category: 'Panels' },
+  { id: 'remote-control', label: 'Remote Control', category: 'Panels' },
   { id: 'git-panel', label: 'Git Panel', category: 'Panels', shortcut: `${MOD}+G` },
   // Actions
   { id: 'export-diagnostics', label: 'Export Diagnostics', category: 'Actions' },

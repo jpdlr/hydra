@@ -13,6 +13,8 @@ export default defineConfig({
   test: {
     globals: false,
     environment: 'node',
-    include: ['electron/**/*.test.ts', 'src/**/*.test.{ts,tsx}']
+    include: ['electron/**/*.test.ts', 'src/**/*.test.{ts,tsx}'],
+    // Sequential file execution to prevent Firebase dynamic import() mock contamination
+    fileParallelism: false
   }
 })

@@ -12,12 +12,14 @@ import { NotificationToast } from './components/Notifications/NotificationToast'
 import { FileSearchPopup } from './components/FileSearchPopup/FileSearchPopup'
 import { CommandPalette } from './components/CommandPalette/CommandPalette'
 import { GitPanel } from './components/GitPanel/GitPanel'
+import { RemoteControlModal } from './components/RemoteControl/RemoteControlModal'
 import { useAgents } from './hooks/useAgents'
 import { useConfig } from './hooks/useConfig'
 import { useViewMode } from './hooks/useViewMode'
 import { useNotifications } from './hooks/useNotifications'
 import { useEditorPanel } from './hooks/useEditorPanel'
 import { useUpdates } from './hooks/useUpdates'
+import { useRemoteControl } from './hooks/useRemoteControl'
 import { RUNNING_PROJECT_ID } from '@shared/types'
 import type { PreflightResult, ViewMode, EditorId } from '@shared/types'
 import styles from './App.module.css'
@@ -88,6 +90,7 @@ export default function App() {
   const { notifications, dismiss: dismissNotification } = useNotifications(config.enableSoundEffects)
   const { updateState, check: checkForUpdates, download: downloadUpdate, install: installUpdate } =
     useUpdates()
+  const remoteControl = useRemoteControl()
   const {
     agents,
     agentList,
@@ -118,6 +121,7 @@ export default function App() {
   const [showNewAgent, setShowNewAgent] = useState(false)
   const [newAgentPrefillDir, setNewAgentPrefillDir] = useState<string | null>(null)
   const [showHeadless, setShowHeadless] = useState(false)
+  const [showRemoteControl, setShowRemoteControl] = useState(false)
   const [showUsageDashboard, setShowUsageDashboard] = useState(false)
   const [showUpdatePanel, setShowUpdatePanel] = useState(false)
   const [showYoloConfirm, setShowYoloConfirm] = useState(false)
@@ -418,6 +422,7 @@ export default function App() {
         if (showSettings) setShowSettings(false)
         if (showNewAgent) setShowNewAgent(false)
         if (showHeadless) setShowHeadless(false)
+        if (showRemoteControl) setShowRemoteControl(false)
         if (showUsageDashboard) setShowUsageDashboard(false)
         if (showUpdatePanel) setShowUpdatePanel(false)
         if (showGitPanel) setShowGitPanel(false)
@@ -438,6 +443,7 @@ export default function App() {
     showSettings,
     showNewAgent,
     showHeadless,
+    showRemoteControl,
     showUsageDashboard,
     showUpdatePanel,
     showGitPanel,
@@ -522,6 +528,8 @@ export default function App() {
         onToggleGlobalYolo={handleGlobalYoloToggle}
         onOpenSettings={() => setShowSettings(true)}
         onOpenHeadless={() => setShowHeadless(true)}
+        onOpenRemote={() => setShowRemoteControl(true)}
+        remoteActive={remoteControl.state.enabled}
         onOpenUsage={() => setShowUsageDashboard(true)}
         onOpenUpdates={() => setShowUpdatePanel(true)}
         showUpdateAction={updateState.supported}
@@ -659,6 +667,16 @@ export default function App() {
             setShowNewAgent(false)
             setNewAgentPrefillDir(null)
           }}
+        />
+      )}
+
+      {showRemoteControl && (
+        <RemoteControlModal
+          state={remoteControl.state}
+          loading={remoteControl.loading}
+          onEnable={remoteControl.enable}
+          onDisable={remoteControl.disable}
+          onClose={() => setShowRemoteControl(false)}
         />
       )}
 
@@ -815,6 +833,7 @@ export default function App() {
               case 'usage-dashboard': setShowUsageDashboard(true); break
               case 'updates': if (updateState.supported) setShowUpdatePanel(true); break
               case 'headless': setShowHeadless(true); break
+              case 'remote-control': setShowRemoteControl(true); break
               case 'git-panel': setShowGitPanel(true); break
               case 'export-diagnostics': void window.hydra.exportDiagnostics(); break
             }

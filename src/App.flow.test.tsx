@@ -127,7 +127,9 @@ const baseConfig: AppConfig = {
   enableRemoteErrorReporting: false,
   errorReportingEndpoint: '',
   includeSensitiveDiagnostics: false,
-  sessionMaxAgeDays: 7
+  sessionMaxAgeDays: 7,
+  remoteControlEnabled: false,
+  remoteSessionTimeoutMinutes: 480
 }
 
 let currentConfig: AppConfig = { ...baseConfig }
@@ -231,7 +233,11 @@ describe('App flow behavior', () => {
       watchDir: vi.fn(),
       unwatchDir: vi.fn(),
       onFsWatchEvent: vi.fn().mockReturnValue(() => undefined),
-      searchFiles: vi.fn().mockResolvedValue([])
+      searchFiles: vi.fn().mockResolvedValue([]),
+      enableRemoteControl: vi.fn().mockResolvedValue({ enabled: false, status: 'creating', sessionId: null, qrPayload: null, connectedAt: null, expiresAt: null, mobileConnected: false, error: null }),
+      disableRemoteControl: vi.fn().mockResolvedValue({ enabled: false, status: 'creating', sessionId: null, qrPayload: null, connectedAt: null, expiresAt: null, mobileConnected: false, error: null }),
+      getRemoteControlState: vi.fn().mockResolvedValue({ enabled: false, status: 'creating', sessionId: null, qrPayload: null, connectedAt: null, expiresAt: null, mobileConnected: false, error: null }),
+      onRemoteStateChange: vi.fn().mockReturnValue(() => undefined)
     }
   })
 

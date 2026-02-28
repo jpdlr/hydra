@@ -10,6 +10,7 @@ import { UsageTracker } from '../usage/UsageTracker'
 import { UpdateService } from '../updates/UpdateService'
 import { FileSystemService } from '../fs/FileSystemService'
 import { GitService } from '../git/GitService'
+import { RemoteControlService } from '../remote/RemoteControlService'
 import { IPC, EDITOR_REGISTRY } from '@shared/types'
 import type { HydraMcpServer } from '../mcp/McpServer'
 import type {
@@ -77,7 +78,9 @@ const appConfigPatchSchema = z
     enableSoundEffects: z.boolean().optional(),
     enableRemoteErrorReporting: z.boolean().optional(),
     errorReportingEndpoint: z.string().max(1024).optional(),
-    includeSensitiveDiagnostics: z.boolean().optional()
+    includeSensitiveDiagnostics: z.boolean().optional(),
+    remoteControlEnabled: z.boolean().optional(),
+    remoteSessionTimeoutMinutes: z.number().int().min(30).max(1440).optional()
   })
   .strict()
 const sessionListOptionsSchema = z
@@ -147,7 +150,8 @@ export function registerIpcHandlers(
   mcpServer?: HydraMcpServer | null,
   notificationService?: NotificationService | null,
   fileSystemService?: FileSystemService | null,
-  gitService?: GitService | null
+  gitService?: GitService | null,
+  remoteControlService?: RemoteControlService | null
 ): void {
   // ── Preflight ────────────────────────────────────────────────────────────
 
@@ -694,5 +698,35 @@ export function registerIpcHandlers(
         return gitService.getPrFileDiff(dir, num, fp)
       }
     )
+  }
+
+  // ── Remote Control ──────────────────────────────────────────────────────────
+
+  if (remoteControlService) {
+    ipcMain.handle(IPC.REMOTE_ENABLE, async () => {
+      observability.logMainEvent?.({
+        level: 'info',
+        event: 'remote.enable.request'
+      })
+      return remoteControlService.enable()
+    })
+
+    ipcMain.handle(IPC.REMOTE_DISABLE, async () => {
+      observability.logMainEvent?.({
+        level: 'info',
+        event: 'remote.disable.request'
+      })
+      return remoteControlService.disable()
+    })
+
+    ipcMain.handle(IPC.REMOTE_GET_STATE, () => {
+      return remoteControlService.getState()
+    })
+
+    remoteControlService.on('state-changed', (state) => {
+      BrowserWindow.getAllWindows().forEach((win) => {
+        win.webContents.send(IPC.REMOTE_STATE_CHANGED, state)
+      })
+    })
   }
 }

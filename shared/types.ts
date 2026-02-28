@@ -109,6 +109,8 @@ export interface AppConfig {
   enableRemoteErrorReporting: boolean
   errorReportingEndpoint: string
   includeSensitiveDiagnostics: boolean
+  remoteControlEnabled: boolean
+  remoteSessionTimeoutMinutes: number
 }
 
 export const DEFAULT_CONFIG: AppConfig = {
@@ -132,7 +134,9 @@ export const DEFAULT_CONFIG: AppConfig = {
   enableSoundEffects: true,
   enableRemoteErrorReporting: false,
   errorReportingEndpoint: '',
-  includeSensitiveDiagnostics: false
+  includeSensitiveDiagnostics: false,
+  remoteControlEnabled: false,
+  remoteSessionTimeoutMinutes: 480
 }
 
 // ── IPC Channels ─────────────────────────────────────────────────────────────
@@ -235,7 +239,13 @@ export const IPC = {
 
   // Git — PR review
   GIT_PR_FETCH: 'git:pr-fetch',
-  GIT_PR_FILE_DIFF: 'git:pr-file-diff'
+  GIT_PR_FILE_DIFF: 'git:pr-file-diff',
+
+  // Remote control
+  REMOTE_ENABLE: 'remote:enable',
+  REMOTE_DISABLE: 'remote:disable',
+  REMOTE_GET_STATE: 'remote:get-state',
+  REMOTE_STATE_CHANGED: 'remote:state-changed'
 } as const
 
 // ── IPC Payloads ─────────────────────────────────────────────────────────────
@@ -462,6 +472,46 @@ export interface HydraNotification {
   agentId?: string
   runId?: string
   timestamp: string
+}
+
+// ── Remote Control ──────────────────────────────────────────────────────────
+
+export type RemoteSessionStatus = 'creating' | 'active' | 'disconnected' | 'expired' | 'error'
+
+export interface RemoteControlState {
+  enabled: boolean
+  status: RemoteSessionStatus
+  sessionId: string | null
+  qrPayload: string | null
+  connectedAt: string | null
+  expiresAt: string | null
+  mobileConnected: boolean
+  error: string | null
+}
+
+export interface RemoteInboxMessage {
+  id: string
+  type: 'prompt' | 'kill' | 'create' | 'restart' | 'broadcast'
+  payload: Record<string, unknown>
+  timestamp: string
+  processed: boolean
+}
+
+export interface RemoteOutboxMessage {
+  id: string
+  type: 'output' | 'status' | 'notification' | 'agent_list'
+  payload: Record<string, unknown>
+  timestamp: string
+}
+
+export interface RemoteAgentSummary {
+  agentId: string
+  name: string
+  status: AgentStatus
+  model: ModelId
+  provider: ProviderId
+  projectDir: string
+  sessionId: string | null
 }
 
 // ── MCP ──────────────────────────────────────────────────────────────────────

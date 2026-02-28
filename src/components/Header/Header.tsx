@@ -11,6 +11,8 @@ interface HeaderProps {
   onToggleGlobalYolo: () => void
   onOpenSettings: () => void
   onOpenHeadless: () => void
+  onOpenRemote: () => void
+  remoteActive: boolean
   onOpenUsage: () => void
   onOpenUpdates: () => void
   showUpdateAction: boolean
@@ -30,6 +32,8 @@ export function Header({
   onToggleGlobalYolo,
   onOpenSettings,
   onOpenHeadless,
+  onOpenRemote,
+  remoteActive,
   onOpenUsage,
   onOpenUpdates,
   showUpdateAction,
@@ -83,6 +87,13 @@ export function Header({
         )}
         <button className={styles.headlessBtn} onClick={onOpenHeadless} title="Headless Runs">
           Headless
+        </button>
+        <button
+          className={`${styles.remoteBtn} ${remoteActive ? styles.remoteActive : ''}`}
+          onClick={onOpenRemote}
+          title="Remote Control"
+        >
+          Remote
         </button>
         <button className={styles.usageBtn} onClick={onOpenUsage} title="Usage Dashboard">
           Usage
