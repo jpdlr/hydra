@@ -9,7 +9,7 @@ import { UpdateService } from '../updates/UpdateService'
 import { FileSystemService } from '../fs/FileSystemService'
 import { GitService } from '../git/GitService'
 import { RemoteControlService } from '../remote/RemoteControlService'
-import { IPC, EDITOR_REGISTRY } from '@shared/types'
+import { IPC, EDITOR_REGISTRY, MAX_CONCURRENT_AGENTS_HARD_LIMIT } from '@shared/types'
 import type {
   CreateAgentPayload,
   AppConfig,
@@ -59,7 +59,7 @@ const appConfigPatchSchema = z
     defaultProvider: providerSchema.optional(),
     defaultModel: modelSchema.optional(),
     globalYolo: z.boolean().optional(),
-    maxAgents: z.number().int().min(1).max(64).optional(),
+    maxAgents: z.number().int().min(1).max(MAX_CONCURRENT_AGENTS_HARD_LIMIT).optional(),
     theme: z.enum(['light', 'dark', 'midnight']).optional(),
     defaultViewMode: z.enum(['grid', 'chat']).optional(),
     defaultProjectDir: z.string().max(4096).optional(),

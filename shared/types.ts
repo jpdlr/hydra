@@ -113,6 +113,8 @@ export interface AppConfig {
   remoteSessionTimeoutMinutes: number
 }
 
+export const MAX_CONCURRENT_AGENTS_HARD_LIMIT = 10
+
 export const DEFAULT_CONFIG: AppConfig = {
   schemaVersion: 1,
   defaultProvider: 'claude',

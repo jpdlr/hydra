@@ -8,8 +8,10 @@ interface MockPty {
   write: ReturnType<typeof vi.fn>
   resize: ReturnType<typeof vi.fn>
   kill: ReturnType<typeof vi.fn>
-  onData: (callback: (data: string) => void) => void
-  onExit: (callback: (event: { exitCode: number; signal?: number }) => void) => void
+  onData: ReturnType<typeof vi.fn>
+  onExit: ReturnType<typeof vi.fn>
+  emitData: (data: string) => void
+  emitExit: (event: { exitCode: number; signal?: number }) => void
 }
 
 const { spawnMock, createdPtys } = vi.hoisted(() => ({
@@ -22,13 +24,26 @@ vi.mock('node-pty', () => ({
 }))
 
 function makePty(pid: number): MockPty {
+  const dataListeners: Array<(data: string) => void> = []
+  const exitListeners: Array<(event: { exitCode: number; signal?: number }) => void> = []
+
   return {
     pid,
     write: vi.fn(),
     resize: vi.fn(),
     kill: vi.fn(),
-    onData: () => undefined,
-    onExit: () => undefined
+    onData: vi.fn((callback: (data: string) => void) => {
+      dataListeners.push(callback)
+    }),
+    onExit: vi.fn((callback: (event: { exitCode: number; signal?: number }) => void) => {
+      exitListeners.push(callback)
+    }),
+    emitData: (data: string) => {
+      for (const listener of dataListeners) listener(data)
+    },
+    emitExit: (event: { exitCode: number; signal?: number }) => {
+      for (const listener of exitListeners) listener(event)
+    }
   }
 }
 
@@ -142,5 +157,60 @@ describe('AgentManager', () => {
       id: created.id,
       sessionId: 'session-discovered-01'
     })
+  })
+
+  it('ignores stale exit callbacks from replaced PTYs during restart', async () => {
+    const manager = new AgentManager()
+    const created = manager.create({
+      name: 'race-check',
+      projectDir: '/tmp/project',
+      provider: 'claude',
+      model: 'sonnet',
+      yolo: false,
+      initialPrompt: ''
+    })
+
+    expect(createdPtys).toHaveLength(1)
+    const firstPty = createdPtys[0]
+
+    const restarted = manager.restart(created.id)
+    expect(restarted).not.toBeNull()
+    expect(createdPtys).toHaveLength(2)
+    const secondPty = createdPtys[1]
+
+    // Simulate the old process exiting after the replacement PTY has started.
+    firstPty.emitExit({ exitCode: 137 })
+
+    // New process should remain attached.
+    expect(manager.sendInput(created.id, 'still attached')).toBe(true)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(secondPty.write).toHaveBeenCalledWith('still attached')
+  })
+
+  it('does not let force-kill timeout terminate a newly restarted PTY', async () => {
+    const manager = new AgentManager()
+    const created = manager.create({
+      name: 'timeout-check',
+      projectDir: '/tmp/project',
+      provider: 'claude',
+      model: 'sonnet',
+      yolo: false,
+      initialPrompt: ''
+    })
+
+    expect(createdPtys).toHaveLength(1)
+    const firstPty = createdPtys[0]
+
+    manager.kill(created.id)
+    const restarted = manager.restart(created.id)
+    expect(restarted).not.toBeNull()
+    expect(createdPtys).toHaveLength(2)
+    const secondPty = createdPtys[1]
+
+    // Even after the old grace timeout window, the new PTY must stay alive.
+    await vi.advanceTimersByTimeAsync(5000)
+
+    expect(firstPty.kill).toHaveBeenCalled()
+    expect(secondPty.kill).not.toHaveBeenCalled()
   })
 })

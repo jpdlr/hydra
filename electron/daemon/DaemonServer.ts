@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse, type Server } 
 import { WebSocketServer, WebSocket } from 'ws'
 import { unlinkSync, existsSync } from 'fs'
 import { AgentManager } from '../agents/AgentManager'
+import { MAX_CONCURRENT_AGENTS_HARD_LIMIT } from '@shared/types'
 import type { ConfigStore } from '../config/ConfigStore'
 import type { SessionCatalog } from '../sessions/SessionCatalog'
 import type { HeadlessOrchestrator } from '../headless/HeadlessOrchestrator'
@@ -183,7 +184,7 @@ export class DaemonServer {
         if (!preflight.ok) {
           return this.json(res, 400, { error: preflight.error || 'Preflight failed' })
         }
-        const maxAgents = this.configStore.get().maxAgents
+        const maxAgents = Math.min(this.configStore.get().maxAgents, MAX_CONCURRENT_AGENTS_HARD_LIMIT)
         if (this.agentManager.activeCount() >= maxAgents) {
           return this.json(res, 400, { error: `Maximum concurrent agents (${maxAgents}) reached` })
         }
@@ -395,4 +396,3 @@ export class DaemonServer {
     })
   }
 }
-

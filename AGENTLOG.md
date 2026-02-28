@@ -49,3 +49,9 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Date**: 2026-02-28
 **Context**: Tried to use method overloads for `get('/path')` vs `get('agentId')`.
 **Fix**: Keep `get(agentId)` as the only public method, use `httpRequest('GET', path)` internally for API endpoints.
+
+### PTY restart race can orphan processes and cause respawn loops
+**Date**: 2026-02-28
+**Context**: Restarting an agent can spawn a new PTY before the old PTY emits `onExit`.
+**Mistake**: Applying old PTY `onExit` cleanup unconditionally clears the new PTY reference and stale kill timeouts can terminate the replacement process.
+**Fix**: In `onData`/`onExit`, ignore events unless `managed.pty === emittingPty`; clear `killTimeout` on confirmed exit/restart; scope force-kill timers to the PTY instance they were created for.

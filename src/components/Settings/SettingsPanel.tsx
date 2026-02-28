@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import type { AppConfig, ProviderId, ThemeId, ViewMode } from '@shared/types'
-import { PROVIDER_MODELS, PROVIDER_LABELS, getDefaultModelForProvider } from '@shared/types'
+import {
+  PROVIDER_MODELS,
+  PROVIDER_LABELS,
+  MAX_CONCURRENT_AGENTS_HARD_LIMIT,
+  getDefaultModelForProvider
+} from '@shared/types'
 import { ShortcutsTab } from './ShortcutsTab'
 import styles from './SettingsPanel.module.css'
 
@@ -169,9 +174,16 @@ export function SettingsPanel({ config, onUpdate, onClose }: SettingsPanelProps)
               className={styles.numberInput}
               type="number"
               min={1}
-              max={16}
+              max={MAX_CONCURRENT_AGENTS_HARD_LIMIT}
               value={config.maxAgents}
-              onChange={(e) => onUpdate({ maxAgents: parseInt(e.target.value) || 8 })}
+              onChange={(e) =>
+                onUpdate({
+                  maxAgents: Math.max(
+                    1,
+                    Math.min(MAX_CONCURRENT_AGENTS_HARD_LIMIT, parseInt(e.target.value, 10) || 8)
+                  )
+                })
+              }
             />
           </div>
 

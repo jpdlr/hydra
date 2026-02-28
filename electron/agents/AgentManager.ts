@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto'
 import { basename } from 'path'
 import { SessionCatalog } from '../sessions/SessionCatalog'
 import { getProvider } from './providers'
+import { MAX_CONCURRENT_AGENTS_HARD_LIMIT } from '@shared/types'
 import type { PersistedWorkspaceAgent } from '../workspace/WorkspaceStore'
 import type {
   AgentState,
@@ -68,6 +69,17 @@ export class AgentManager extends EventEmitter {
     }, 2000)
   }
 
+  private countActiveAgents(excludeAgentId?: string): number {
+    let count = 0
+    for (const [id, managed] of this.agents.entries()) {
+      if (excludeAgentId && id === excludeAgentId) continue
+      if (managed.pty || managed.state.status === 'running' || managed.state.status === 'starting') {
+        count++
+      }
+    }
+    return count
+  }
+
   async preflight(providerId: ProviderId = 'claude'): Promise<{
     ok: boolean
     claudePath: string | null
@@ -88,6 +100,10 @@ export class AgentManager extends EventEmitter {
   }
 
   create(payload: CreateAgentPayload): AgentState {
+    if (this.countActiveAgents() >= MAX_CONCURRENT_AGENTS_HARD_LIMIT) {
+      throw new Error(`Maximum concurrent agents (${MAX_CONCURRENT_AGENTS_HARD_LIMIT}) reached`)
+    }
+
     const id = randomUUID().slice(0, 8)
     const now = new Date().toISOString()
 
@@ -245,13 +261,7 @@ export class AgentManager extends EventEmitter {
   }
 
   activeCount(): number {
-    let count = 0
-    for (const managed of this.agents.values()) {
-      if (managed.pty || managed.state.status === 'running' || managed.state.status === 'starting') {
-        count++
-      }
-    }
-    return count
+    return this.countActiveAgents()
   }
 
   private buildImportedAgentId(sessionId: string): string {
@@ -308,6 +318,10 @@ export class AgentManager extends EventEmitter {
   }
 
   private spawnProcess(managed: ManagedAgent): void {
+    if (this.countActiveAgents(managed.state.id) >= MAX_CONCURRENT_AGENTS_HARD_LIMIT) {
+      return
+    }
+
     const provider = getProvider(managed.state.provider)
     const cmd = this.providerPaths.get(managed.state.provider) || provider.command
     const args = this.buildArgs(managed.state)
@@ -332,6 +346,7 @@ export class AgentManager extends EventEmitter {
       this.startSessionDiscovery(managed)
 
       pty.onData((data: string) => {
+        if (managed.pty !== pty) return
         this.captureSessionIdFromOutput(managed, data)
 
         // Buffer output
@@ -348,6 +363,12 @@ export class AgentManager extends EventEmitter {
       })
 
       pty.onExit(({ exitCode }) => {
+        if (managed.pty !== pty) return
+
+        if (managed.killTimeout) {
+          clearTimeout(managed.killTimeout)
+          managed.killTimeout = null
+        }
         managed.pty = null
         managed.state.pid = null
         this.stopSessionDiscovery(managed)
@@ -524,12 +545,18 @@ export class AgentManager extends EventEmitter {
     if (!managed) return false
 
     if (managed.pty) {
+      if (managed.killTimeout) {
+        clearTimeout(managed.killTimeout)
+        managed.killTimeout = null
+      }
+
       // Graceful: send SIGTERM
       this.killPtyProcess(managed.pty, false)
 
       // Force kill after timeout
+      const targetPty = managed.pty
       managed.killTimeout = setTimeout(() => {
-        if (managed.pty) {
+        if (managed.pty === targetPty) {
           try {
             this.killPtyProcess(managed.pty, true)
           } catch {
@@ -567,6 +594,10 @@ export class AgentManager extends EventEmitter {
         // Already dead
       }
       managed.pty = null
+    }
+    if (managed.killTimeout) {
+      clearTimeout(managed.killTimeout)
+      managed.killTimeout = null
     }
 
     managed.state.restartCount++
@@ -619,6 +650,9 @@ export class AgentManager extends EventEmitter {
 
   private ensureProcess(managed: ManagedAgent): boolean {
     if (managed.pty) return true
+    if (this.countActiveAgents(managed.state.id) >= MAX_CONCURRENT_AGENTS_HARD_LIMIT) {
+      return false
+    }
     this.spawnProcess(managed)
     return !!managed.pty
   }
