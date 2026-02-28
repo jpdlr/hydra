@@ -154,6 +154,7 @@ export const IPC = {
   AGENT_STATUS: 'agent:status',
   AGENT_LIST: 'agent:list',
   AGENT_YOLO_TOGGLE: 'agent:yolo-toggle',
+  AGENT_GET_BUFFER: 'agent:get-buffer',
 
   // Config
   CONFIG_GET: 'config:get',
@@ -182,6 +183,7 @@ export const IPC = {
   // App lifecycle
   APP_CONFIRM_QUIT: 'app:confirm-quit',
   APP_QUIT_FORCE: 'app:quit-force',
+  APP_QUIT_BACKGROUND: 'app:quit-background',
 
   // Headless orchestration
   HEADLESS_RUN_START: 'headless:run-start',

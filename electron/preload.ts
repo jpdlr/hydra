@@ -59,6 +59,9 @@ const hydraApi = {
   toggleYolo: (agentId: string, yolo: boolean): Promise<AgentState | null> =>
     ipcRenderer.invoke(IPC.AGENT_YOLO_TOGGLE, agentId, yolo),
 
+  getAgentBuffer: (agentId: string): Promise<string[]> =>
+    ipcRenderer.invoke(IPC.AGENT_GET_BUFFER, agentId),
+
   // Agent I/O
   sendInput: (agentId: string, input: string): void =>
     ipcRenderer.send(IPC.AGENT_INPUT, agentId, input),
@@ -124,6 +127,7 @@ const hydraApi = {
     return () => { ipcRenderer.removeListener(IPC.APP_CONFIRM_QUIT, handler) }
   },
   confirmQuit: (): Promise<boolean> => ipcRenderer.invoke(IPC.APP_QUIT_FORCE),
+  quitBackground: (): Promise<boolean> => ipcRenderer.invoke(IPC.APP_QUIT_BACKGROUND),
 
   // Headless runs
   startHeadlessRun: (payload: StartHeadlessRunPayload): Promise<HeadlessRun> =>

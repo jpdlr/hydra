@@ -1,9 +1,10 @@
 import { EventEmitter } from 'events'
 import { randomUUID } from 'crypto'
 import { hostname } from 'os'
-import type { AgentManager } from '../agents/AgentManager'
 import type { NotificationService } from '../notifications/NotificationService'
+import type { DaemonNotificationService } from '../daemon/DaemonNotificationService'
 import type {
+  AgentState,
   RemoteControlState,
   RemoteInboxMessage,
   RemoteAgentSummary,
@@ -12,6 +13,19 @@ import type {
   HydraNotification,
   CreateAgentPayload
 } from '@shared/types'
+
+/**
+ * Minimal interface satisfied by both AgentManager (direct) and DaemonClient (proxy).
+ */
+interface AgentBackend extends EventEmitter {
+  list(): AgentState[] | Promise<AgentState[]>
+  get(agentId: string): AgentState | null | Promise<AgentState | null>
+  create(payload: CreateAgentPayload): AgentState | Promise<AgentState>
+  kill(agentId: string): boolean | Promise<boolean>
+  restart(agentId: string): AgentState | null | Promise<AgentState | null>
+  sendInput(agentId: string, input: string): boolean | void | Promise<void>
+  broadcast(projectDir: string, input: string): string[] | Promise<string[]>
+}
 
 // Firebase SDK — lazy-imported so the module can be loaded even if firebase
 // is not yet installed (tests, builds without the dep, etc.).
@@ -48,8 +62,8 @@ export class RemoteControlService extends EventEmitter {
   private flushTimer: ReturnType<typeof setInterval> | null = null
 
   constructor(
-    private agentManager: AgentManager,
-    private notificationService: NotificationService,
+    private agentManager: AgentBackend,
+    private notificationService: NotificationService | DaemonNotificationService,
     private timeoutMinutes: number = 480
   ) {
     super()
@@ -229,28 +243,28 @@ export class RemoteControlService extends EventEmitter {
         const agentId = payload.agentId as string
         const input = payload.input as string
         if (agentId && input) {
-          this.agentManager.sendInput(agentId, input)
+          void Promise.resolve(this.agentManager.sendInput(agentId, input))
         }
         break
       }
       case 'kill': {
         const agentId = payload.agentId as string
         if (agentId) {
-          this.agentManager.kill(agentId)
+          void Promise.resolve(this.agentManager.kill(agentId))
         }
         break
       }
       case 'create': {
         const createPayload = payload as unknown as CreateAgentPayload
         if (createPayload.projectDir) {
-          this.agentManager.create(createPayload)
+          void Promise.resolve(this.agentManager.create(createPayload))
         }
         break
       }
       case 'restart': {
         const agentId = payload.agentId as string
         if (agentId) {
-          this.agentManager.restart(agentId)
+          void Promise.resolve(this.agentManager.restart(agentId))
         }
         break
       }
@@ -258,7 +272,7 @@ export class RemoteControlService extends EventEmitter {
         const projectDir = payload.projectDir as string
         const input = payload.input as string
         if (projectDir && input) {
-          this.agentManager.broadcast(projectDir, input)
+          void Promise.resolve(this.agentManager.broadcast(projectDir, input))
         }
         break
       }
@@ -271,7 +285,7 @@ export class RemoteControlService extends EventEmitter {
     if (!this.firestore || !this.state.sessionId) return
 
     const { doc, setDoc } = await import('firebase/firestore')
-    const agents = this.agentManager.list()
+    const agents = await Promise.resolve(this.agentManager.list())
 
     for (const agent of agents) {
       const summary: RemoteAgentSummary = {
@@ -412,7 +426,7 @@ export class RemoteControlService extends EventEmitter {
     if (!this.firestore || !this.state.sessionId) return
 
     const { doc, setDoc, deleteDoc } = await import('firebase/firestore')
-    const agent = this.agentManager.get(agentId)
+    const agent = await Promise.resolve(this.agentManager.get(agentId))
     const stateRef = doc(
       this.firestore,
       'sessions',

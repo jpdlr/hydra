@@ -1,10 +1,8 @@
 import { ipcMain, dialog, BrowserWindow, shell } from 'electron'
 import { execFile } from 'child_process'
 import { randomUUID } from 'crypto'
-import { AgentManager } from '../agents/AgentManager'
+import { DaemonClient } from '../daemon/DaemonClient'
 import { ConfigStore } from '../config/ConfigStore'
-import { SessionCatalog } from '../sessions/SessionCatalog'
-import { HeadlessOrchestrator } from '../headless/HeadlessOrchestrator'
 import { NotificationService } from '../notifications/NotificationService'
 import { UsageTracker } from '../usage/UsageTracker'
 import { UpdateService } from '../updates/UpdateService'
@@ -12,7 +10,6 @@ import { FileSystemService } from '../fs/FileSystemService'
 import { GitService } from '../git/GitService'
 import { RemoteControlService } from '../remote/RemoteControlService'
 import { IPC, EDITOR_REGISTRY } from '@shared/types'
-import type { HydraMcpServer } from '../mcp/McpServer'
 import type {
   CreateAgentPayload,
   AppConfig,
@@ -83,14 +80,6 @@ const appConfigPatchSchema = z
     remoteSessionTimeoutMinutes: z.number().int().min(30).max(1440).optional()
   })
   .strict()
-const sessionListOptionsSchema = z
-  .object({
-    limit: z.number().int().min(1).max(20000).optional(),
-    maxAgeDays: z.number().int().min(1).max(365).optional(),
-    projectPathPrefix: z.string().trim().min(1).max(4096).optional(),
-    includeHidden: z.boolean().optional()
-  })
-  .optional()
 const headlessStartSchema = z.object({
   prompt: z.string().trim().min(1).max(20000),
   projectDir: projectDirSchema,
@@ -117,6 +106,14 @@ const usageDashboardOptionsSchema = z
     days: z.number().int().min(1).max(90).optional()
   })
   .optional()
+const sessionListOptionsSchema = z
+  .object({
+    limit: z.number().int().min(1).max(20000).optional(),
+    maxAgeDays: z.number().int().min(1).max(365).optional(),
+    projectPathPrefix: z.string().trim().min(1).max(4096).optional(),
+    includeHidden: z.boolean().optional()
+  })
+  .optional()
 const fsPathSchema = z.string().trim().min(1).max(8192)
 const fsWriteContentSchema = z.string().max(10_000_000)
 
@@ -139,15 +136,11 @@ interface ObservabilityHandlers {
 }
 
 export function registerIpcHandlers(
-  agentManager: AgentManager,
+  daemonClient: DaemonClient,
   configStore: ConfigStore,
-  sessionCatalog: SessionCatalog,
-  headlessOrchestrator: HeadlessOrchestrator,
   usageTracker: UsageTracker,
   updateService: UpdateService,
   observability: ObservabilityHandlers,
-  onWorkspaceChanged?: () => void,
-  mcpServer?: HydraMcpServer | null,
   notificationService?: NotificationService | null,
   fileSystemService?: FileSystemService | null,
   gitService?: GitService | null,
@@ -157,7 +150,7 @@ export function registerIpcHandlers(
 
   ipcMain.handle(IPC.PREFLIGHT_CHECK, async (_event, provider?: string) => {
     const providerId = providerSchema.catch('claude').parse(provider ?? 'claude')
-    return agentManager.preflight(providerId)
+    return daemonClient.preflight(providerId)
   })
 
   // ── Agent lifecycle ──────────────────────────────────────────────────────
@@ -170,9 +163,9 @@ export function registerIpcHandlers(
       meta: { isManager: payload?.isManager }
     })
 
-    // Manager agent: inject workspace path before Zod validation (projectDir min(1))
+    // Manager agent: inject workspace path
     if (payload?.isManager) {
-      const status = mcpServer?.getStatus()
+      const status = await daemonClient.getMcpStatus()
       if (!status?.running || !status.managerWorkspace) {
         throw new Error('MCP server is not running — cannot create manager agent')
       }
@@ -180,64 +173,46 @@ export function registerIpcHandlers(
     }
 
     const parsedPayload = createAgentPayloadSchema.parse(payload)
-    if (!parsedPayload.name) {
-      parsedPayload.name = AgentManager.generateName(parsedPayload.initialPrompt, parsedPayload.projectDir)
-    }
-    const preflight = await agentManager.preflight(parsedPayload.provider)
-    if (!preflight.ok) {
-      throw new Error(preflight.error || `${parsedPayload.provider} CLI preflight check failed`)
-    }
-    const maxAgents = configStore.get().maxAgents
-    const current = agentManager.activeCount()
-    if (current >= maxAgents) {
-      throw new Error(`Maximum concurrent agents (${maxAgents}) reached`)
-    }
-    const created = agentManager.create(parsedPayload)
-    onWorkspaceChanged?.()
-    return created
+    return daemonClient.create(parsedPayload)
   })
 
-  ipcMain.handle(IPC.AGENT_KILL, (_event, agentId: string) => {
+  ipcMain.handle(IPC.AGENT_KILL, async (_event, agentId: string) => {
     observability.logMainEvent?.({
       level: 'info',
       event: 'agent.kill.request',
       agentId
     })
-    const killed = agentManager.kill(agentIdSchema.parse(agentId))
-    onWorkspaceChanged?.()
-    return killed
+    return daemonClient.kill(agentIdSchema.parse(agentId))
   })
 
-  ipcMain.handle(IPC.AGENT_REMOVE, (_event, agentId: string) => {
+  ipcMain.handle(IPC.AGENT_REMOVE, async (_event, agentId: string) => {
     observability.logMainEvent?.({
       level: 'info',
       event: 'agent.remove.request',
       agentId
     })
-    const removed = agentManager.remove(agentIdSchema.parse(agentId))
-    onWorkspaceChanged?.()
-    return removed
+    return daemonClient.remove(agentIdSchema.parse(agentId))
   })
 
-  ipcMain.handle(IPC.AGENT_RESTART, (_event, agentId: string) => {
+  ipcMain.handle(IPC.AGENT_RESTART, async (_event, agentId: string) => {
     observability.logMainEvent?.({
       level: 'info',
       event: 'agent.restart.request',
       agentId
     })
-    const restarted = agentManager.restart(agentIdSchema.parse(agentId))
-    onWorkspaceChanged?.()
-    return restarted
+    return daemonClient.restart(agentIdSchema.parse(agentId))
   })
 
-  ipcMain.handle(IPC.AGENT_LIST, () => {
-    return agentManager.list()
+  ipcMain.handle(IPC.AGENT_LIST, async () => {
+    return daemonClient.list()
   })
 
-  ipcMain.handle(IPC.AGENT_YOLO_TOGGLE, (_event, agentId: string, yolo: boolean) => {
-    const toggled = agentManager.toggleYolo(agentIdSchema.parse(agentId), z.boolean().parse(yolo))
-    onWorkspaceChanged?.()
-    return toggled
+  ipcMain.handle(IPC.AGENT_YOLO_TOGGLE, async (_event, agentId: string, yolo: boolean) => {
+    return daemonClient.toggleYolo(agentIdSchema.parse(agentId), z.boolean().parse(yolo))
+  })
+
+  ipcMain.handle(IPC.AGENT_GET_BUFFER, async (_event, agentId: string) => {
+    return daemonClient.getBuffer(agentIdSchema.parse(agentId))
   })
 
   // ── Agent I/O ────────────────────────────────────────────────────────────
@@ -250,20 +225,20 @@ export function registerIpcHandlers(
       message: 'Submitted user input'
     })
     const parsed = inputSchema.parse({ agentId, input })
-    agentManager.sendInput(parsed.agentId, parsed.input)
+    daemonClient.sendInput(parsed.agentId, parsed.input)
   })
 
   ipcMain.on(IPC.AGENT_INPUT_RAW, (_event, agentId: string, data: string) => {
     const parsed = rawInputSchema.parse({ agentId, data })
-    agentManager.sendRawInput(parsed.agentId, parsed.data)
+    daemonClient.sendRawInput(parsed.agentId, parsed.data)
   })
 
   ipcMain.on(IPC.AGENT_RESIZE, (_event, agentId: string, cols: number, rows: number) => {
     const parsed = resizeSchema.parse({ agentId, cols, rows })
-    agentManager.resize(parsed.agentId, parsed.cols, parsed.rows)
+    daemonClient.resize(parsed.agentId, parsed.cols, parsed.rows)
   })
 
-  ipcMain.handle(IPC.AGENT_BROADCAST, (_event, projectDir: string, input: string) => {
+  ipcMain.handle(IPC.AGENT_BROADCAST, async (_event, projectDir: string, input: string) => {
     observability.logMainEvent?.({
       level: 'info',
       event: 'agent.broadcast.request',
@@ -271,57 +246,45 @@ export function registerIpcHandlers(
       message: 'Broadcast prompt submitted'
     })
     const parsed = broadcastSchema.parse({ projectDir, input })
-    return agentManager.broadcast(parsed.projectDir, parsed.input)
+    return daemonClient.broadcast(parsed.projectDir, parsed.input)
   })
 
   // ── Sessions ────────────────────────────────────────────────────────────
 
-  ipcMain.handle(IPC.SESSIONS_LIST, (_event, options?: unknown) => {
-    const config = configStore.get()
+  ipcMain.handle(IPC.SESSIONS_LIST, async (_event, options?: unknown) => {
     const parsedOptions = sessionListOptionsSchema.parse(options)
-    const projectPathPrefix =
-      parsedOptions?.projectPathPrefix ??
-      config.sessionImportProjectPrefix ??
-      undefined
-
-    const shouldIncludeHidden = parsedOptions?.includeHidden === true
-    return sessionCatalog.listSessions({
-      limit: parsedOptions?.limit ?? (config.sessionImportLimit > 0 ? config.sessionImportLimit : undefined),
-      maxAgeDays: parsedOptions?.maxAgeDays ?? (config.sessionMaxAgeDays > 0 ? config.sessionMaxAgeDays : undefined),
-      projectPathPrefix,
-      hiddenSessionIds: shouldIncludeHidden ? undefined : config.hiddenSessionIds
-    })
+    return daemonClient.listSessions(parsedOptions)
   })
 
   // ── Headless runs ────────────────────────────────────────────────────────
 
-  ipcMain.handle(IPC.HEADLESS_RUN_START, (_event, payload: unknown) => {
+  ipcMain.handle(IPC.HEADLESS_RUN_START, async (_event, payload: unknown) => {
     observability.logMainEvent?.({
       level: 'info',
       event: 'headless.start.request'
     })
-    return headlessOrchestrator.start(headlessStartSchema.parse(payload))
+    return daemonClient.startHeadlessRun(headlessStartSchema.parse(payload))
   })
 
-  ipcMain.handle(IPC.HEADLESS_RUN_LIST, (_event, options?: unknown) => {
-    return headlessOrchestrator.list(headlessListOptionsSchema.parse(options))
+  ipcMain.handle(IPC.HEADLESS_RUN_LIST, async (_event, options?: unknown) => {
+    return daemonClient.listHeadlessRuns(headlessListOptionsSchema.parse(options))
   })
 
-  ipcMain.handle(IPC.HEADLESS_RUN_GET, (_event, runId: string) => {
-    return headlessOrchestrator.get(agentIdSchema.parse(runId))
+  ipcMain.handle(IPC.HEADLESS_RUN_GET, async (_event, runId: string) => {
+    return daemonClient.getHeadlessRun(agentIdSchema.parse(runId))
   })
 
-  ipcMain.handle(IPC.HEADLESS_RUN_CANCEL, (_event, runId: string) => {
+  ipcMain.handle(IPC.HEADLESS_RUN_CANCEL, async (_event, runId: string) => {
     observability.logMainEvent?.({
       level: 'info',
       event: 'headless.cancel.request',
       sessionId: runId
     })
-    return headlessOrchestrator.cancel(agentIdSchema.parse(runId))
+    return daemonClient.cancelHeadlessRun(agentIdSchema.parse(runId))
   })
 
-  ipcMain.handle(IPC.HEADLESS_RUN_GET_LOG, (_event, runId: string, options?: unknown) => {
-    return headlessOrchestrator.getLog(
+  ipcMain.handle(IPC.HEADLESS_RUN_GET_LOG, async (_event, runId: string, options?: unknown) => {
+    return daemonClient.getHeadlessRunLog(
       agentIdSchema.parse(runId),
       headlessLogOptionsSchema.parse(options)
     )
@@ -333,7 +296,7 @@ export function registerIpcHandlers(
     return configStore.get()
   })
 
-  ipcMain.handle(IPC.CONFIG_SET, (_event, partial: Partial<AppConfig>) => {
+  ipcMain.handle(IPC.CONFIG_SET, async (_event, partial: Partial<AppConfig>) => {
     const validated = appConfigPatchSchema.parse(partial)
     const updated = configStore.set(validated)
     observability.logMainEvent?.({
@@ -342,6 +305,12 @@ export function registerIpcHandlers(
       message: 'Config patch saved',
       meta: { keys: Object.keys(validated) }
     })
+    // Also update daemon-side config
+    try {
+      await daemonClient.setConfig(validated)
+    } catch {
+      // Best-effort sync to daemon
+    }
     // Notify all windows
     BrowserWindow.getAllWindows().forEach((win) => {
       win.webContents.send(IPC.CONFIG_ON_CHANGE, updated)
@@ -352,16 +321,16 @@ export function registerIpcHandlers(
 
   // ── Global YOLO ──────────────────────────────────────────────────────────
 
-  ipcMain.handle(IPC.GLOBAL_YOLO_TOGGLE, (_event, enabled: boolean) => {
+  ipcMain.handle(IPC.GLOBAL_YOLO_TOGGLE, async (_event, enabled: boolean) => {
     const toggle = z.boolean().parse(enabled)
     configStore.set({ globalYolo: toggle })
 
-    // Toggle all agents
-    const agents = agentManager.list()
+    // Toggle all agents via daemon
+    const agents = await daemonClient.list()
     const results: string[] = []
     for (const agent of agents) {
       if (agent.yolo !== toggle) {
-        agentManager.toggleYolo(agent.id, toggle)
+        await daemonClient.toggleYolo(agent.id, toggle)
         results.push(agent.id)
       }
     }
@@ -396,7 +365,6 @@ export function registerIpcHandlers(
       const args = process.platform === 'win32' ? ['/c', 'code', validated] : [validated]
       execFile(command, args, (err) => {
         if (err) {
-          // Fallback: try opening the folder in the OS default handler.
           shell.openPath(validated).then(() => resolve(true)).catch(() => resolve(false))
           return
         }
@@ -463,76 +431,12 @@ export function registerIpcHandlers(
 
   // ── MCP ────────────────────────────────────────────────────────────────────
 
-  ipcMain.handle(IPC.MCP_SERVER_STATUS, () => {
-    return mcpServer?.getStatus() ?? { running: false, port: null, error: null, managerWorkspace: null }
-  })
-
-  // ── Forward agent events to renderer ─────────────────────────────────────
-
-  agentManager.on('output', (payload) => {
-    BrowserWindow.getAllWindows().forEach((win) => {
-      win.webContents.send(IPC.AGENT_OUTPUT, payload)
-    })
-
-    const agent = agentManager.get(payload.agentId)
-    if (!agent) return
-
-    const usageResult = usageTracker.recordAgentOutput(agent, payload.data, configStore.get())
-    if (!usageResult.changed) return
-
-    const dashboard = usageTracker.getDashboard(configStore.get(), { days: 14 })
-    BrowserWindow.getAllWindows().forEach((win) => {
-      win.webContents.send(IPC.USAGE_UPDATED, dashboard)
-    })
-
-    for (const alert of usageResult.alerts) {
-      if (!notificationService) continue
-      const metricLabel = alert.metric === 'tokens' ? 'Token' : 'Cost'
-      const budgetLabel =
-        alert.metric === 'tokens'
-          ? `${Math.round(alert.budget).toLocaleString()} tokens`
-          : `$${alert.budget.toFixed(2)}`
-      const usageLabel =
-        alert.metric === 'tokens'
-          ? `${Math.round(alert.usage).toLocaleString()} tokens`
-          : `$${alert.usage.toFixed(2)}`
-      const percent = Math.round(alert.percent)
-      const levelLabel = alert.level === 'exceeded' ? 'Exceeded' : 'Warning'
-
-      notificationService.push({
-        id: randomUUID().slice(0, 12),
-        type: 'usage_budget_warning',
-        title: `${metricLabel} Budget ${levelLabel}`,
-        body: `${usageLabel} of ${budgetLabel} (${percent}%) today`,
-        timestamp: new Date().toISOString()
-      })
+  ipcMain.handle(IPC.MCP_SERVER_STATUS, async () => {
+    try {
+      return await daemonClient.getMcpStatus()
+    } catch {
+      return { running: false, port: null, error: null, managerWorkspace: null }
     }
-  })
-
-  agentManager.on('status', (payload) => {
-    observability.logMainEvent?.({
-      level: payload.status === 'errored' ? 'error' : 'info',
-      event: 'agent.status.changed',
-      agentId: payload.agentId,
-      sessionId: payload.sessionId ?? undefined,
-      message: payload.status
-    })
-    onWorkspaceChanged?.()
-    BrowserWindow.getAllWindows().forEach((win) => {
-      win.webContents.send(IPC.AGENT_STATUS, payload)
-    })
-  })
-
-  headlessOrchestrator.on('event', (payload) => {
-    BrowserWindow.getAllWindows().forEach((win) => {
-      win.webContents.send(IPC.HEADLESS_RUN_EVENT, payload)
-    })
-  })
-
-  updateService.on('state-changed', (state) => {
-    BrowserWindow.getAllWindows().forEach((win) => {
-      win.webContents.send(IPC.UPDATE_STATE_CHANGED, state)
-    })
   })
 
   // ── File System (Editor Panel) ──────────────────────────────────────────
@@ -541,7 +445,7 @@ export function registerIpcHandlers(
     ipcMain.handle(IPC.FS_READ_DIR, async (_event, agentId: string, dirPath: string) => {
       const id = agentIdSchema.parse(agentId)
       const path = fsPathSchema.parse(dirPath)
-      const agent = agentManager.get(id)
+      const agent = await daemonClient.get(id)
       if (!agent) throw new Error(`Agent ${id} not found`)
       return fileSystemService.readDir(path, agent.projectDir)
     })
@@ -549,7 +453,7 @@ export function registerIpcHandlers(
     ipcMain.handle(IPC.FS_READ_FILE, async (_event, agentId: string, filePath: string) => {
       const id = agentIdSchema.parse(agentId)
       const path = fsPathSchema.parse(filePath)
-      const agent = agentManager.get(id)
+      const agent = await daemonClient.get(id)
       if (!agent) throw new Error(`Agent ${id} not found`)
       return fileSystemService.readFile(path, agent.projectDir)
     })
@@ -560,16 +464,16 @@ export function registerIpcHandlers(
         const id = agentIdSchema.parse(agentId)
         const path = fsPathSchema.parse(filePath)
         const body = fsWriteContentSchema.parse(content)
-        const agent = agentManager.get(id)
+        const agent = await daemonClient.get(id)
         if (!agent) throw new Error(`Agent ${id} not found`)
         await fileSystemService.writeFile(path, body, agent.projectDir)
         return true
       }
     )
 
-    ipcMain.on(IPC.FS_WATCH_START, (_event, agentId: string) => {
+    ipcMain.on(IPC.FS_WATCH_START, async (_event, agentId: string) => {
       const id = agentIdSchema.parse(agentId)
-      const agent = agentManager.get(id)
+      const agent = await daemonClient.get(id)
       if (!agent) return
       fileSystemService.startWatch(id, agent.projectDir, (payload) => {
         BrowserWindow.getAllWindows().forEach((win) => {
@@ -589,7 +493,7 @@ export function registerIpcHandlers(
         const id = agentIdSchema.parse(agentId)
         const q = z.string().max(500).parse(query)
         const limit = z.number().int().min(1).max(500).optional().parse(maxResults)
-        const agent = agentManager.get(id)
+        const agent = await daemonClient.get(id)
         if (!agent) throw new Error(`Agent ${id} not found`)
         return fileSystemService.searchFiles(q, agent.projectDir, limit)
       }
@@ -599,18 +503,11 @@ export function registerIpcHandlers(
   // ── Notifications ─────────────────────────────────────────────────────────
 
   ipcMain.on(IPC.NOTIFICATION_DISMISS, (_event, id: string) => {
-    // Dismiss is renderer-side only (remove from toast stack).
-    // Forward to all windows so multi-window setups stay in sync.
     const validated = z.string().trim().min(1).max(128).parse(id)
     BrowserWindow.getAllWindows().forEach((win) => {
       win.webContents.send(IPC.NOTIFICATION_DISMISS, validated)
     })
   })
-
-  // Connect NotificationService to agent/headless events
-  if (notificationService) {
-    notificationService.connectAgentEvents(agentManager, headlessOrchestrator)
-  }
 
   // ── Git ───────────────────────────────────────────────────────────────────
 
@@ -647,7 +544,6 @@ export function registerIpcHandlers(
       return gitService.push(dir)
     })
 
-    // Branch operations
     ipcMain.handle(IPC.GIT_LIST_BRANCHES, async (_event, projectDir: string) => {
       const dir = projectDirSchema.parse(projectDir)
       return gitService.listBranches(dir)
@@ -675,14 +571,12 @@ export function registerIpcHandlers(
       }
     )
 
-    // File contents for diff viewer
     ipcMain.handle(IPC.GIT_FILE_CONTENTS, async (_event, projectDir: string, filePath: string) => {
       const dir = projectDirSchema.parse(projectDir)
       const fp = z.string().max(8192).parse(filePath)
       return gitService.getFileContents(dir, fp)
     })
 
-    // PR review
     ipcMain.handle(IPC.GIT_PR_FETCH, async (_event, projectDir: string, prIdentifier: string) => {
       const dir = projectDirSchema.parse(projectDir)
       const pr = z.string().trim().min(1).max(1024).parse(prIdentifier)

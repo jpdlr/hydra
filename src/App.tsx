@@ -246,9 +246,14 @@ export default function App() {
     [ensurePreflightReady, broadcastInput]
   )
 
-  const handleConfirmQuit = useCallback(async () => {
+  const handleQuitAndKillAgents = useCallback(async () => {
     setQuitConfirmRunningCount(null)
     await window.hydra.confirmQuit()
+  }, [])
+
+  const handleQuitKeepAgents = useCallback(async () => {
+    setQuitConfirmRunningCount(null)
+    await window.hydra.quitBackground()
   }, [])
 
   // Sync view mode with config preference only when no persisted runtime view.
@@ -778,12 +783,14 @@ export default function App() {
         >
           <div className={styles.confirmDialog} onClick={(e) => e.stopPropagation()}>
             <div className={styles.confirmIcon}>⏻</div>
-            <h3>Quit Hydra?</h3>
-            <p>
+            <h3>
               {quitConfirmRunningCount === 1
-                ? '1 agent is still running.'
-                : `${quitConfirmRunningCount} agents are still running.`}{' '}
-              Quitting now will stop all active sessions.
+                ? '1 agent is still running'
+                : `${quitConfirmRunningCount} agents are still running`}
+            </h3>
+            <p>
+              You can close Hydra and let agents continue in the background,
+              or quit everything.
             </p>
             <div className={styles.confirmActions}>
               <button
@@ -792,8 +799,11 @@ export default function App() {
               >
                 Cancel
               </button>
-              <button className={styles.dangerBtn} onClick={handleConfirmQuit}>
-                Quit
+              <button className={styles.primaryBtn} onClick={handleQuitKeepAgents}>
+                Close
+              </button>
+              <button className={styles.dangerBtn} onClick={handleQuitAndKillAgents}>
+                Quit All
               </button>
             </div>
           </div>

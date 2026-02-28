@@ -237,7 +237,9 @@ describe('App flow behavior', () => {
       enableRemoteControl: vi.fn().mockResolvedValue({ enabled: false, status: 'creating', sessionId: null, qrPayload: null, connectedAt: null, expiresAt: null, mobileConnected: false, error: null }),
       disableRemoteControl: vi.fn().mockResolvedValue({ enabled: false, status: 'creating', sessionId: null, qrPayload: null, connectedAt: null, expiresAt: null, mobileConnected: false, error: null }),
       getRemoteControlState: vi.fn().mockResolvedValue({ enabled: false, status: 'creating', sessionId: null, qrPayload: null, connectedAt: null, expiresAt: null, mobileConnected: false, error: null }),
-      onRemoteStateChange: vi.fn().mockReturnValue(() => undefined)
+      onRemoteStateChange: vi.fn().mockReturnValue(() => undefined),
+      getAgentBuffer: vi.fn().mockResolvedValue([]),
+      quitBackground: vi.fn().mockResolvedValue(true)
     }
   })
 
@@ -291,9 +293,9 @@ describe('App flow behavior', () => {
       throw new Error('Quit listener was not registered')
     }
     ;(quitListener as (count: number) => void)(2)
-    expect(await screen.findByText('Quit Hydra?')).toBeTruthy()
+    expect(await screen.findByText('2 agents are still running')).toBeTruthy()
 
-    fireEvent.click(screen.getByText('Quit'))
+    fireEvent.click(screen.getByText('Quit All'))
     await waitFor(() => {
       expect(window.hydra.confirmQuit).toHaveBeenCalledTimes(1)
     })

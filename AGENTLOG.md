@@ -39,3 +39,13 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Date**: 2026-02-28
 **Context**: Added `remoteControlEnabled` and `remoteSessionTimeoutMinutes` to `AppConfig`.
 **Fix**: Always check `App.flow.test.tsx` for `baseConfig` objects typed as `AppConfig` — they'll fail typecheck if new required fields are missing.
+
+### ConfigStore and WorkspaceStore constructors require userDataPath
+**Date**: 2026-02-28
+**Context**: Decoupled Electron `app` dependency from stores for daemon support.
+**Fix**: Both `ConfigStore` and `WorkspaceStore` now take `userDataPath: string` in their constructor instead of calling `app.getPath('userData')` internally. Pass `app.getPath('userData')` from main.ts.
+
+### DaemonClient.get() overloads — don't mix API paths and agent IDs
+**Date**: 2026-02-28
+**Context**: Tried to use method overloads for `get('/path')` vs `get('agentId')`.
+**Fix**: Keep `get(agentId)` as the only public method, use `httpRequest('GET', path)` internally for API endpoints.

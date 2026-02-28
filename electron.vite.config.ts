@@ -8,7 +8,8 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: {
-          index: resolve(__dirname, 'electron/main.ts')
+          index: resolve(__dirname, 'electron/main.ts'),
+          daemon: resolve(__dirname, 'electron/daemon/index.ts')
         }
       }
     },

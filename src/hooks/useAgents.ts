@@ -64,16 +64,30 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
     return unsub
   }, [])
 
-  // Load existing agents on mount
+  // Load existing agents on mount + fetch output buffers for reconnection
   useEffect(() => {
-    window.hydra.listAgents().then((agentList) => {
+    window.hydra.listAgents().then(async (agentList) => {
       const map = new Map<string, AgentData>()
-      for (const state of agentList) {
-        map.set(state.id, {
-          state,
-          rawOutput: ''
-        })
+
+      // Fetch output buffers in parallel for all agents (reconnection support)
+      const bufferPromises = agentList.map(async (state) => {
+        let rawOutput = ''
+        try {
+          const lines = await window.hydra.getAgentBuffer(state.id)
+          if (lines.length > 0) {
+            rawOutput = lines.join('\n')
+          }
+        } catch {
+          // Buffer fetch failed — start with empty output
+        }
+        return { state, rawOutput }
+      })
+
+      const results = await Promise.all(bufferPromises)
+      for (const { state, rawOutput } of results) {
+        map.set(state.id, { state, rawOutput })
       }
+
       setAgents(map)
       const preferredId = selectedAgentIdRef.current
       if (preferredId && map.has(preferredId)) {
