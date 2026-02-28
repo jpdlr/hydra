@@ -68,13 +68,18 @@ function spawnDaemon(paths: DaemonPaths): Promise<void> {
     // The daemon entry is compiled to out/main/daemon.js alongside index.js
     const daemonScript = join(__dirname, 'daemon.js')
 
+    // Critical for packaged builds: run the child Electron binary as plain Node.
+    // Without this, spawning the daemon can recursively launch full Hydra app instances.
     const child = spawn(process.execPath, [daemonScript,
       '--socket-path', paths.socketPath,
       '--user-data', paths.userDataPath
     ], {
       detached: true,
       stdio: 'ignore',
-      env: { ...process.env }
+      env: {
+        ...process.env,
+        ELECTRON_RUN_AS_NODE: '1'
+      }
     })
 
     child.unref()

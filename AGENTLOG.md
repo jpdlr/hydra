@@ -55,3 +55,21 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Context**: Restarting an agent can spawn a new PTY before the old PTY emits `onExit`.
 **Mistake**: Applying old PTY `onExit` cleanup unconditionally clears the new PTY reference and stale kill timeouts can terminate the replacement process.
 **Fix**: In `onData`/`onExit`, ignore events unless `managed.pty === emittingPty`; clear `killTimeout` on confirmed exit/restart; scope force-kill timers to the PTY instance they were created for.
+
+### Packaged daemon spawn must set `ELECTRON_RUN_AS_NODE=1`
+**Date**: 2026-02-28
+**Context**: Launching Hydra.app caused runaway new app instances/windows.
+**Mistake**: Daemon bootstrap used `spawn(process.execPath, [daemon.js, ...])` without forcing Node mode, so packaged Electron could relaunch the full app recursively instead of running daemon script-only.
+**Fix**: Set `ELECTRON_RUN_AS_NODE=1` in daemon child env when spawning `daemon.js`.
+
+### Avoid unhandled rejections in fake-timer promise tests
+**Date**: 2026-02-28
+**Context**: Daemon timeout tests advanced fake timers until rejection, then asserted afterwards.
+**Mistake**: Attaching `await expect(promise).rejects...` after advancing timers can surface `PromiseRejectionHandledWarning`/unhandled rejection noise.
+**Fix**: Attach the rejection assertion immediately (`const pending = expect(promise).rejects...`) before advancing timers, then await `pending`.
+
+### Don't collapse spawn failure and cap-hit into one boolean
+**Date**: 2026-02-28
+**Context**: Hardened agent cap checks around `spawnProcess`.
+**Mistake**: Returning only `true/false` from spawn made cap denials and real spawn errors indistinguishable, which can report the wrong error and hide real failures.
+**Fix**: Return explicit spawn outcomes (`spawned` / `capped` / `errored`) and handle each path separately in `create/restart/ensureProcess`.

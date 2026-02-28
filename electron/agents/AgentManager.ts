@@ -42,6 +42,7 @@ const SESSION_DISCOVERY_BACKOFF_FACTOR = 1.6
 const SESSION_DISCOVERY_GRACE_MS = 5 * 60 * 1000
 const SESSION_HINT_MAX_LENGTH = 400
 const IDLE_DETECTION_MS = 5000
+type SpawnOutcome = 'spawned' | 'capped' | 'errored'
 
 export class AgentManager extends EventEmitter {
   private agents: Map<string, ManagedAgent> = new Map()
@@ -142,7 +143,11 @@ export class AgentManager extends EventEmitter {
     }
 
     this.agents.set(id, managed)
-    this.spawnProcess(managed)
+    const spawnOutcome = this.spawnProcess(managed)
+    if (spawnOutcome === 'capped') {
+      this.agents.delete(id)
+      throw new Error(`Maximum concurrent agents (${MAX_CONCURRENT_AGENTS_HARD_LIMIT}) reached`)
+    }
 
     return { ...state }
   }
@@ -317,9 +322,9 @@ export class AgentManager extends EventEmitter {
     pty.kill(force ? 'SIGKILL' : 'SIGTERM')
   }
 
-  private spawnProcess(managed: ManagedAgent): void {
+  private spawnProcess(managed: ManagedAgent): SpawnOutcome {
     if (this.countActiveAgents(managed.state.id) >= MAX_CONCURRENT_AGENTS_HARD_LIMIT) {
-      return
+      return 'capped'
     }
 
     const provider = getProvider(managed.state.provider)
@@ -389,9 +394,11 @@ export class AgentManager extends EventEmitter {
           this.queueSubmittedInput(managed, startupPrompt)
         }, 1500)
       }
+      return 'spawned'
     } catch (err) {
       console.error(`Failed to spawn agent ${managed.state.id}:`, err)
       this.updateStatus(managed.state.id, 'errored')
+      return 'errored'
     }
   }
 
@@ -586,6 +593,11 @@ export class AgentManager extends EventEmitter {
     const managed = this.agents.get(agentId)
     if (!managed) return null
 
+    const previousStatus = managed.state.status
+    if (this.countActiveAgents(agentId) >= MAX_CONCURRENT_AGENTS_HARD_LIMIT) {
+      return { ...managed.state }
+    }
+
     // Kill existing process
     if (managed.pty) {
       try {
@@ -608,7 +620,12 @@ export class AgentManager extends EventEmitter {
     managed.lastOutputAt = 0
     this.stopSessionDiscovery(managed)
 
-    this.spawnProcess(managed)
+    const spawnOutcome = this.spawnProcess(managed)
+    if (spawnOutcome === 'capped') {
+      managed.state.status = previousStatus
+      this.updateStatus(managed.state.id, previousStatus)
+      return { ...managed.state }
+    }
     return { ...managed.state }
   }
 
@@ -653,8 +670,7 @@ export class AgentManager extends EventEmitter {
     if (this.countActiveAgents(managed.state.id) >= MAX_CONCURRENT_AGENTS_HARD_LIMIT) {
       return false
     }
-    this.spawnProcess(managed)
-    return !!managed.pty
+    return this.spawnProcess(managed) === 'spawned'
   }
 
   sendInput(agentId: string, input: string): boolean {
