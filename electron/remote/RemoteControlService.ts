@@ -36,11 +36,12 @@ type Unsubscribe = () => void
 
 const OUTPUT_FLUSH_INTERVAL_MS = 2000
 const MAX_OUTBOX_PAYLOAD_BYTES = 50_000
+const ENABLE_PHASE_TIMEOUT_MS = 15_000
 
 export class RemoteControlService extends EventEmitter {
   private state: RemoteControlState = {
     enabled: false,
-    status: 'creating',
+    status: 'disconnected',
     sessionId: null,
     qrPayload: null,
     connectedAt: null,
@@ -64,7 +65,8 @@ export class RemoteControlService extends EventEmitter {
   constructor(
     private agentManager: AgentBackend,
     private notificationService: NotificationService | DaemonNotificationService,
-    private timeoutMinutes: number = 480
+    private timeoutMinutes: number = 480,
+    private enablePhaseTimeoutMs: number = ENABLE_PHASE_TIMEOUT_MS
   ) {
     super()
   }
@@ -76,19 +78,48 @@ export class RemoteControlService extends EventEmitter {
   async enable(): Promise<RemoteControlState> {
     if (this.state.enabled) return this.getState()
 
-    this.updateState({ enabled: true, status: 'creating', error: null })
+    this.updateState({
+      enabled: true,
+      status: 'creating',
+      error: null,
+      connectedAt: null,
+      mobileConnected: false
+    })
 
     try {
-      await this.initFirebase()
-      await this.createSession()
+      await this.withTimeout(
+        this.initFirebase(),
+        this.enablePhaseTimeoutMs,
+        'Timed out initializing remote control.'
+      )
+      await this.withTimeout(
+        this.createSession(),
+        this.enablePhaseTimeoutMs,
+        'Timed out creating remote session.'
+      )
       this.attachAgentListeners()
       this.startOutputFlushing()
-      await this.syncAgentState()
+      await this.withTimeout(
+        this.syncAgentState(),
+        this.enablePhaseTimeoutMs,
+        'Timed out syncing remote agent state.'
+      )
 
       this.updateState({ status: 'active', connectedAt: new Date().toISOString() })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      this.updateState({ status: 'error', error: message, enabled: false })
+      this.detachAllListeners()
+      this.stopOutputFlushing()
+      this.updateState({
+        enabled: false,
+        status: 'error',
+        sessionId: null,
+        qrPayload: null,
+        connectedAt: null,
+        expiresAt: null,
+        mobileConnected: false,
+        error: message
+      })
     }
 
     return this.getState()
@@ -147,6 +178,31 @@ export class RemoteControlService extends EventEmitter {
 
   setTimeoutMinutes(minutes: number): void {
     this.timeoutMinutes = Math.min(Math.max(minutes, 30), 1440)
+  }
+
+  private withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      let settled = false
+      const timer = setTimeout(() => {
+        if (settled) return
+        settled = true
+        reject(new Error(message))
+      }, timeoutMs)
+
+      promise
+        .then((value) => {
+          if (settled) return
+          settled = true
+          clearTimeout(timer)
+          resolve(value)
+        })
+        .catch((err) => {
+          if (settled) return
+          settled = true
+          clearTimeout(timer)
+          reject(err)
+        })
+    })
   }
 
   // ── Firebase init ─────────────────────────────────────────────────────────

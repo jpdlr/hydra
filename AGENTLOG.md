@@ -133,3 +133,21 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Context**: Wanted updates to apply as soon as the app opens instead of waiting for manual refresh.
 **Mistake**: Relying on registration alone can leave an updated service worker in `waiting`, so users stay on old assets.
 **Fix**: On load/focus/visible, call `registration.update()`, post `SKIP_WAITING` to waiting worker, and hard reload on `controllerchange`.
+
+### GitHub release-note upsert can fail even when git push succeeds
+**Date**: 2026-03-01
+**Context**: `npm run release:notes -- upsert <tag>` failed with `error connecting to api.github.com` after successful commit/tag/push.
+**Mistake**: Assuming API reachability is guaranteed if git remote operations worked.
+**Fix**: Treat release-note upsert as a separate network dependency; retry later or from a network with GitHub API access.
+
+### Remote control defaults must start as `disconnected`, never `creating`
+**Date**: 2026-03-01
+**Context**: Remote modal could show `Creating session...` forever before a real enable attempt.
+**Mistake**: Initial `RemoteControlState` in both renderer hook and main service used `status: 'creating'`.
+**Fix**: Initialize to `status: 'disconnected'` and only switch to `creating` inside `enable()`.
+
+### Remote enable flow needs explicit phase timeouts
+**Date**: 2026-03-01
+**Context**: Enable could stall indefinitely if Firebase init/session creation never resolved.
+**Mistake**: Awaiting remote setup phases without timeout leaves UI stuck in spinner state forever.
+**Fix**: Wrap `initFirebase`, `createSession`, and `syncAgentState` in bounded timeouts and transition to error state on timeout.

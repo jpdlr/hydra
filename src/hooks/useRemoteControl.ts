@@ -3,7 +3,7 @@ import type { RemoteControlState } from '@shared/types'
 
 const INITIAL_STATE: RemoteControlState = {
   enabled: false,
-  status: 'creating',
+  status: 'disconnected',
   sessionId: null,
   qrPayload: null,
   connectedAt: null,

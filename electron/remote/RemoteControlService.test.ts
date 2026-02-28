@@ -155,7 +155,7 @@ describe('RemoteControlService', () => {
     it('returns initial disabled state', () => {
       const state = service.getState()
       expect(state.enabled).toBe(false)
-      expect(state.status).toBe('creating')
+      expect(state.status).toBe('disconnected')
       expect(state.sessionId).toBeNull()
       expect(state.qrPayload).toBeNull()
     })
@@ -198,6 +198,25 @@ describe('RemoteControlService', () => {
     it('subscribes to notification service', async () => {
       await service.enable()
       expect(notificationService.subscribe).toHaveBeenCalledOnce()
+    })
+
+    it('times out and surfaces an error when session creation stalls', async () => {
+      mockCreateSessionFn.mockImplementationOnce(() => new Promise(() => {}))
+
+      const timeoutService = new RemoteControlService(
+        agentManager as never,
+        notificationService as never,
+        480,
+        20
+      )
+
+      const state = await timeoutService.enable()
+
+      expect(state.enabled).toBe(false)
+      expect(state.status).toBe('error')
+      expect(state.error).toContain('Timed out creating remote session.')
+
+      timeoutService.destroy()
     })
   })
 
