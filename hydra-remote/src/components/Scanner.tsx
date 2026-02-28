@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import jsQR from 'jsqr'
 
 interface ScannerProps {
   onScan: (data: string) => void
@@ -11,7 +12,7 @@ export function Scanner({ onScan }: ScannerProps) {
 
   useEffect(() => {
     let stream: MediaStream | null = null
-    let animationId: number
+    let animationId: number | null = null
     let scanning = true
 
     async function startCamera() {
@@ -20,37 +21,84 @@ export function Scanner({ onScan }: ScannerProps) {
           video: { facingMode: 'environment' }
         })
 
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          await videoRef.current.play()
+        const videoEl = videoRef.current
+        if (!videoEl) return
+
+        videoEl.srcObject = stream
+        await videoEl.play()
+
+        const canvas = document.createElement('canvas')
+        const context = canvas.getContext('2d', { willReadFrequently: true })
+        if (!context) {
+          setError('Could not initialize camera scanner. Paste the QR payload below.')
+          return
         }
 
-        // Use BarcodeDetector API (available in Chrome, Safari)
+        // Prefer native detector when available, fallback to jsQR for Safari compatibility.
+        type BarcodeDetectorCtor = new (options?: { formats?: string[] }) => {
+          detect: (source: ImageBitmapSource) => Promise<Array<{ rawValue?: string }>>
+        }
+
+        let nativeDetector: InstanceType<BarcodeDetectorCtor> | null = null
         if ('BarcodeDetector' in window) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] })
+          try {
+            const Detector = (window as unknown as { BarcodeDetector?: BarcodeDetectorCtor }).BarcodeDetector
+            if (Detector) nativeDetector = new Detector({ formats: ['qr_code'] })
+          } catch {
+            nativeDetector = null
+          }
+        }
 
-          const scanFrame = async () => {
-            if (!scanning || !videoRef.current) return
+        const scanFrame = async () => {
+          if (!scanning) return
+          const video = videoRef.current
+          if (!video) return
 
-            try {
-              const barcodes = await detector.detect(videoRef.current)
-              if (barcodes.length > 0) {
-                onScan(barcodes[0].rawValue)
-                scanning = false
-                return
-              }
-            } catch {
-              // Frame detection failed, try again
-            }
-
-            animationId = requestAnimationFrame(scanFrame)
+          if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || !video.videoWidth || !video.videoHeight) {
+            animationId = requestAnimationFrame(() => {
+              void scanFrame()
+            })
+            return
           }
 
-          animationId = requestAnimationFrame(scanFrame)
-        } else {
-          setError('QR scanning not supported in this browser. Paste the QR payload below.')
+          const width = video.videoWidth
+          const height = video.videoHeight
+          if (canvas.width !== width || canvas.height !== height) {
+            canvas.width = width
+            canvas.height = height
+          }
+
+          try {
+            if (nativeDetector) {
+              const barcodes = await nativeDetector.detect(video)
+              const rawValue = barcodes[0]?.rawValue
+              if (rawValue) {
+                scanning = false
+                onScan(rawValue)
+                return
+              }
+            } else {
+              context.drawImage(video, 0, 0, width, height)
+              const image = context.getImageData(0, 0, width, height)
+              const decoded = jsQR(image.data, width, height, { inversionAttempts: 'attemptBoth' })
+              if (decoded?.data) {
+                scanning = false
+                onScan(decoded.data)
+                return
+              }
+            }
+          } catch {
+            // Ignore frame decode errors and keep scanning.
+          }
+
+          animationId = requestAnimationFrame(() => {
+            void scanFrame()
+          })
         }
+
+        animationId = requestAnimationFrame(() => {
+          void scanFrame()
+        })
       } catch (err) {
         setError(
           err instanceof Error
@@ -64,7 +112,7 @@ export function Scanner({ onScan }: ScannerProps) {
 
     return () => {
       scanning = false
-      cancelAnimationFrame(animationId)
+      if (animationId !== null) cancelAnimationFrame(animationId)
       if (stream) {
         stream.getTracks().forEach((t) => t.stop())
       }

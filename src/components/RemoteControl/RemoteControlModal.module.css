@@ -63,12 +63,39 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  width: 232px;
+  height: 232px;
 }
 
-.qrContainer img {
+.qrCanvas {
   width: 200px;
   height: 200px;
   image-rendering: pixelated;
+}
+
+.qrOverlay {
+  position: absolute;
+  inset: var(--space-4);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.qrOverlayError {
+  position: absolute;
+  inset: var(--space-4);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.97);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3);
+  text-align: center;
 }
 
 .statusRow {
@@ -130,6 +157,20 @@
   display: flex;
   gap: var(--space-2);
   margin-top: var(--space-2);
+}
+
+.payloadBox {
+  width: 100%;
+  min-height: 96px;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+  padding: var(--space-2);
+  resize: vertical;
 }
 
 .enableBtn {

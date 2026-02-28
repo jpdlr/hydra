@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { RemoteControlState } from '@shared/types'
 import styles from './RemoteControlModal.module.css'
 
@@ -17,36 +17,47 @@ export function RemoteControlModal({
   onDisable,
   onClose
 }: RemoteControlModalProps) {
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
+  const qrCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const [qrStatus, setQrStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
+  const [qrError, setQrError] = useState<string | null>(null)
+  const [qrRenderNonce, setQrRenderNonce] = useState(0)
 
   // Generate QR code when payload is available
   useEffect(() => {
     if (!state.qrPayload) {
-      setQrDataUrl(null)
+      setQrStatus('idle')
+      setQrError(null)
       return
     }
 
     let cancelled = false
+    setQrStatus('loading')
+    setQrError(null)
 
     import('qrcode')
-      .then((QRCode) =>
-        QRCode.toDataURL(state.qrPayload!, {
+      .then((QRCode) => {
+        const canvas = qrCanvasRef.current
+        if (!canvas) throw new Error('Canvas not ready')
+        return QRCode.toCanvas(canvas, state.qrPayload, {
           width: 200,
           margin: 1,
           color: { dark: '#000000', light: '#ffffff' }
         })
-      )
-      .then((url) => {
-        if (!cancelled) setQrDataUrl(url)
+      })
+      .then(() => {
+        if (!cancelled) setQrStatus('ready')
       })
       .catch(() => {
-        // QR generation failed — show payload as text fallback
+        if (!cancelled) {
+          setQrStatus('error')
+          setQrError('Could not render QR image. Retry or copy session payload below.')
+        }
       })
 
     return () => {
       cancelled = true
     }
-  }, [state.qrPayload])
+  }, [state.qrPayload, qrRenderNonce])
 
   const statusLabel = getStatusLabel(state)
   const statusClass = getStatusClass(state)
@@ -97,15 +108,26 @@ export function RemoteControlModal({
                 <span>{statusLabel}</span>
               </div>
 
-              {qrDataUrl && (
-                <div className={styles.qrContainer}>
-                  <img src={qrDataUrl} alt="Remote control QR code" />
-                </div>
-              )}
-
-              {!qrDataUrl && state.qrPayload && (
-                <p className={styles.hint}>Generating QR code...</p>
-              )}
+              <div className={styles.qrContainer}>
+                <canvas
+                  ref={qrCanvasRef}
+                  className={styles.qrCanvas}
+                  width={200}
+                  height={200}
+                  aria-label="Remote control QR code"
+                />
+                {qrStatus === 'loading' && (
+                  <div className={styles.qrOverlay} role="status" aria-live="polite">
+                    <div className={styles.spinner} />
+                    <p className={styles.hint}>Generating QR code...</p>
+                  </div>
+                )}
+                {qrStatus === 'error' && (
+                  <div className={styles.qrOverlayError}>
+                    <p className={styles.errorMsg}>{qrError}</p>
+                  </div>
+                )}
+              </div>
 
               <div className={styles.info}>
                 <div className={styles.infoRow}>
@@ -133,8 +155,25 @@ export function RemoteControlModal({
               <p className={styles.hint}>
                 Scan this QR code with the Hydra Remote app on your phone.
               </p>
+              {qrStatus === 'error' && state.qrPayload && (
+                <textarea
+                  className={styles.payloadBox}
+                  value={state.qrPayload}
+                  readOnly
+                  aria-label="Remote session payload fallback"
+                />
+              )}
 
               <div className={styles.actions}>
+                {qrStatus === 'error' && (
+                  <button
+                    className={styles.enableBtn}
+                    onClick={() => setQrRenderNonce((value) => value + 1)}
+                    disabled={loading}
+                  >
+                    Regenerate QR
+                  </button>
+                )}
                 <button
                   className={styles.disableBtn}
                   onClick={onDisable}

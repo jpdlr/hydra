@@ -73,3 +73,21 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Context**: Hardened agent cap checks around `spawnProcess`.
 **Mistake**: Returning only `true/false` from spawn made cap denials and real spawn errors indistinguishable, which can report the wrong error and hide real failures.
 **Fix**: Return explicit spawn outcomes (`spawned` / `capped` / `errored`) and handle each path separately in `create/restart/ensureProcess`.
+
+### Hosting smoke checks can fail from local DNS despite successful deploy
+**Date**: 2026-02-28
+**Context**: Tried verifying Firebase Hosting immediately after deploy with local `curl`.
+**Mistake**: Treating a local DNS resolution error (`Could not resolve host`) as a deploy failure signal.
+**Fix**: Trust Firebase CLI success output first, then retry remote checks or verify from a different network/device when local DNS is unstable.
+
+### iOS Safari cannot be treated as guaranteed `BarcodeDetector` support
+**Date**: 2026-02-28
+**Context**: Remote scanner showed "not supported" in Safari despite camera permission working.
+**Mistake**: Relying on `BarcodeDetector` as the only QR decode path and assuming Safari always implements it.
+**Fix**: Keep camera stream and decode frames with a JS fallback (`jsQR`) when native detector is absent/unavailable.
+
+### Renderer CSP blocks `data:` QR images
+**Date**: 2026-02-28
+**Context**: Desktop remote modal showed a broken/blank QR image even when payload and session were present.
+**Mistake**: Rendering QR via `<img src=\"data:image/png;base64,...\">` while renderer CSP effectively allows only `'self'` resources.
+**Fix**: Render QR directly to a `<canvas>` with `qrcode.toCanvas`, and show explicit loading/error overlays instead of silent blanks.

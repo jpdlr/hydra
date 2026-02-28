@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "firebase": "^10.14.0",
+    "jsqr": "^1.4.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0"
   },
