@@ -78,7 +78,7 @@ describe('RemoteControlModal', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText('Could not render QR image. Retry or copy session payload below.')
+        screen.getByText(/Could not render QR image/)
       ).toBeTruthy()
     })
 
@@ -86,5 +86,54 @@ describe('RemoteControlModal', () => {
     expect(fallbackPayload).toBeTruthy()
     expect((fallbackPayload as HTMLTextAreaElement).value).toBe(baseState.qrPayload)
     expect(screen.getByRole('button', { name: 'Regenerate QR' })).toBeTruthy()
+  })
+
+  it('shows immediate loading feedback while enabling remote control', () => {
+    render(
+      <RemoteControlModal
+        state={{ ...baseState, enabled: false, status: 'disconnected', qrPayload: null }}
+        loading={true}
+        onEnable={() => undefined}
+        onDisable={() => undefined}
+        onClose={() => undefined}
+      />
+    )
+
+    expect(screen.getByText('Enabling remote control...')).toBeTruthy()
+  })
+
+  it('waits for active state before attempting QR render', async () => {
+    toCanvasMock.mockResolvedValueOnce(undefined)
+
+    const creatingState: RemoteControlState = {
+      ...baseState,
+      status: 'creating'
+    }
+
+    const { rerender } = render(
+      <RemoteControlModal
+        state={creatingState}
+        loading={false}
+        onEnable={() => undefined}
+        onDisable={() => undefined}
+        onClose={() => undefined}
+      />
+    )
+
+    expect(toCanvasMock).not.toHaveBeenCalled()
+
+    rerender(
+      <RemoteControlModal
+        state={baseState}
+        loading={false}
+        onEnable={() => undefined}
+        onDisable={() => undefined}
+        onClose={() => undefined}
+      />
+    )
+
+    await waitFor(() => {
+      expect(toCanvasMock).toHaveBeenCalledTimes(1)
+    })
   })
 })

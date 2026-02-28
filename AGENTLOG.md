@@ -109,3 +109,9 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Context**: Automated brand-asset generation attempted to rebuild `build/icon.icns`.
 **Mistake**: Assuming `iconutil` will accept any correctly named PNG iconset produced by PIL/sips.
 **Fix**: Treat `.icns` generation as best-effort and point `electron-builder` mac icon to `build/icon.png` so branding updates still apply reliably.
+
+### Remote QR render can fail if payload arrives before QR canvas mounts
+**Date**: 2026-02-28
+**Context**: Remote modal set `qrPayload` while state was still `creating`, so QR effect ran before active QR UI existed.
+**Mistake**: Triggering QR rendering solely on payload presence caused `Canvas not ready` errors and persistent fallback mode.
+**Fix**: Gate QR rendering on active session UI (`enabled && status === 'active'`) and rerun when state transitions into active.

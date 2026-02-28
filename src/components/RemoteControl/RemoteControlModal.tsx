@@ -21,6 +21,9 @@ export function RemoteControlModal({
   const [qrStatus, setQrStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const [qrError, setQrError] = useState<string | null>(null)
   const [qrRenderNonce, setQrRenderNonce] = useState(0)
+  const showActiveSession = state.enabled && state.status === 'active'
+  const showEnableAction = !state.enabled && !loading && state.status !== 'error'
+  const showCreatingState = (loading && !state.enabled) || state.status === 'creating'
 
   // Generate QR code when payload is available
   useEffect(() => {
@@ -31,34 +34,44 @@ export function RemoteControlModal({
       return
     }
 
+    if (!showActiveSession) {
+      setQrStatus('loading')
+      setQrError(null)
+      return
+    }
+
     let cancelled = false
     setQrStatus('loading')
     setQrError(null)
 
     import('qrcode')
-      .then((QRCode) => {
+      .then((module) => {
+        const toCanvas = module.toCanvas
+        if (!toCanvas) throw new Error('QR renderer unavailable')
         const canvas = qrCanvasRef.current
         if (!canvas) throw new Error('Canvas not ready')
-        return QRCode.toCanvas(canvas, qrPayload, {
+        return toCanvas(canvas, qrPayload, {
           width: 200,
           margin: 1,
+          errorCorrectionLevel: 'L',
           color: { dark: '#000000', light: '#ffffff' }
         })
       })
       .then(() => {
         if (!cancelled) setQrStatus('ready')
       })
-      .catch(() => {
+      .catch((err) => {
         if (!cancelled) {
           setQrStatus('error')
-          setQrError('Could not render QR image. Retry or copy session payload below.')
+          const message = err instanceof Error ? err.message : 'Unknown QR error'
+          setQrError(`Could not render QR image (${message}). Retry or copy session payload below.`)
         }
       })
 
     return () => {
       cancelled = true
     }
-  }, [state.qrPayload, qrRenderNonce])
+  }, [state.qrPayload, showActiveSession, qrRenderNonce])
 
   const statusLabel = getStatusLabel(state)
   const statusClass = getStatusClass(state)
@@ -75,7 +88,7 @@ export function RemoteControlModal({
 
         <div className={styles.body}>
           {/* Not enabled — show enable button */}
-          {!state.enabled && !loading && (
+          {showEnableAction && (
             <>
               <p className={styles.hint}>
                 Control your Hydra agents from a mobile device.
@@ -94,15 +107,17 @@ export function RemoteControlModal({
           )}
 
           {/* Creating session */}
-          {loading && state.status === 'creating' && (
+          {showCreatingState && (
             <>
               <div className={styles.spinner} />
-              <p className={styles.hint}>Creating session...</p>
+              <p className={styles.hint}>
+                {loading && !state.enabled ? 'Enabling remote control...' : 'Creating session...'}
+              </p>
             </>
           )}
 
           {/* Active with QR code */}
-          {state.enabled && state.status === 'active' && (
+          {showActiveSession && (
             <>
               <div className={styles.statusRow}>
                 <span className={`${styles.statusDot} ${statusClass}`} />
