@@ -136,4 +136,19 @@ describe('RemoteControlModal', () => {
       expect(toCanvasMock).toHaveBeenCalledTimes(1)
     })
   })
+
+  it('hides enable action while creating to avoid mixed states', () => {
+    render(
+      <RemoteControlModal
+        state={{ ...baseState, enabled: false, status: 'creating', qrPayload: null }}
+        loading={false}
+        onEnable={() => undefined}
+        onDisable={() => undefined}
+        onClose={() => undefined}
+      />
+    )
+
+    expect(screen.queryByRole('button', { name: 'Enable Remote Control' })).toBeNull()
+    expect(screen.getByText('Creating session...')).toBeTruthy()
+  })
 })

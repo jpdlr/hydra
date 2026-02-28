@@ -1,12 +1,14 @@
-const CACHE_NAME = 'hydra-remote-v1'
+const CACHE_NAME = 'hydra-remote-v2'
 const APP_SHELL = [
   '/',
   '/index.html',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  '/icons/apple-touch-icon.png'
+  '/manifest.json?v=20260301',
+  '/icons/icon-192.png?v=20260301',
+  '/icons/icon-512.png?v=20260301',
+  '/icons/apple-touch-icon.png?v=20260301'
 ]
+
+const NETWORK_FIRST_PATHS = ['/manifest.json', '/icons/']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -24,6 +26,12 @@ self.addEventListener('activate', (event) => {
   )
 })
 
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting()
+  }
+})
+
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return
 
@@ -33,6 +41,20 @@ self.addEventListener('fetch', (event) => {
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => caches.match('/index.html'))
+    )
+    return
+  }
+
+  const shouldUseNetworkFirst = NETWORK_FIRST_PATHS.some((path) => requestUrl.pathname.startsWith(path))
+  if (shouldUseNetworkFirst) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const cloned = response.clone()
+          void caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned))
+          return response
+        })
+        .catch(() => caches.match(event.request).then((cached) => cached ?? Response.error()))
     )
     return
   }

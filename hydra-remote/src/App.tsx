@@ -162,7 +162,7 @@ export default function App() {
       <div style={appStyle}>
         <div style={topBarStyle}>
           <div style={brandWrapStyle}>
-            <img src="/icons/icon-192.png" alt="Hydra icon" style={brandIconStyle} />
+            <img src="/icons/icon-192.png?v=20260301" alt="Hydra icon" style={brandIconStyle} />
             <span style={titleStyle}>Hydra Remote</span>
           </div>
           {!installed && (
@@ -225,7 +225,7 @@ export default function App() {
     <div style={appStyle}>
         <div style={topBarStyle}>
           <div style={brandWrapStyle}>
-            <img src="/icons/icon-192.png" alt="Hydra icon" style={brandIconStyle} />
+            <img src="/icons/icon-192.png?v=20260301" alt="Hydra icon" style={brandIconStyle} />
             <span style={titleStyle}>Hydra Remote</span>
           </div>
           <div style={topBarActionsStyle}>

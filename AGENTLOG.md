@@ -115,3 +115,21 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Context**: Remote modal set `qrPayload` while state was still `creating`, so QR effect ran before active QR UI existed.
 **Mistake**: Triggering QR rendering solely on payload presence caused `Canvas not ready` errors and persistent fallback mode.
 **Fix**: Gate QR rendering on active session UI (`enabled && status === 'active'`) and rerun when state transitions into active.
+
+### Enable button visibility must also gate on disconnected/expired status
+**Date**: 2026-02-28
+**Context**: Remote modal briefly showed both `Enable Remote Control` and `Creating session...` simultaneously.
+**Mistake**: Condition for showing the enable action relied on `!loading`, but `loading` can flip false before backend status leaves `creating`.
+**Fix**: Show enable action only when `!enabled && !loading && (status === 'disconnected' || status === 'expired')`.
+
+### iOS home-screen icon updates need explicit cache-busting
+**Date**: 2026-03-01
+**Context**: PWA icon looked unchanged on iPhone after deploying regenerated assets.
+**Mistake**: Reusing stable asset URLs (`/manifest.json`, `/icons/*.png`, `/sw.js`) lets Safari/service-worker caches keep stale icon metadata.
+**Fix**: Add versioned query strings to manifest/icon/service-worker URLs, bump service-worker cache name, and use network-first for manifest/icon fetches.
+
+### PWA auto-update needs explicit waiting-worker promotion and reload
+**Date**: 2026-03-01
+**Context**: Wanted updates to apply as soon as the app opens instead of waiting for manual refresh.
+**Mistake**: Relying on registration alone can leave an updated service worker in `waiting`, so users stay on old assets.
+**Fix**: On load/focus/visible, call `registration.update()`, post `SKIP_WAITING` to waiting worker, and hard reload on `controllerchange`.

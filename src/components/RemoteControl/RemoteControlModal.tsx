@@ -22,7 +22,10 @@ export function RemoteControlModal({
   const [qrError, setQrError] = useState<string | null>(null)
   const [qrRenderNonce, setQrRenderNonce] = useState(0)
   const showActiveSession = state.enabled && state.status === 'active'
-  const showEnableAction = !state.enabled && !loading && state.status !== 'error'
+  const showEnableAction =
+    !state.enabled &&
+    !loading &&
+    (state.status === 'disconnected' || state.status === 'expired')
   const showCreatingState = (loading && !state.enabled) || state.status === 'creating'
 
   // Generate QR code when payload is available
