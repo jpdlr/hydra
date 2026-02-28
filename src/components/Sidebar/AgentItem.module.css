@@ -81,4 +81,6 @@
   color: var(--color-text-muted);
   flex-shrink: 0;
   margin-left: auto;
+  min-width: 28px;
+  text-align: right;
 }

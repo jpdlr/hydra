@@ -581,6 +581,9 @@ export default function App() {
               onKillAgent={() => {
                 void handleKillAgent()
               }}
+              onRemoveAgent={() => {
+                if (selectedAgentId) void handleRemoveAgent(selectedAgentId)
+              }}
               editorOpen={editorPanel.isOpen}
               onToggleEditor={editorPanel.toggle}
               editorTabs={editorPanel.tabs}

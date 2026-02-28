@@ -17,6 +17,7 @@ interface ChatViewProps {
   onRestartAgent: () => void
   onToggleYolo: () => void
   onKillAgent: () => void
+  onRemoveAgent?: () => void
   // Editor panel
   editorOpen?: boolean
   onToggleEditor?: () => void
@@ -42,6 +43,7 @@ export function ChatView({
   onRestartAgent,
   onToggleYolo,
   onKillAgent,
+  onRemoveAgent,
   editorOpen = false,
   onToggleEditor,
   editorTabs = [],
@@ -138,6 +140,11 @@ export function ChatView({
           <button className={styles.actionBtn} onClick={onKillAgent} title="Stop">
             ■
           </button>
+          {onRemoveAgent && (
+            <button className={styles.actionBtn} onClick={onRemoveAgent} title="Close session (Cmd+W)">
+              ✕
+            </button>
+          )}
         </div>
       </div>
 
