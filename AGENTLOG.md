@@ -91,3 +91,21 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Context**: Desktop remote modal showed a broken/blank QR image even when payload and session were present.
 **Mistake**: Rendering QR via `<img src=\"data:image/png;base64,...\">` while renderer CSP effectively allows only `'self'` resources.
 **Fix**: Render QR directly to a `<canvas>` with `qrcode.toCanvas`, and show explicit loading/error overlays instead of silent blanks.
+
+### Promise resolver typing can break strict TS in tests
+**Date**: 2026-02-28
+**Context**: Added async QR-render loading test in `RemoteControlModal.test.tsx`.
+**Mistake**: Nullable function resolver patterns can narrow unexpectedly under strict typecheck and trigger `Type 'never' has no call signatures`.
+**Fix**: Use a definite-assigned resolver (`let resolve!: () => void`) and assign inside `new Promise` setup.
+
+### Historical releases may exist without matching local git tags
+**Date**: 2026-02-28
+**Context**: Backfilling release notes from GitHub releases failed on `v0.1.5`.
+**Mistake**: Assuming every published release tag still exists in local/remote git tag history.
+**Fix**: Release-note tooling must gracefully handle missing tags and still generate a clean metadata-only note body.
+
+### `iconutil` may reject generated iconsets from scripted PNG pipelines
+**Date**: 2026-02-28
+**Context**: Automated brand-asset generation attempted to rebuild `build/icon.icns`.
+**Mistake**: Assuming `iconutil` will accept any correctly named PNG iconset produced by PIL/sips.
+**Fix**: Treat `.icns` generation as best-effort and point `electron-builder` mac icon to `build/icon.png` so branding updates still apply reliably.

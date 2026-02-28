@@ -15,7 +15,7 @@ publish:
     repo: hydra
     releaseType: release
 mac:
-  icon: build/icon.icns
+  icon: build/icon.png
   category: public.app-category.developer-tools
   hardenedRuntime: true
   gatekeeperAssess: false
@@ -27,6 +27,7 @@ mac:
     - dir
   artifactName: ${name}-${version}-${arch}.${ext}
 win:
+  icon: build/icon.ico
   target:
     - nsis
   artifactName: ${name}-${version}-${arch}.${ext}

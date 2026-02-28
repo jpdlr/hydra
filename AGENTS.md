@@ -20,6 +20,8 @@ When the user says **"Release Build"**, execute all of the following steps in or
 2. **Version bump** — Increment the patch version in `package.json` (e.g. `0.1.5` → `0.1.6`)
 3. **Tag** — Create a git tag `vX.Y.Z` matching the new version.
 4. **Push** — Push commits and tags to the remote (`git push && git push --tags`).
-5. **Deploy locally** — Run `bash scripts/deploy-local.sh` (typechecks, tests, builds, packages, and installs to `/Applications`).
+5. **Release notes** — Generate/update GitHub release notes using:
+   `npm run release:notes -- upsert vX.Y.Z --repo owner/repo`
+6. **Deploy locally** — Run `bash scripts/deploy-local.sh` (typechecks, tests, builds, packages, and installs to `/Applications`).
 
 If any step fails, stop and report the error — do not continue to subsequent steps.

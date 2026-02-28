@@ -153,28 +153,12 @@ jobs:
         shell: pwsh
         run: npm run release:guard -- "${{ steps.release-tag.outputs.tag }}"
 
-      - name: Ensure published release exists (Windows)
+      - name: Ensure published release with generated notes (Windows)
         if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
         shell: pwsh
         run: |
           $tag = "${{ steps.release-tag.outputs.tag }}"
-          $release = gh release view $tag --repo $env:GITHUB_REPOSITORY --json id,isDraft,isPrerelease,tagName 2>$null
-          if ($LASTEXITCODE -ne 0) {
-            gh release create $tag `
-              --repo $env:GITHUB_REPOSITORY `
-              --verify-tag `
-              --title $tag `
-              --notes "Automated Windows installer build."
-            $release = gh release view $tag --repo $env:GITHUB_REPOSITORY --json id,isDraft,isPrerelease,tagName
-          }
-
-          $releaseData = $release | ConvertFrom-Json
-          if ($releaseData.isPrerelease) {
-            throw "Release $tag is marked prerelease. Stable updater channel requires published releases."
-          }
-          if ($releaseData.isDraft) {
-            gh release edit $tag --repo $env:GITHUB_REPOSITORY --draft=false
-          }
+          npm run release:notes -- upsert $tag --repo $env:GITHUB_REPOSITORY
           gh release view $tag --repo $env:GITHUB_REPOSITORY --json id,isDraft,isPrerelease,url
 
       - name: Validate Windows updater metadata

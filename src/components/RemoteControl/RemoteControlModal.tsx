@@ -24,7 +24,8 @@ export function RemoteControlModal({
 
   // Generate QR code when payload is available
   useEffect(() => {
-    if (!state.qrPayload) {
+    const qrPayload = state.qrPayload
+    if (!qrPayload) {
       setQrStatus('idle')
       setQrError(null)
       return
@@ -38,7 +39,7 @@ export function RemoteControlModal({
       .then((QRCode) => {
         const canvas = qrCanvasRef.current
         if (!canvas) throw new Error('Canvas not ready')
-        return QRCode.toCanvas(canvas, state.qrPayload, {
+        return QRCode.toCanvas(canvas, qrPayload, {
           width: 200,
           margin: 1,
           color: { dark: '#000000', light: '#ffffff' }

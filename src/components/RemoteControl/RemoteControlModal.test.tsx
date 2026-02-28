@@ -46,9 +46,9 @@ describe('RemoteControlModal', () => {
   })
 
   it('shows a loading indicator while generating QR canvas', async () => {
-    let resolveRender: (() => void) | null = null
+    let resolveRender!: () => void
     const pending = new Promise<void>((resolve) => {
-      resolveRender = resolve
+      resolveRender = () => resolve()
     })
     toCanvasMock.mockReturnValueOnce(pending)
 
@@ -64,11 +64,11 @@ describe('RemoteControlModal', () => {
 
     expect(screen.getByText('Generating QR code...')).toBeTruthy()
 
-    resolveRender?.()
+    resolveRender()
 
     await waitFor(() => {
-        expect(screen.queryByText('Generating QR code...')).toBeNull()
-      })
+      expect(screen.queryByText('Generating QR code...')).toBeNull()
+    })
   })
 
   it('shows fallback details when QR render fails', async () => {
