@@ -516,6 +516,8 @@ export interface RemoteAgentSummary {
   provider: ProviderId
   projectDir: string
   sessionId: string | null
+  createdAt?: string
+  startedAt?: string | null
 }
 
 // ── MCP ──────────────────────────────────────────────────────────────────────

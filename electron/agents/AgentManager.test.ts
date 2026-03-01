@@ -295,6 +295,32 @@ describe('AgentManager', () => {
     expect(spawnMock).toHaveBeenCalledTimes(MAX_CONCURRENT_AGENTS_HARD_LIMIT)
   })
 
+  it('sends an initial enter when restarting an idle session without a prompt', async () => {
+    const manager = new AgentManager()
+
+    const importedSession: ClaudeSessionSummary = {
+      sessionId: 'session-start-wake',
+      projectPath: '/tmp/imported',
+      firstPrompt: 'Resume me',
+      messageCount: 5,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      modifiedAt: '2026-01-01T01:00:00.000Z',
+      gitBranch: 'main',
+      isSidechain: false,
+      sourcePath: '/tmp/imported/session-start-wake.jsonl'
+    }
+    manager.importSessions([importedSession], 'sonnet')
+    const idleImported = manager.list().find((agent) => agent.id.startsWith('sess-'))
+    expect(idleImported?.status).toBe('idle')
+
+    manager.restart(idleImported!.id)
+    await vi.advanceTimersByTimeAsync(350)
+
+    expect(createdPtys).toHaveLength(1)
+    const writes = createdPtys[0].write.mock.calls.map((call) => call[0])
+    expect(writes).toContain('\r')
+  })
+
   it('never exceeds hard cap under repeated spawn attempts', () => {
     const manager = new AgentManager()
 

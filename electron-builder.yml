@@ -4,6 +4,8 @@ directories:
   buildResources: build
 files:
   - '!**/.vscode/*'
+  - '!**/.env'
+  - '!**/.env.*'
   - '!src/*'
   - '!shared/*'
   - '!electron/*'

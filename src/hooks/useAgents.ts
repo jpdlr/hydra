@@ -14,6 +14,10 @@ interface AgentData {
   rawOutput: string
 }
 
+function bufferToText(lines: string[]): string {
+  return lines.length > 0 ? lines.join('\n') : ''
+}
+
 export function useAgents(initialSelectedAgentId: string | null = null) {
   const [agents, setAgents] = useState<Map<string, AgentData>>(new Map())
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(initialSelectedAgentId)
@@ -22,6 +26,16 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
   useEffect(() => {
     selectedAgentIdRef.current = selectedAgentId
   }, [selectedAgentId])
+
+  const readAgentBufferText = useCallback(async (agentId: string): Promise<string> => {
+    try {
+      const lines = await window.hydra.getAgentBuffer(agentId)
+      return bufferToText(lines)
+    } catch {
+      // Buffer fetch failed — start with empty output
+      return ''
+    }
+  }, [])
 
   // Listen for agent output
   useEffect(() => {
@@ -71,15 +85,7 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
 
       // Fetch output buffers in parallel for all agents (reconnection support)
       const bufferPromises = agentList.map(async (state) => {
-        let rawOutput = ''
-        try {
-          const lines = await window.hydra.getAgentBuffer(state.id)
-          if (lines.length > 0) {
-            rawOutput = lines.join('\n')
-          }
-        } catch {
-          // Buffer fetch failed — start with empty output
-        }
+        const rawOutput = await readAgentBufferText(state.id)
         return { state, rawOutput }
       })
 
@@ -103,7 +109,7 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
         message: error instanceof Error ? error.message : String(error)
       })
     })
-  }, [initialSelectedAgentId])
+  }, [initialSelectedAgentId, readAgentBufferText])
 
   const createAgent = useCallback(async (payload: CreateAgentPayload) => {
     const traceId = createTraceId('agent-create')
@@ -115,9 +121,10 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
       meta: { model: payload.model, yolo: payload.yolo }
     })
     const state = await window.hydra.createAgent(payload)
+    const rawOutput = await readAgentBufferText(state.id)
     const data: AgentData = {
       state,
-      rawOutput: ''
+      rawOutput
     }
     setAgents((prev) => {
       const next = new Map(prev)
@@ -126,7 +133,7 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
     })
     setSelectedAgentId(state.id)
     return state
-  }, [])
+  }, [readAgentBufferText])
 
   const killAgent = useCallback(async (agentId: string) => {
     logEvent({
@@ -160,6 +167,20 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
       traceId: createTraceId('agent-restart'),
       agentId
     })
+
+    // Clear terminal before restarting to avoid carrying stale output into the new session.
+    setAgents((prev) => {
+      const next = new Map(prev)
+      const data = next.get(agentId)
+      if (!data) return prev
+      next.set(agentId, {
+        ...data,
+        state: { ...data.state, status: 'starting' },
+        rawOutput: ''
+      })
+      return next
+    })
+
     const updated = await window.hydra.restartAgent(agentId)
     if (updated) {
       setAgents((prev) => {
@@ -168,14 +189,26 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
         if (data) {
           next.set(agentId, {
             ...data,
-            state: updated,
-            rawOutput: ''
+            state: updated
           })
         }
         return next
       })
+
+      // Backfill any startup output that may have arrived before restart resolved.
+      const bufferSnapshot = await readAgentBufferText(agentId)
+      if (bufferSnapshot) {
+        setAgents((prev) => {
+          const next = new Map(prev)
+          const data = next.get(agentId)
+          if (!data) return prev
+          if (data.rawOutput.length >= bufferSnapshot.length) return prev
+          next.set(agentId, { ...data, rawOutput: bufferSnapshot })
+          return next
+        })
+      }
     }
-  }, [])
+  }, [readAgentBufferText])
 
   const toggleYolo = useCallback(async (agentId: string, yolo: boolean) => {
     const updated = await window.hydra.toggleYolo(agentId, yolo)

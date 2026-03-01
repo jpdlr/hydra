@@ -1,7 +1,9 @@
 import { fixPath } from './util/fix-path'
+import { loadProjectEnvFiles } from './util/load-env'
 
 // Must run before any child_process / node-pty calls
 fixPath()
+loadProjectEnvFiles()
 
 import { app, BrowserWindow, shell, ipcMain } from 'electron'
 import { join } from 'path'
@@ -21,6 +23,7 @@ import { IPC } from '@shared/types'
 
 let mainWindow: BrowserWindow | null = null
 let forceQuit = false
+let isCheckingCloseGuard = false
 let remoteControlService: RemoteControlService | null = null
 let daemonClient: DaemonClient | null = null
 
@@ -79,16 +82,34 @@ function createWindow(): void {
   mainWindow.on('close', async (e) => {
     if (forceQuit) return
 
+    // Prevent close immediately, then decide asynchronously whether to keep the
+    // window open (show confirm modal) or continue closing.
+    e.preventDefault()
+    if (isCheckingCloseGuard) return
+    isCheckingCloseGuard = true
+
     try {
       const agents = await daemonClient?.list() ?? []
-      const running = agents.filter((a) => a.status === 'running')
+      const active = agents.filter((a) => a.status === 'running' || a.status === 'starting')
 
-      if (running.length > 0) {
-        e.preventDefault()
-        mainWindow?.webContents.send(IPC.APP_CONFIRM_QUIT, running.length)
+      if (active.length > 0) {
+        mainWindow?.webContents.send(IPC.APP_CONFIRM_QUIT, active.length)
+        return
+      }
+
+      // No active agents; allow close to continue.
+      forceQuit = true
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.close()
       }
     } catch {
       // Daemon unreachable — allow close
+      forceQuit = true
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.close()
+      }
+    } finally {
+      isCheckingCloseGuard = false
     }
   })
 

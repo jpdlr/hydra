@@ -1,6 +1,5 @@
 import { spawn } from 'child_process'
 import { join } from 'path'
-import { homedir } from 'os'
 import { DaemonClient } from './DaemonClient'
 import { readLockFile, removeLockFile } from './lock'
 
@@ -14,10 +13,16 @@ export interface DaemonPaths {
   userDataPath: string
 }
 
+function joinByInputPathStyle(basePath: string, filename: string): string {
+  const trimmed = basePath.replace(/[\\/]+$/, '')
+  const separator = trimmed.includes('\\') && !trimmed.includes('/') ? '\\' : '/'
+  return `${trimmed}${separator}${filename}`
+}
+
 export function getDaemonPaths(userDataPath: string): DaemonPaths {
   return {
-    socketPath: join(userDataPath, 'daemon.sock'),
-    lockPath: join(userDataPath, 'daemon.lock'),
+    socketPath: joinByInputPathStyle(userDataPath, 'daemon.sock'),
+    lockPath: joinByInputPathStyle(userDataPath, 'daemon.lock'),
     userDataPath
   }
 }

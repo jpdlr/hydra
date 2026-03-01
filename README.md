@@ -22,6 +22,7 @@ Hydra is a cross-platform desktop application (macOS + Windows) that lets you ru
   - [MCP Manager Agent](#mcp-manager-agent)
   - [Headless Orchestration](#headless-orchestration)
   - [Usage Dashboard and Budgets](#usage-dashboard-and-budgets)
+  - [Remote Control and Hydra Remote PWA](#remote-control-and-hydra-remote-pwa)
   - [Observability](#observability)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
@@ -55,7 +56,7 @@ Working on a complex project often means juggling multiple coding tasks at once 
 
 ### Multi-Agent Workspace
 
-Run up to 16 concurrent agents, each in its own PTY session. Agents are grouped by project directory in the sidebar, with per-agent and global YOLO mode toggles for skipping permission prompts.
+Run up to 10 concurrent agents (hard limit), each in its own PTY session. Agents are grouped by project directory in the sidebar, with per-agent and global YOLO mode toggles for skipping permission prompts.
 
 - Per-agent controls: start, restart, kill, remove
 - Global and per-agent YOLO mode
@@ -113,6 +114,19 @@ Hydra aggregates usage signals parsed from CLI output into a dashboard grouped b
 - Per-project and per-agent breakdown tables
 - Soft daily budget limits (tokens and USD)
 - Warning notifications when usage reaches threshold or exceeds budget
+
+### Remote Control and Hydra Remote PWA
+
+Hydra can expose a temporary remote-control session that your phone joins by scanning a desktop QR code.
+
+- Desktop session flow: `Disconnected` -> `Creating session` -> `Waiting for mobile` -> `Mobile connected`
+- Mobile connection now performs an explicit handshake so desktop status flips to connected as soon as phone auth succeeds
+- Mobile web UI supports:
+  - Project-folder grouping
+  - Collapsible project sections
+  - Project-level search (`Search projects...`)
+- PWA install support on iOS/Android (Add to Home Screen / Install)
+- PWA update behavior is auto-refresh oriented: checks for updates on open/focus/visibility and activates new service worker immediately when available
 
 ### Observability
 
@@ -172,12 +186,30 @@ App configuration is stored in `<userData>/config.json`:
 | `usageDailyTokenBudget` | Soft token budget per day (0 = disabled) | `0` |
 | `usageDailyCostBudgetUsd` | Soft USD budget per day (0 = disabled) | `0` |
 | `usageBudgetWarningThresholdPct` | Warning threshold percentage for budgets | `80` |
+| `remoteControlEnabled` | Auto-enable remote control on app startup | `false` |
+| `remoteSessionTimeoutMinutes` | Remote session expiration window (clamped 30-1440) | `480` |
 
 Additional state files:
 
 - **Workspace state** (`<userData>/workspace.json`) — Persisted agents restored on launch
 - **UI state** (localStorage) — Selected project, agent, view mode, sidebar width, expanded tiles
 - **Logs** (`<userData>/logs/hydra.log.jsonl`) — Structured observability logs with rotation
+
+Remote Control Firebase settings are environment-based:
+
+- **Desktop app (`electron/remote`)** reads `HYDRA_FIREBASE_*` from the project root `.env` (see `.env.example`)
+- **Mobile web app (`hydra-remote`)** reads `VITE_FIREBASE_*` from `hydra-remote/.env` (see `hydra-remote/.env.example`)
+- **GitHub release builds** read `MAIN_VITE_HYDRA_FIREBASE_*` from repository Variables/Secrets populated from `HYDRA_FIREBASE_*` values.
+
+For release workflows, configure these repository-level variables or secrets:
+
+- `HYDRA_FIREBASE_API_KEY`
+- `HYDRA_FIREBASE_AUTH_DOMAIN`
+- `HYDRA_FIREBASE_PROJECT_ID`
+- `HYDRA_FIREBASE_STORAGE_BUCKET`
+- `HYDRA_FIREBASE_MESSAGING_SENDER_ID`
+- `HYDRA_FIREBASE_APP_ID`
+- `HYDRA_FIREBASE_MEASUREMENT_ID` (optional)
 
 ### Scripts
 
@@ -195,6 +227,8 @@ Additional state files:
 | `npm run dist:mac:dry-run` | macOS dry run without publishing |
 | `npm run dist:win:dry-run` | Windows dry run without publishing |
 | `npm run release:preflight` | Verify signing/notarization environment |
+| `npm run deploy` | Run local release deployment script (typecheck, test, build, package, install) |
+| `npm run firebase:deploy:hosting` | Build/deploy Hydra Remote PWA hosting |
 
 ### CI/CD
 
@@ -213,6 +247,18 @@ git tag v0.1.0
 git push origin v0.1.0
 
 # Or trigger a dry run manually from GitHub Actions
+```
+
+Project release flow used in this repository:
+
+1. Commit pending changes (Conventional Commit format)
+2. Bump patch version in `package.json`
+3. Create matching git tag `vX.Y.Z`
+4. Push commit + tags
+5. Run local deploy script:
+
+```bash
+bash scripts/deploy-local.sh
 ```
 
 Required repository secrets for macOS signing:

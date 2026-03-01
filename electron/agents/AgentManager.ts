@@ -42,6 +42,7 @@ const SESSION_DISCOVERY_BACKOFF_FACTOR = 1.6
 const SESSION_DISCOVERY_GRACE_MS = 5 * 60 * 1000
 const SESSION_HINT_MAX_LENGTH = 400
 const IDLE_DETECTION_MS = 5000
+const IDLE_RESTART_WAKE_DELAY_MS = 350
 type SpawnOutcome = 'spawned' | 'capped' | 'errored'
 
 export class AgentManager extends EventEmitter {
@@ -594,6 +595,7 @@ export class AgentManager extends EventEmitter {
     if (!managed) return null
 
     const previousStatus = managed.state.status
+    const shouldWakeAfterRestart = previousStatus === 'idle' && !managed.state.initialPrompt
     if (this.countActiveAgents(agentId) >= MAX_CONCURRENT_AGENTS_HARD_LIMIT) {
       return { ...managed.state }
     }
@@ -626,6 +628,15 @@ export class AgentManager extends EventEmitter {
       this.updateStatus(managed.state.id, previousStatus)
       return { ...managed.state }
     }
+
+    if (spawnOutcome === 'spawned' && shouldWakeAfterRestart) {
+      const restartPty = managed.pty
+      setTimeout(() => {
+        if (restartPty === null || managed.pty !== restartPty) return
+        ;(restartPty as IPty).write('\r')
+      }, IDLE_RESTART_WAKE_DELAY_MS)
+    }
+
     return { ...managed.state }
   }
 

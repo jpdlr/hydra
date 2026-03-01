@@ -157,3 +157,99 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Context**: Desktop Remote modal stayed on `Waiting for mobile` even while mobile app showed connected agent list.
 **Mistake**: Mobile connect flow authenticated and subscribed to Firestore but never wrote an inbox message, so desktop never flipped `mobileConnected`.
 **Fix**: Send a handshake inbox message immediately after mobile token sign-in.
+
+### zsh globbing can break `rg` scans when patterns match nothing
+**Date**: 2026-03-01
+**Context**: Used `rg ... hydra-remote/src/**/*.test.ts` and zsh failed before `rg` ran.
+**Mistake**: Unquoted shell globs in zsh error with `no matches found` when there are no matching files.
+**Fix**: Prefer `rg --glob` filters or quote glob patterns so `rg` handles matching directly.
+
+### Electron main process may not auto-load root `.env`
+**Date**: 2026-03-01
+**Context**: Remote control errored with missing `HYDRA_FIREBASE_*` despite `.env` file existing.
+**Mistake**: Assuming Electron main process always receives `.env` values without explicit loading.
+**Fix**: Load project `.env` files during startup and support `MAIN_VITE_` env aliases for Electron-Vite builds.
+
+### Dynamic `process.env[key]` blocks MAIN_VITE compile-time substitution
+**Date**: 2026-03-01
+**Context**: Release builds needed `MAIN_VITE_HYDRA_FIREBASE_*` injection from GitHub workflow env.
+**Mistake**: Reading env via computed keys (`process.env[alias]`) can prevent build-time replacement of `MAIN_VITE_*` values.
+**Fix**: Use static env member access (`process.env.MAIN_VITE_HYDRA_FIREBASE_*`) for values that must be embedded at build time.
+
+### `path.join` can produce Windows separators in daemon lifecycle tests
+**Date**: 2026-03-01
+**Context**: `getDaemonPaths('/tmp/hydra-user-data')` unexpectedly returned `\\tmp\\...` under test, failing Unix-socket path assertions.
+**Mistake**: Building daemon socket/lock paths with OS-dependent `path.join` in code that assumes POSIX-style paths from slash-prefixed inputs.
+**Fix**: Build daemon socket/lock paths using the separator style implied by `userDataPath` (preserve `/...` as POSIX, `C:\\...` as Windows-style) instead of relying on runtime `path.join` behavior.
+
+### `firebase:deploy:hosting` can print Firebase CLI internal errors even when deploy status is unclear
+**Date**: 2026-03-01
+**Context**: Running `npm run firebase:deploy:hosting` printed `This tool has encountered an error` from Firebase CLI and exited without a clear deploy summary.
+**Mistake**: Treating script output as definitive success/failure without verifying hosting release details.
+**Fix**: If deploy script output is ambiguous, run `firebase deploy --only hosting --debug` in `firebase-backend` and confirm `release complete` plus version/release IDs.
+
+### PWA visual updates must preserve Hydra Midnight token language
+**Date**: 2026-03-01
+**Context**: A first UI refresh for Hydra Remote introduced blue gradients/accents that felt off-brand.
+**Mistake**: Optimizing for generic “modern/minimal” look without anchoring to desktop Midnight palette (`#191919/#212121/#2a2a2a` + white accents).
+**Fix**: For Hydra UI refreshes, map colors from Midnight tokens first and avoid introducing blue accent systems unless explicitly requested.
+
+### Vitest here rejects Jest-style `--runInBand`
+**Date**: 2026-03-01
+**Context**: Tried `npm test -- --runInBand` while validating a renderer regression.
+**Mistake**: Assuming Vitest accepts Jest’s `--runInBand` flag.
+**Fix**: Use `npm test` (or Vitest-native flags like `--pool`, `--maxWorkers`, or file filters) instead of `--runInBand`.
+
+### `ws+unix://` breaks daemon WebSocket when socket paths contain spaces
+**Date**: 2026-03-01
+**Context**: Hydra renderer showed a blank terminal with no live output while daemon HTTP requests still worked.
+**Mistake**: Constructing daemon WebSocket URLs as `ws+unix://${socketPath}:/ws` lets spaces become `%20`, and `ws` then tries to open the literal encoded path (ENOENT).
+**Fix**: Create the WebSocket with `new WebSocket('ws://localhost/ws', { socketPath })` so Unix socket paths are passed directly without URL path encoding.
+
+### TypeScript can mis-narrow captured PTY refs inside timeout guards
+**Date**: 2026-03-01
+**Context**: Added delayed wake-up write after restart and guarded with `if (restartPty === null || managed.pty !== restartPty) return`.
+**Mistake**: Assuming TS would always narrow `restartPty` to `IPty`; in this closure it inferred `never` for `restartPty.write`.
+**Fix**: Keep runtime null/identity guards and use an explicit `IPty` cast at the write site inside the timeout callback.
+
+### Mixed `rg` path targets can cause false-negative scans
+**Date**: 2026-03-01
+**Context**: Searched agent status wiring with `rg` using multiple top-level path targets.
+**Mistake**: Including a non-existent target directory (`app`) made `rg` exit non-zero and obscured whether results were complete.
+**Fix**: Scope `rg` targets to known existing roots (for this repo: `src`, `electron`, `hydra-remote`, `shared`) or run from repo root without extra path args.
+
+### Hydra Remote prompts are inbox-only and need optimistic local chat state
+**Date**: 2026-03-01
+**Context**: Mobile PWA chat stayed visually empty after sending prompts even though daemon processing started.
+**Mistake**: Assuming prompt commands would appear in Firestore outbox; remote outbox only carries daemon events (`output`, `status`, `notification`) and not user prompt submissions.
+**Fix**: Render sent prompts immediately in local PWA state, show a typing indicator while awaiting remote output/status completion, then render finalized assistant text from outbox output aggregation.
+
+### `firebase login:use` may print internal errors while deploy still succeeds
+**Date**: 2026-03-01
+**Context**: `npm run firebase:deploy:hosting` printed `This tool has encountered an error` before and after build, but exited `0`.
+**Mistake**: Treating wrapper-script output as definitive deployment status when Firebase CLI emits noisy internal errors.
+**Fix**: Verify with `firebase deploy --only hosting --debug` in `firebase-backend` and confirm `hosting[...]: release complete` plus Hosting URL.
+
+### `useAgents.restartAgent` can clobber early PTY output with late HTTP response
+**Date**: 2026-03-01
+**Context**: Clicking Start/Restart showed agent status as running, but terminal stayed blank as if session only ran in daemon.
+**Mistake**: Clearing `rawOutput` after `restartAgent` resolved can erase output that arrived earlier via realtime WS events.
+**Fix**: Clear output before issuing restart, preserve streamed output on response, and backfill from `getAgentBuffer` after restart to cover event ordering races.
+
+### Hook test promise types should match async callback signatures
+**Date**: 2026-03-01
+**Context**: New `useAgents` regression test failed `typecheck:web`.
+**Mistake**: Typed `restartPromise` as `Promise<AgentState | null>` even though `useAgents.restartAgent` returns `Promise<void>`.
+**Fix**: Align local test variable types to the hook API (`Promise<void>`) to avoid TS2322 mismatches.
+
+### `ws` client `socketPath` options can still fall back to localhost TCP in runtime
+**Date**: 2026-03-01
+**Context**: Daemon HTTP calls worked, but live `agent:status`/`agent:output` websocket events never reached the renderer; terminals stayed blank while agents ran.
+**Mistake**: Assuming `new WebSocket('ws://localhost/ws', { socketPath })` forces Unix socket transport in all runtime cases.
+**Fix**: Provide `createConnection: () => net.createConnection(socketPath)` in websocket options so transport is explicitly bound to the daemon Unix socket and not localhost TCP.
+
+### Electron `close` guard must call `preventDefault()` before async checks
+**Date**: 2026-03-01
+**Context**: Clicking the window close button skipped the quit-confirm modal even with active agents.
+**Mistake**: Awaiting `daemonClient.list()` before calling `event.preventDefault()` in the `BrowserWindow` close handler.
+**Fix**: Prevent close synchronously, then run async active-agent checks and explicitly re-close only when safe (with a re-entry guard flag).

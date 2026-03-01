@@ -102,6 +102,22 @@ describe('RemoteControlModal', () => {
     expect(screen.getByText('Enabling remote control...')).toBeTruthy()
   })
 
+  it('shows the remote app link when enabling is available', () => {
+    render(
+      <RemoteControlModal
+        state={{ ...baseState, enabled: false, status: 'disconnected', qrPayload: null }}
+        loading={false}
+        onEnable={() => undefined}
+        onDisable={() => undefined}
+        onClose={() => undefined}
+      />
+    )
+
+    const appLink = screen.getByRole('link', { name: 'hydra-za.web.app' })
+    expect(appLink).toBeTruthy()
+    expect(appLink.getAttribute('href')).toBe('https://hydra-za.web.app')
+  })
+
   it('waits for active state before attempting QR render', async () => {
     toCanvasMock.mockResolvedValueOnce(undefined)
 

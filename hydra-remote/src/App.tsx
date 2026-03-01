@@ -215,6 +215,7 @@ export default function App() {
         agentStatus={selectedAgent.status}
         messages={messages}
         onSendPrompt={handleSendPrompt}
+        onRestart={() => handleRestart(selectedAgent.agentId)}
         onBack={() => setView('agents')}
       />
     )
@@ -346,6 +347,7 @@ function InstallCard({
 const appStyle: React.CSSProperties = {
   minHeight: '100dvh',
   background: '#191919',
+  color: '#e8e8e8',
   display: 'flex',
   flexDirection: 'column'
 }
@@ -355,7 +357,8 @@ const topBarStyle: React.CSSProperties = {
   alignItems: 'center',
   justifyContent: 'space-between',
   padding: '16px 16px 12px',
-  borderBottom: '1px solid #333'
+  borderBottom: '1px solid #2a2a2a',
+  background: '#191919'
 }
 
 const topBarActionsStyle: React.CSSProperties = {
@@ -371,8 +374,8 @@ const brandWrapStyle: React.CSSProperties = {
 }
 
 const brandIconStyle: React.CSSProperties = {
-  width: 24,
-  height: 24,
+  width: 28,
+  height: 28,
   borderRadius: 6,
   boxShadow: '0 2px 10px rgba(0, 0, 0, 0.35)'
 }
@@ -381,14 +384,14 @@ const titleStyle: React.CSSProperties = {
   fontSize: '1.125rem',
   fontWeight: 600,
   color: '#e8e8e8',
-  letterSpacing: '0.04em'
+  letterSpacing: '0.01em'
 }
 
 const installCardStyle: React.CSSProperties = {
   margin: '12px 16px 6px',
-  border: '1px solid #2b3d4d',
-  borderRadius: 12,
-  background: 'linear-gradient(160deg, #0f1722 0%, #112b3d 100%)',
+  border: '1px solid #2a2a2a',
+  borderRadius: 14,
+  background: '#212121',
   padding: 12,
   display: 'flex',
   justifyContent: 'space-between',
@@ -398,14 +401,14 @@ const installCardStyle: React.CSSProperties = {
 
 const installTitleStyle: React.CSSProperties = {
   fontSize: '0.875rem',
-  color: '#d7f5ff',
+  color: '#ffffff',
   fontWeight: 700
 }
 
 const installTextStyle: React.CSSProperties = {
   marginTop: 4,
   fontSize: '0.75rem',
-  color: '#98bfcc',
+  color: '#a0a0a0',
   lineHeight: 1.4,
   maxWidth: 460
 }
@@ -427,9 +430,9 @@ const installBtnStyle: React.CSSProperties = {
   padding: '6px 12px',
   fontSize: '0.75rem',
   borderRadius: 8,
-  border: '1px solid #44b4da',
-  color: '#d8f6ff',
-  background: '#1a6180',
+  border: '1px solid #ffffff',
+  color: '#191919',
+  background: '#e8e8e8',
   cursor: 'pointer',
   fontWeight: 600
 }
@@ -443,8 +446,8 @@ const dismissBtnStyle: React.CSSProperties = {
   padding: '6px 12px',
   fontSize: '0.75rem',
   borderRadius: 8,
-  border: '1px solid #4b5563',
-  color: '#d2d8de',
+  border: '1px solid #333333',
+  color: '#a0a0a0',
   background: 'transparent',
   cursor: 'pointer'
 }
@@ -476,9 +479,9 @@ const errorStyle: React.CSSProperties = {
 const disconnectBtnStyle: React.CSSProperties = {
   padding: '6px 14px',
   fontSize: '0.75rem',
-  borderRadius: 6,
+  borderRadius: 8,
   border: '1px solid #f87171',
-  color: '#f87171',
-  background: 'transparent',
+  color: '#fecaca',
+  background: '#3b1014',
   cursor: 'pointer'
 }

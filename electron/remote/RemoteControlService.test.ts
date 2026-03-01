@@ -69,17 +69,6 @@ vi.mock('firebase/functions', () => ({
   httpsCallable: mockHttpsCallable
 }))
 
-vi.mock('./firebase-config', () => ({
-  FIREBASE_CONFIG: {
-    apiKey: 'test-key',
-    authDomain: 'hydra-za.firebaseapp.com',
-    projectId: 'hydra-za',
-    storageBucket: 'hydra-za.firebasestorage.app',
-    messagingSenderId: '000',
-    appId: '1:000:web:000'
-  }
-}))
-
 class MockAgentManager extends EventEmitter {
   list() {
     return [
@@ -121,12 +110,30 @@ class MockNotificationService {
 
 import { RemoteControlService } from './RemoteControlService'
 
+const TEST_FIREBASE_ENV = {
+  HYDRA_FIREBASE_API_KEY: 'test-key',
+  HYDRA_FIREBASE_AUTH_DOMAIN: 'hydra-za.firebaseapp.com',
+  HYDRA_FIREBASE_PROJECT_ID: 'hydra-za',
+  HYDRA_FIREBASE_STORAGE_BUCKET: 'hydra-za.firebasestorage.app',
+  HYDRA_FIREBASE_MESSAGING_SENDER_ID: '000',
+  HYDRA_FIREBASE_APP_ID: '1:000:web:000'
+} as const
+const TEST_FIREBASE_ENV_KEYS = Object.keys(TEST_FIREBASE_ENV) as Array<
+  keyof typeof TEST_FIREBASE_ENV
+>
+
 describe('RemoteControlService', () => {
   let service: RemoteControlService
   let agentManager: MockAgentManager
   let notificationService: MockNotificationService
+  const originalFirebaseEnv = new Map<string, string | undefined>()
 
   beforeEach(() => {
+    for (const key of TEST_FIREBASE_ENV_KEYS) {
+      originalFirebaseEnv.set(key, process.env[key])
+      process.env[key] = TEST_FIREBASE_ENV[key]
+    }
+
     // Reset the createSession mock implementation before each test
     mockCreateSessionFn.mockResolvedValue({
       data: {
@@ -149,6 +156,16 @@ describe('RemoteControlService', () => {
 
   afterEach(() => {
     service.destroy()
+
+    for (const key of TEST_FIREBASE_ENV_KEYS) {
+      const previous = originalFirebaseEnv.get(key)
+      if (typeof previous === 'undefined') {
+        delete process.env[key]
+      } else {
+        process.env[key] = previous
+      }
+    }
+    originalFirebaseEnv.clear()
   })
 
   describe('getState()', () => {

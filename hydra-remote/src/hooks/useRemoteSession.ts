@@ -13,14 +13,44 @@ import {
   Unsubscribe
 } from 'firebase/firestore'
 
-// Firebase config — must match the Hydra desktop app's config
-const FIREBASE_CONFIG = {
-  apiKey: 'AIzaSyDH0VZ1PNc2DmX5HSXpkDYiv7nHecrjwdE',
-  authDomain: 'hydra-za.firebaseapp.com',
-  projectId: 'hydra-za',
-  storageBucket: 'hydra-za.firebasestorage.app',
-  messagingSenderId: '548523780132',
-  appId: '1:548523780132:web:7fb0ea59b2eb30ee0490b1'
+type FirebaseEnvKey =
+  | 'VITE_FIREBASE_API_KEY'
+  | 'VITE_FIREBASE_AUTH_DOMAIN'
+  | 'VITE_FIREBASE_PROJECT_ID'
+  | 'VITE_FIREBASE_STORAGE_BUCKET'
+  | 'VITE_FIREBASE_MESSAGING_SENDER_ID'
+  | 'VITE_FIREBASE_APP_ID'
+
+interface FirebaseConfig {
+  apiKey: string
+  authDomain: string
+  projectId: string
+  storageBucket: string
+  messagingSenderId: string
+  appId: string
+  measurementId?: string
+}
+
+function readRequiredFirebaseEnv(key: FirebaseEnvKey): string {
+  const value = import.meta.env[key]?.trim()
+  if (value) return value
+  throw new Error(
+    `Missing required Firebase env var: ${key}. Configure VITE_FIREBASE_* before connecting.`
+  )
+}
+
+function getFirebaseConfig(): FirebaseConfig {
+  const measurementId = import.meta.env.VITE_FIREBASE_MEASUREMENT_ID?.trim()
+
+  return {
+    apiKey: readRequiredFirebaseEnv('VITE_FIREBASE_API_KEY'),
+    authDomain: readRequiredFirebaseEnv('VITE_FIREBASE_AUTH_DOMAIN'),
+    projectId: readRequiredFirebaseEnv('VITE_FIREBASE_PROJECT_ID'),
+    storageBucket: readRequiredFirebaseEnv('VITE_FIREBASE_STORAGE_BUCKET'),
+    messagingSenderId: readRequiredFirebaseEnv('VITE_FIREBASE_MESSAGING_SENDER_ID'),
+    appId: readRequiredFirebaseEnv('VITE_FIREBASE_APP_ID'),
+    ...(measurementId ? { measurementId } : {})
+  }
 }
 
 interface AgentSummary {
@@ -31,6 +61,8 @@ interface AgentSummary {
   provider: string
   projectDir: string
   sessionId: string | null
+  createdAt?: string
+  startedAt?: string | null
 }
 
 interface OutboxMessage {
@@ -83,8 +115,8 @@ export function useRemoteSession() {
     try {
       const payload: QrPayload = JSON.parse(qrData)
 
-      // Use projectId from QR if different from hardcoded config
-      const config = { ...FIREBASE_CONFIG }
+      // Use projectId from QR if different from configured env project.
+      const config = { ...getFirebaseConfig() }
       if (payload.projectId) {
         config.projectId = payload.projectId
       }

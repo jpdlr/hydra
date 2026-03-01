@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto'
 import { hostname } from 'os'
 import type { NotificationService } from '../notifications/NotificationService'
 import type { DaemonNotificationService } from '../daemon/DaemonNotificationService'
+import { getFirebaseConfig, getFirebaseProjectId } from './firebaseConfig'
 import type {
   AgentState,
   RemoteControlState,
@@ -210,12 +211,12 @@ export class RemoteControlService extends EventEmitter {
   private async initFirebase(): Promise<void> {
     if (this.firebaseApp) return
 
-    const { FIREBASE_CONFIG } = await import('./firebase-config')
+    const firebaseConfig = getFirebaseConfig()
     const { initializeApp } = await import('firebase/app')
     const { getFirestore } = await import('firebase/firestore')
     const { getAuth } = await import('firebase/auth')
 
-    this.firebaseApp = initializeApp(FIREBASE_CONFIG, 'hydra-remote')
+    this.firebaseApp = initializeApp(firebaseConfig, 'hydra-remote')
     this.firestore = getFirestore(this.firebaseApp)
     this.auth = getAuth(this.firebaseApp)
   }
@@ -249,7 +250,7 @@ export class RemoteControlService extends EventEmitter {
     const qrPayload = JSON.stringify({
       sessionId,
       mobileToken,
-      projectId: (await import('./firebase-config')).FIREBASE_CONFIG.projectId
+      projectId: getFirebaseProjectId()
     })
 
     this.updateState({ sessionId, qrPayload, expiresAt })
@@ -355,7 +356,9 @@ export class RemoteControlService extends EventEmitter {
         model: agent.model,
         provider: agent.provider,
         projectDir: agent.projectDir,
-        sessionId: agent.sessionId
+        sessionId: agent.sessionId,
+        createdAt: agent.createdAt,
+        startedAt: agent.startedAt
       }
 
       const stateRef = doc(
@@ -508,7 +511,9 @@ export class RemoteControlService extends EventEmitter {
       model: agent.model,
       provider: agent.provider,
       projectDir: agent.projectDir,
-      sessionId: agent.sessionId
+      sessionId: agent.sessionId,
+      createdAt: agent.createdAt,
+      startedAt: agent.startedAt
     }
 
     void setDoc(stateRef, summary)

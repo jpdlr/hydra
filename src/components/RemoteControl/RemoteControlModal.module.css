@@ -228,6 +228,17 @@
   line-height: 1.5;
 }
 
+.appLink {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: var(--font-weight-medium);
+}
+
+.appLink:hover {
+  color: var(--color-accent-hover);
+}
+
 .spinner {
   width: 48px;
   height: 48px;

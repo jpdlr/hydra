@@ -3,4 +3,8 @@ dist/
 out/
 *.log
 .DS_Store
+.env
+.env.*
+!.env.example
+!**/.env.example
 scripts/deploy-local.sh

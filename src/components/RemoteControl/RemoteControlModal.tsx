@@ -97,6 +97,18 @@ export function RemoteControlModal({
                 Control your Hydra agents from a mobile device.
                 A QR code will be generated for your phone to scan.
               </p>
+              <p className={styles.hint}>
+                Get the app at{' '}
+                <a
+                  className={styles.appLink}
+                  href="https://hydra-za.web.app"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  hydra-za.web.app
+                </a>
+                .
+              </p>
               <div className={styles.actions}>
                 <button
                   className={styles.enableBtn}
