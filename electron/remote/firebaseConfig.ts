@@ -1,15 +1,14 @@
 import type { FirebaseOptions } from 'firebase/app'
 
-const REQUIRED_FIREBASE_ENV_KEYS = [
-  'HYDRA_FIREBASE_API_KEY',
-  'HYDRA_FIREBASE_AUTH_DOMAIN',
-  'HYDRA_FIREBASE_PROJECT_ID',
-  'HYDRA_FIREBASE_STORAGE_BUCKET',
-  'HYDRA_FIREBASE_MESSAGING_SENDER_ID',
-  'HYDRA_FIREBASE_APP_ID'
-] as const
+type RequiredFirebaseEnvKey =
+  | 'HYDRA_FIREBASE_API_KEY'
+  | 'HYDRA_FIREBASE_AUTH_DOMAIN'
+  | 'HYDRA_FIREBASE_PROJECT_ID'
+  | 'HYDRA_FIREBASE_STORAGE_BUCKET'
+  | 'HYDRA_FIREBASE_MESSAGING_SENDER_ID'
+  | 'HYDRA_FIREBASE_APP_ID'
 
-function readFirebaseEnvValue(name: (typeof REQUIRED_FIREBASE_ENV_KEYS)[number]): string | undefined {
+function readFirebaseEnvValue(name: RequiredFirebaseEnvKey): string | undefined {
   switch (name) {
     case 'HYDRA_FIREBASE_API_KEY':
       return (
@@ -44,7 +43,7 @@ function readFirebaseEnvValue(name: (typeof REQUIRED_FIREBASE_ENV_KEYS)[number])
   }
 }
 
-function readRequiredEnvVar(name: (typeof REQUIRED_FIREBASE_ENV_KEYS)[number]): string {
+function readRequiredEnvVar(name: RequiredFirebaseEnvKey): string {
   const value = readFirebaseEnvValue(name)
   if (value) return value
   throw new Error(

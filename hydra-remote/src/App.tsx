@@ -11,6 +11,7 @@ export default function App() {
   const {
     connected,
     connecting,
+    restoringSession,
     error,
     agents,
     messages,
@@ -46,8 +47,10 @@ export default function App() {
 
   const handleScan = useCallback(
     async (data: string) => {
-      await connect(data)
-      setView('agents')
+      const connectedNow = await connect(data)
+      if (connectedNow) {
+        setView('agents')
+      }
     },
     [connect]
   )
@@ -190,14 +193,14 @@ export default function App() {
           />
         )}
 
-        {connecting && (
+        {(restoringSession || connecting) && (
           <div style={centerStyle}>
             <div style={spinnerStyle} />
-            <p style={{ color: '#a0a0a0' }}>Connecting...</p>
+            <p style={{ color: '#a0a0a0' }}>{restoringSession ? 'Reconnecting...' : 'Connecting...'}</p>
           </div>
         )}
 
-        {!connecting && <Scanner onScan={handleScan} />}
+        {!restoringSession && !connecting && <Scanner onScan={handleScan} />}
 
         {error && (
           <p style={errorStyle}>{error}</p>

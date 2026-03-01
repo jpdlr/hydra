@@ -7,7 +7,23 @@ import reactHooksPlugin from 'eslint-plugin-react-hooks'
 
 export default [
   {
-    ignores: ['out/**', 'dist/**', 'node_modules/**']
+    ignores: [
+      '**/out/**',
+      '**/dist/**',
+      '**/node_modules/**',
+      'firebase-backend/functions/lib/**',
+      'firebase-backend/public/**'
+    ]
+  },
+  {
+    files: ['hydra-remote/public/sw.js'],
+    languageOptions: {
+      globals: {
+        ...globals.serviceworker,
+        ...globals.browser,
+        ...globals.es2021
+      }
+    }
   },
   js.configs.recommended,
   {

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from 'react'
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import { ProjectTree } from './ProjectTree'
 import { SearchBar } from './SearchBar'
 import type { ProjectGroup, EditorId } from '@shared/types'
@@ -32,6 +32,7 @@ export function Sidebar({
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [isDragging, setIsDragging] = useState(false)
+  const [recentCutoffTs, setRecentCutoffTs] = useState<number | null>(null)
   const startXRef = useRef(0)
   const startWidthRef = useRef(0)
 
@@ -65,8 +66,8 @@ export function Sidebar({
   )
 
   const recentGroups = useMemo(() => {
-    if (sessionMaxAgeDays <= 0) return projectGroups
-    const cutoff = Date.now() - sessionMaxAgeDays * 24 * 60 * 60 * 1000
+    if (sessionMaxAgeDays <= 0 || recentCutoffTs === null) return projectGroups
+    const cutoff = recentCutoffTs
     return projectGroups
       .map((group) => ({
         ...group,
@@ -78,6 +79,14 @@ export function Sidebar({
         )
       }))
       .filter((group) => group.agents.length > 0)
+  }, [projectGroups, recentCutoffTs, sessionMaxAgeDays])
+
+  useEffect(() => {
+    if (sessionMaxAgeDays <= 0) {
+      setRecentCutoffTs(null)
+      return
+    }
+    setRecentCutoffTs(Date.now() - sessionMaxAgeDays * 24 * 60 * 60 * 1000)
   }, [projectGroups, sessionMaxAgeDays])
 
   const filteredGroups = searchQuery

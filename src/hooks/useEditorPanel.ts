@@ -16,7 +16,7 @@ export interface UseEditorPanelReturn {
 
 export function useEditorPanel(
   agentId: string | null,
-  projectDir: string | undefined
+  _projectDir: string | undefined
 ): UseEditorPanelReturn {
   const [isOpen, setIsOpen] = useState(false)
   const [tabs, setTabs] = useState<EditorTab[]>([])

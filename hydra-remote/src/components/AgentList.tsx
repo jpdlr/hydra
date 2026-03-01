@@ -45,10 +45,8 @@ export function AgentList({ agents, onSelect, onKill, onRestart }: AgentListProp
     }
 
     return Array.from(groups.entries())
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([project, projectAgents]) => [
-        project,
-        [...projectAgents].sort((left, right) => {
+      .map(([project, projectAgents]) => {
+        const sortedAgents = [...projectAgents].sort((left, right) => {
           const rightTime = getAgentTimestampMs(right) ?? 0
           const leftTime = getAgentTimestampMs(left) ?? 0
           if (rightTime !== leftTime) {
@@ -56,7 +54,24 @@ export function AgentList({ agents, onSelect, onKill, onRestart }: AgentListProp
           }
           return left.name.localeCompare(right.name)
         })
-      ] as const)
+
+        const latestTimestamp = sortedAgents.reduce((latest, agent) => {
+          const timestamp = getAgentTimestampMs(agent)
+          if (timestamp === null) {
+            return latest
+          }
+          return Math.max(latest, timestamp)
+        }, Number.NEGATIVE_INFINITY)
+
+        return { project, agents: sortedAgents, latestTimestamp }
+      })
+      .sort((left, right) => {
+        if (right.latestTimestamp !== left.latestTimestamp) {
+          return right.latestTimestamp - left.latestTimestamp
+        }
+        return left.project.localeCompare(right.project)
+      })
+      .map(({ project, agents }) => [project, agents] as const)
   }, [agents])
 
   useEffect(() => {

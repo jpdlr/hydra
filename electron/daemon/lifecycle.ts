@@ -32,7 +32,7 @@ export function getDaemonPaths(userDataPath: string): DaemonPaths {
  * If the daemon isn't running, spawns it and waits for it to be ready.
  */
 export async function ensureDaemon(paths: DaemonPaths): Promise<DaemonClient> {
-  const { socketPath, lockPath, userDataPath } = paths
+  const { socketPath, lockPath } = paths
 
   // Check if daemon is already running
   const lock = readLockFile(lockPath)
@@ -104,7 +104,7 @@ function spawnDaemon(paths: DaemonPaths): Promise<void> {
  * Falls back to killing the PID from the lock file.
  */
 export async function stopDaemon(paths: DaemonPaths): Promise<void> {
-  const { socketPath, lockPath } = paths
+  const { lockPath } = paths
 
   const lock = readLockFile(lockPath)
   if (!lock) return
@@ -145,7 +145,7 @@ export function startHealthMonitor(
 
       // Try to reconnect
       try {
-        const newClient = await ensureDaemon(paths)
+        await ensureDaemon(paths)
         // Copy WebSocket events — the caller should handle this
         onReconnected?.()
       } catch {

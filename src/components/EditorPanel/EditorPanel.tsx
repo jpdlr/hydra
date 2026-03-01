@@ -46,17 +46,14 @@ export function EditorPanel({
 
   const [filterQuery, setFilterQuery] = useState('')
   const [filterResults, setFilterResults] = useState<FsSearchResult[]>([])
-  const [isFiltering, setIsFiltering] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (!filterQuery.trim()) {
       setFilterResults([])
-      setIsFiltering(false)
       return
     }
 
-    setIsFiltering(true)
     if (debounceRef.current) clearTimeout(debounceRef.current)
 
     debounceRef.current = setTimeout(() => {
@@ -64,11 +61,9 @@ export function EditorPanel({
         .searchFiles(agentId, filterQuery, 100)
         .then((results) => {
           setFilterResults(results)
-          setIsFiltering(false)
         })
         .catch(() => {
           setFilterResults([])
-          setIsFiltering(false)
         })
     }, 200)
 

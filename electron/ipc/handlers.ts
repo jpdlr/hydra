@@ -1,6 +1,5 @@
 import { ipcMain, dialog, BrowserWindow, shell } from 'electron'
 import { execFile } from 'child_process'
-import { randomUUID } from 'crypto'
 import { DaemonClient } from '../daemon/DaemonClient'
 import { ConfigStore } from '../config/ConfigStore'
 import { NotificationService } from '../notifications/NotificationService'

@@ -242,6 +242,42 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Mistake**: Typed `restartPromise` as `Promise<AgentState | null>` even though `useAgents.restartAgent` returns `Promise<void>`.
 **Fix**: Align local test variable types to the hook API (`Promise<void>`) to avoid TS2322 mismatches.
 
+### PWA chat must sanitize PTY output before rendering bubbles
+**Date**: 2026-03-01
+**Context**: Remote chat showed broken oversized bubbles full of ANSI/control fragments (`[38;...m`, replacement chars, CLI UI frames).
+**Mistake**: Rendering daemon PTY output batches as plain chat text without cleaning terminal escape/control sequences or filtering low-signal UI noise.
+**Fix**: Sanitize output (strip ANSI/OSC/C1/control bytes), ignore known terminal-frame noise lines, clamp oversized payloads, and only render outputs relevant to local prompt windows.
+
+### Timestamp scoping for remote chat can hide existing history on open
+**Date**: 2026-03-01
+**Context**: PWA chat showed `No messages yet` even when daemon had prior outbox output for the selected agent.
+**Mistake**: Returning an empty message set unless a local mobile prompt timestamp existed, which unintentionally suppressed pre-existing assistant history.
+**Fix**: When no local prompt has been sent in the current mobile view, render a bounded recent history from agent outbox; only apply prompt-window scoping after the first local prompt.
+
+### Remote chat finish detection cannot rely only on `idle`/`errored` status transitions
+**Date**: 2026-03-01
+**Context**: PWA got stuck on `Agent is typing...` even though replies appeared in desktop terminal while agent status remained `running`.
+**Mistake**: Clearing typing/finalizing replies only on terminal status transitions misses normal interactive runs that stay in `running`.
+**Fix**: Treat new outbox output events as reply progress/completion signals and keep one consistent rendering path for both live updates and re-entry.
+
+### PTY-to-chat rendering must collapse to a single extracted response window
+**Date**: 2026-03-01
+**Context**: Mobile chat showed many fragmented bubbles (`*ra`, `es`, `bae`) caused by terminal redraw chunks being rendered independently.
+**Mistake**: Mapping each outbox `output` document to a separate assistant bubble preserved partial redraw states and produced unreadable shards.
+**Fix**: Build one assistant bubble from output emitted after the latest mobile prompt, apply strict line-quality filtering, and ignore low-signal terminal UI fragments.
+
+### Remote chat prompt windows should anchor to outbox chronology, not device-clock timestamps
+**Date**: 2026-03-01
+**Context**: PWA reply bubbles mixed stale prior output with newer terminal stream and sometimes clipped the start of the true answer.
+**Mistake**: Using client-side send timestamps for output windowing is brittle under clock skew and batching; tail-trimming long bubbles can cut off the beginning of the assistant reply.
+**Fix**: On prompt send, capture the latest known outbox timestamp as an anchor and only parse output after that point; stop parsing at the next prompt echo and truncate from the top-preserving direction.
+
+### PWA streaming parser needs explicit prompt-echo boundaries and UI-chrome suppression
+**Date**: 2026-03-01
+**Context**: Remote chat streamed terminal frame lines (`────────────────`, `❯`) and usage footer (`Opus 4.6`, `ccusage`, `bypass permissions`) into assistant bubbles.
+**Mistake**: Generic “text-like line” heuristics admitted terminal UI chrome and status lines; assistant extraction had no strong boundary tied to the current prompt echo.
+**Fix**: Track active prompt text, begin extraction only after matching prompt echo, stop at next prompt echo, and hard-filter frame/footer signatures (box-drawing lines, prompt bars, usage/cost footer, bypass-permissions strip).
+
 ### `ws` client `socketPath` options can still fall back to localhost TCP in runtime
 **Date**: 2026-03-01
 **Context**: Daemon HTTP calls worked, but live `agent:status`/`agent:output` websocket events never reached the renderer; terminals stayed blank while agents ran.
@@ -253,3 +289,51 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Context**: Clicking the window close button skipped the quit-confirm modal even with active agents.
 **Mistake**: Awaiting `daemonClient.list()` before calling `event.preventDefault()` in the `BrowserWindow` close handler.
 **Fix**: Prevent close synchronously, then run async active-agent checks and explicitly re-close only when safe (with a re-entry guard flag).
+
+### Root ESLint ignores must handle nested build artifacts
+**Date**: 2026-03-01
+**Context**: Running `npm run lint` from repo root started linting generated bundles in `firebase-backend/public/assets`, `firebase-backend/functions/lib`, and nested `dist` folders.
+**Mistake**: Using root-only ignore globs (`dist/**`, `out/**`) that miss nested build output directories.
+**Fix**: Prefer recursive ignore patterns (`**/dist/**`, `**/out/**`, `**/node_modules/**`) and explicitly ignore generated deployment/build folders under Firebase.
+
+### Flat-config ESLint does not honor `/* eslint-env */` comments
+**Date**: 2026-03-01
+**Context**: Tried fixing service worker `no-undef` with `/* eslint-env serviceworker */` in `hydra-remote/public/sw.js`.
+**Mistake**: Relying on legacy env comments while using ESLint flat config.
+**Fix**: Declare service worker globals in `eslint.config.mjs` with a file-specific `languageOptions.globals` block.
+
+### Auto-reconnect must block scanner mount to avoid camera permission prompts
+**Date**: 2026-03-01
+**Context**: Hydra Remote auto-reconnected successfully but still prompted for camera on launch.
+**Mistake**: Rendering `Scanner` on the first scan screen paint before the saved-session reconnect attempt completed, which immediately triggers `getUserMedia`.
+**Fix**: Add a startup `restoringSession` gate and only mount `Scanner` after reconnect resolution (or fallback), so camera APIs are never touched during auto-reconnect.
+
+### Chat parser must never treat prompt/frame text as assistant output
+**Date**: 2026-03-01
+**Context**: Remote PWA showed the latest prompt and terminal frame/footer chrome inside assistant bubbles instead of actual reply text.
+**Mistake**: Allowing assistant extraction to start from generic “natural language” lines before a real assistant marker was seen.
+**Fix**: Start extraction only on assistant marker lines (`⏺/●/•`), then stop on prompt/frame/footer boundaries to keep typing state active until real assistant text arrives.
+
+### Prompt marker detection must strip frame prefixes first
+**Date**: 2026-03-01
+**Context**: Even with strict marker-based parsing, prompt echo text still leaked into assistant bubbles.
+**Mistake**: Matching `❯`/`⏺` only at absolute line start while streamed lines were prefixed with terminal frame glyphs (`│`, `─`, etc.).
+**Fix**: Normalize each candidate line by stripping UI-frame prefixes/suffixes before prompt/assistant marker detection and continuation extraction.
+
+### Parser-state schema changes should version chat storage keys
+**Date**: 2026-03-01
+**Context**: After parser updates, remote chat could still show stale/incorrect bubbles from prior persisted prompt-window state.
+**Mistake**: Reusing the same `sessionStorage` key across incompatible parser state behavior.
+**Fix**: Add a storage key version suffix and bump it when parser state semantics change.
+
+### Active prompt text must be explicitly denied in assistant extraction
+**Date**: 2026-03-01
+**Context**: Remote chat still rendered the user prompt text as assistant output in some streams.
+**Mistake**: Assuming prompt echoes always include a reliable `❯` marker; in practice some lines arrive with altered/partial prefixes and slip through.
+**Fix**: Normalize text and block any extracted line matching the active prompt text (exact/prefix) from assistant start and continuation paths.
+
+### Remote chat needs strict assistant-marker gating, not prompt-echo inference
+**Date**: 2026-03-01
+**Context**: User required that nothing after `>` should ever render as assistant content; only text after `⏺` is valid.
+**Mistake**: Using mixed prompt-echo + heuristic collection paths allowed occasional prompt text leaks under irregular terminal framing.
+**Fix**: Flatten output chunks into ordered lines, find first assistant marker (`⏺/●/•`), and only collect content from that marker onward until stop boundaries.

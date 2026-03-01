@@ -80,9 +80,36 @@ interface QrPayload {
   projectId: string
 }
 
+const LAST_SESSION_STORAGE_KEY = 'hydra.remote.lastSessionQrPayload'
+
+function readStoredSessionPayload(): string | null {
+  try {
+    return window.localStorage.getItem(LAST_SESSION_STORAGE_KEY)
+  } catch {
+    return null
+  }
+}
+
+function writeStoredSessionPayload(payload: string): void {
+  try {
+    window.localStorage.setItem(LAST_SESSION_STORAGE_KEY, payload)
+  } catch {
+    // Ignore storage failures on restricted/private contexts.
+  }
+}
+
+function clearStoredSessionPayload(): void {
+  try {
+    window.localStorage.removeItem(LAST_SESSION_STORAGE_KEY)
+  } catch {
+    // Ignore storage failures on restricted/private contexts.
+  }
+}
+
 export function useRemoteSession() {
   const [connected, setConnected] = useState(false)
   const [connecting, setConnecting] = useState(false)
+  const [restoringSession, setRestoringSession] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [agents, setAgents] = useState<AgentSummary[]>([])
   const [messages, setMessages] = useState<OutboxMessage[]>([])
@@ -92,6 +119,8 @@ export function useRemoteSession() {
   const firestoreRef = useRef<Firestore | null>(null)
   const authRef = useRef<Auth | null>(null)
   const unsubscribesRef = useRef<Unsubscribe[]>([])
+  const connectInFlightRef = useRef(false)
+  const autoReconnectTriedRef = useRef(false)
 
   const sendInboxMessage = useCallback(
     async (type: InboxMessageType, payload: Record<string, unknown>) => {
@@ -108,7 +137,9 @@ export function useRemoteSession() {
     [sessionId]
   )
 
-  const connect = useCallback(async (qrData: string) => {
+  const connect = useCallback(async (qrData: string): Promise<boolean> => {
+    if (connectInFlightRef.current) return false
+    connectInFlightRef.current = true
     setConnecting(true)
     setError(null)
 
@@ -143,6 +174,11 @@ export function useRemoteSession() {
         processed: false
       })
 
+      for (const unsub of unsubscribesRef.current) {
+        unsub()
+      }
+      unsubscribesRef.current = []
+
       // Listen to agent state
       const stateRef = collection(firestore, 'sessions', payload.sessionId, 'state')
       const stateUnsub = onSnapshot(stateRef, (snapshot) => {
@@ -166,9 +202,13 @@ export function useRemoteSession() {
 
       unsubscribesRef.current = [stateUnsub, outboxUnsub]
       setConnected(true)
+      writeStoredSessionPayload(qrData)
+      return true
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Connection failed')
+      return false
     } finally {
+      connectInFlightRef.current = false
       setConnecting(false)
     }
   }, [])
@@ -192,7 +232,30 @@ export function useRemoteSession() {
     setSessionId(null)
     setAgents([])
     setMessages([])
+    clearStoredSessionPayload()
   }, [])
+
+  useEffect(() => {
+    // Attempt seamless reconnect after relaunch to avoid requiring a fresh QR scan.
+    if (autoReconnectTriedRef.current) return
+    autoReconnectTriedRef.current = true
+
+    const savedPayload = readStoredSessionPayload()
+    if (!savedPayload) {
+      setRestoringSession(false)
+      return
+    }
+
+    void (async () => {
+      const connectedToSavedSession = await connect(savedPayload)
+      if (!connectedToSavedSession) {
+        clearStoredSessionPayload()
+        // Failed auto-reconnect should silently fall back to scanner UI.
+        setError(null)
+      }
+      setRestoringSession(false)
+    })()
+  }, [connect])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -206,6 +269,7 @@ export function useRemoteSession() {
   return {
     connected,
     connecting,
+    restoringSession,
     error,
     agents,
     messages,

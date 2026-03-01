@@ -388,7 +388,7 @@ export class DaemonServer {
         try {
           const text = Buffer.concat(chunks).toString('utf-8')
           resolve(text ? JSON.parse(text) : {} as T)
-        } catch (err) {
+        } catch {
           reject(new Error('Invalid JSON body'))
         }
       })

@@ -88,10 +88,19 @@ export function GridView({
   sessionMaxAgeDays
 }: GridViewProps) {
   const isRunning = selectedProject === RUNNING_PROJECT_ID
+  const [recentCutoffTs, setRecentCutoffTs] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (sessionMaxAgeDays <= 0) {
+      setRecentCutoffTs(null)
+      return
+    }
+    setRecentCutoffTs(Date.now() - sessionMaxAgeDays * 24 * 60 * 60 * 1000)
+  }, [projectGroups, sessionMaxAgeDays])
 
   const recentGroups = useMemo(() => {
-    if (sessionMaxAgeDays <= 0) return projectGroups
-    const cutoff = Date.now() - sessionMaxAgeDays * 24 * 60 * 60 * 1000
+    if (sessionMaxAgeDays <= 0 || recentCutoffTs === null) return projectGroups
+    const cutoff = recentCutoffTs
     return projectGroups
       .map((group) => ({
         ...group,
@@ -103,7 +112,7 @@ export function GridView({
         )
       }))
       .filter((group) => group.agents.length > 0)
-  }, [projectGroups, sessionMaxAgeDays])
+  }, [projectGroups, recentCutoffTs, sessionMaxAgeDays])
 
   const agents = useMemo(() => {
     if (isRunning) {

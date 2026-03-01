@@ -10,12 +10,6 @@ interface FileTreeProps {
   onOpenFile: (path: string) => void
 }
 
-interface TreeNodeData {
-  entry: FsDirEntry
-  path: string
-  depth: number
-}
-
 export function FileTree({ agentId, rootPath, activeFilePath, onOpenFile }: FileTreeProps) {
   const [rootEntries, setRootEntries] = useState<FsDirEntry[]>([])
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set())
@@ -170,4 +164,3 @@ function ChevronIcon() {
     </svg>
   )
 }
-
