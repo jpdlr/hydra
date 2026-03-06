@@ -1,6 +1,10 @@
-import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { ProjectTree } from './ProjectTree'
 import { SearchBar } from './SearchBar'
+import { SortDropdown } from './SortDropdown'
+import { FilterDropdown } from './FilterDropdown'
+import { FilterChips } from './FilterChips'
+import { useFilterSort } from './useFilterSort'
 import type { ProjectGroup, EditorId } from '@shared/types'
 import styles from './Sidebar.module.css'
 
@@ -32,9 +36,20 @@ export function Sidebar({
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [isDragging, setIsDragging] = useState(false)
-  const [recentCutoffTs, setRecentCutoffTs] = useState<number | null>(null)
   const startXRef = useRef(0)
   const startWidthRef = useRef(0)
+
+  const {
+    sortKey,
+    setSortKey,
+    filter,
+    setFilter,
+    processed,
+    chips,
+    hasActiveFilter,
+    dismissChip,
+    clearAll,
+  } = useFilterSort(projectGroups, sessionMaxAgeDays)
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
@@ -65,32 +80,8 @@ export function Sidebar({
     [width, onWidthChange]
   )
 
-  const recentGroups = useMemo(() => {
-    if (sessionMaxAgeDays <= 0 || recentCutoffTs === null) return projectGroups
-    const cutoff = recentCutoffTs
-    return projectGroups
-      .map((group) => ({
-        ...group,
-        agents: group.agents.filter(
-          (a) =>
-            a.status === 'running' ||
-            a.status === 'starting' ||
-            new Date(a.createdAt).getTime() > cutoff
-        )
-      }))
-      .filter((group) => group.agents.length > 0)
-  }, [projectGroups, recentCutoffTs, sessionMaxAgeDays])
-
-  useEffect(() => {
-    if (sessionMaxAgeDays <= 0) {
-      setRecentCutoffTs(null)
-      return
-    }
-    setRecentCutoffTs(Date.now() - sessionMaxAgeDays * 24 * 60 * 60 * 1000)
-  }, [projectGroups, sessionMaxAgeDays])
-
   const filteredGroups = searchQuery
-    ? recentGroups
+    ? processed
         .map((group) => ({
           ...group,
           agents: group.agents.filter(
@@ -100,20 +91,30 @@ export function Sidebar({
           )
         }))
         .filter((group) => group.agents.length > 0)
-    : recentGroups
+    : processed
 
   return (
     <aside className={styles.sidebar} style={{ width }}>
       <div className={styles.searchWrapper}>
-        <SearchBar value={searchQuery} onChange={setSearchQuery} />
+        <SearchBar value={searchQuery} onChange={setSearchQuery}>
+          <SortDropdown value={sortKey} onChange={setSortKey} />
+          <FilterDropdown
+            filter={filter}
+            onChange={setFilter}
+            onClear={clearAll}
+            hasActive={hasActiveFilter}
+          />
+        </SearchBar>
       </div>
+
+      <FilterChips chips={chips} onDismiss={dismissChip} />
 
       <div className={styles.sectionLabel}>PROJECTS</div>
 
       <div className={styles.treeContainer}>
         {filteredGroups.length === 0 ? (
           <div className={styles.empty}>
-            {searchQuery ? 'No matches' : 'No agents running'}
+            {searchQuery || hasActiveFilter ? 'No matches' : 'No agents running'}
           </div>
         ) : (
           filteredGroups.map((group) => (

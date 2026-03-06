@@ -1,11 +1,13 @@
+import type { ReactNode } from 'react'
 import styles from './SearchBar.module.css'
 
 interface SearchBarProps {
   value: string
   onChange: (value: string) => void
+  children?: ReactNode
 }
 
-export function SearchBar({ value, onChange }: SearchBarProps) {
+export function SearchBar({ value, onChange, children }: SearchBarProps) {
   return (
     <div className={styles.wrapper}>
       <SearchIcon />
@@ -21,6 +23,7 @@ export function SearchBar({ value, onChange }: SearchBarProps) {
           <ClearIcon />
         </button>
       )}
+      {children && <div className={styles.actions}>{children}</div>}
     </div>
   )
 }
