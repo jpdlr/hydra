@@ -9,6 +9,7 @@ import type { HeadlessOrchestrator } from '../headless/HeadlessOrchestrator'
 import type { WorkspaceStore } from '../workspace/WorkspaceStore'
 import type { DaemonNotificationService } from './DaemonNotificationService'
 import type { HydraMcpServer } from '../mcp/McpServer'
+import type { SkillScanner } from '../skills/SkillScanner'
 import type { WsServerMessage } from './protocol'
 import type {
   AgentOutputPayload,
@@ -28,6 +29,7 @@ interface DaemonServerOptions {
   workspaceStore: WorkspaceStore
   notificationService: DaemonNotificationService
   mcpServer: HydraMcpServer | null
+  skillScanner: SkillScanner
   onShutdown: () => void
 }
 
@@ -42,6 +44,7 @@ export class DaemonServer {
   private readonly workspaceStore: WorkspaceStore
   private readonly notificationService: DaemonNotificationService
   private readonly mcpServer: HydraMcpServer | null
+  private readonly skillScanner: SkillScanner
   private readonly onShutdown: () => void
   private readonly startedAt = Date.now()
 
@@ -54,6 +57,7 @@ export class DaemonServer {
     this.workspaceStore = options.workspaceStore
     this.notificationService = options.notificationService
     this.mcpServer = options.mcpServer
+    this.skillScanner = options.skillScanner
     this.onShutdown = options.onShutdown
   }
 
@@ -365,6 +369,21 @@ export class DaemonServer {
       if (method === 'GET' && path === '/notifications') {
         const limit = parseInt(url.searchParams.get('limit') || '50')
         return this.json(res, 200, this.notificationService.getRecent(limit))
+      }
+
+      // ── Skills ────────────────────────────────────────────────────────
+      if (method === 'GET' && path === '/skills') {
+        return this.json(res, 200, this.skillScanner.scan())
+      }
+
+      if (method === 'POST' && path === '/skills/toggle') {
+        const body = await this.readBody<{ provider: string; id: string; enabled: boolean }>(req)
+        const success = this.skillScanner.toggle({
+          provider: body.provider as 'claude' | 'codex',
+          id: body.id,
+          enabled: body.enabled
+        })
+        return this.json(res, 200, { success })
       }
 
       // 404

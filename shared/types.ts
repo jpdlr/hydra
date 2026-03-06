@@ -249,7 +249,11 @@ export const IPC = {
   REMOTE_ENABLE: 'remote:enable',
   REMOTE_DISABLE: 'remote:disable',
   REMOTE_GET_STATE: 'remote:get-state',
-  REMOTE_STATE_CHANGED: 'remote:state-changed'
+  REMOTE_STATE_CHANGED: 'remote:state-changed',
+
+  // Skills
+  SKILLS_SCAN: 'skills:scan',
+  SKILLS_TOGGLE: 'skills:toggle'
 } as const
 
 // ── IPC Payloads ─────────────────────────────────────────────────────────────
@@ -518,6 +522,33 @@ export interface RemoteAgentSummary {
   sessionId: string | null
   createdAt?: string
   startedAt?: string | null
+}
+
+// ── Skills ──────────────────────────────────────────────────────────────────
+
+export interface SkillInfo {
+  id: string
+  name: string
+  description: string
+  provider: ProviderId
+  /** For Claude: plugin name (e.g. "superpowers@claude-plugins-official"). For Codex: skill directory name. */
+  group: string
+  enabled: boolean
+  /** Filesystem path to the SKILL.md (or SKILL.md.disabled) */
+  path: string
+}
+
+export interface SkillScanResult {
+  claude: SkillInfo[]
+  codex: SkillInfo[]
+  scannedAt: string
+}
+
+export interface SkillTogglePayload {
+  provider: ProviderId
+  /** For Claude: the plugin key (e.g. "superpowers@claude-plugins-official"). For Codex: the skill id. */
+  id: string
+  enabled: boolean
 }
 
 // ── MCP ──────────────────────────────────────────────────────────────────────

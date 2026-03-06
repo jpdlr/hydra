@@ -7,6 +7,7 @@ import {
   getDefaultModelForProvider
 } from '@shared/types'
 import { ShortcutsTab } from './ShortcutsTab'
+import { SkillsTab } from './SkillsTab'
 import styles from './SettingsPanel.module.css'
 
 const PROVIDERS: ProviderId[] = ['claude', 'codex']
@@ -37,7 +38,7 @@ interface SettingsPanelProps {
   onClose: () => void
 }
 
-type SettingsTab = 'general' | 'shortcuts'
+type SettingsTab = 'general' | 'shortcuts' | 'skills'
 
 export function SettingsPanel({ config, onUpdate, onClose }: SettingsPanelProps) {
   const [exportState, setExportState] = useState<string | null>(null)
@@ -67,10 +68,17 @@ export function SettingsPanel({ config, onUpdate, onClose }: SettingsPanelProps)
             >
               Shortcuts
             </button>
+            <button
+              className={`${styles.segment} ${activeTab === 'skills' ? styles.active : ''}`}
+              onClick={() => setActiveTab('skills')}
+            >
+              Skills
+            </button>
           </div>
         </div>
 
         {activeTab === 'shortcuts' && <ShortcutsTab />}
+        {activeTab === 'skills' && <SkillsTab />}
 
         {activeTab === 'general' && <div className={styles.body}>
           {/* Theme */}

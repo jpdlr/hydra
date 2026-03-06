@@ -20,6 +20,7 @@ import { DaemonNotificationService } from './DaemonNotificationService'
 import { DaemonServer } from './DaemonServer'
 import { writeLockFile, removeLockFile } from './lock'
 import { HydraMcpServer } from '../mcp/McpServer'
+import { SkillScanner } from '../skills/SkillScanner'
 
 // ── Parse CLI args ────────────────────────────────────────────────────────────
 
@@ -123,6 +124,8 @@ async function main(): Promise<void> {
     setTimeout(() => process.exit(0), 2000)
   }
 
+  const skillScanner = new SkillScanner()
+
   const server = new DaemonServer({
     socketPath,
     agentManager,
@@ -132,6 +135,7 @@ async function main(): Promise<void> {
     workspaceStore,
     notificationService,
     mcpServer,
+    skillScanner,
     onShutdown: shutdown
   })
 

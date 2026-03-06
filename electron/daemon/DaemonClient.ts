@@ -15,7 +15,9 @@ import type {
   HeadlessRunLogPayload,
   HeadlessRunLogOptions,
   StartHeadlessRunPayload,
-  McpServerStatus
+  McpServerStatus,
+  SkillScanResult,
+  SkillTogglePayload
 } from '@shared/types'
 import type { DaemonHealthResponse, WsServerMessage } from './protocol'
 
@@ -276,6 +278,16 @@ export class DaemonClient extends EventEmitter {
 
   async getMcpStatus(): Promise<McpServerStatus> {
     return this.httpRequest('GET', '/mcp/status')
+  }
+
+  // ── Skills ─────────────────────────────────────────────────────────────
+
+  async scanSkills(): Promise<SkillScanResult> {
+    return this.httpRequest('GET', '/skills')
+  }
+
+  async toggleSkill(payload: SkillTogglePayload): Promise<{ success: boolean }> {
+    return this.post('/skills/toggle', payload)
   }
 
   // ── Shutdown ────────────────────────────────────────────────────────────

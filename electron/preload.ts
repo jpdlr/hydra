@@ -33,7 +33,9 @@ import type {
   GitFileContents,
   GitPrDiff,
   EditorId,
-  RemoteControlState
+  RemoteControlState,
+  SkillScanResult,
+  SkillTogglePayload
 } from '@shared/types'
 
 export type HydraAPI = typeof hydraApi
@@ -260,7 +262,13 @@ const hydraApi = {
       callback(state)
     ipcRenderer.on(IPC.REMOTE_STATE_CHANGED, handler)
     return () => { ipcRenderer.removeListener(IPC.REMOTE_STATE_CHANGED, handler) }
-  }
+  },
+
+  // Skills
+  scanSkills: (): Promise<SkillScanResult> =>
+    ipcRenderer.invoke(IPC.SKILLS_SCAN),
+  toggleSkill: (payload: SkillTogglePayload): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke(IPC.SKILLS_TOGGLE, payload)
 }
 
 contextBridge.exposeInMainWorld('hydra', hydraApi)

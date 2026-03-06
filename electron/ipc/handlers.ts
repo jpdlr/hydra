@@ -116,6 +116,12 @@ const sessionListOptionsSchema = z
 const fsPathSchema = z.string().trim().min(1).max(8192)
 const fsWriteContentSchema = z.string().max(10_000_000)
 
+const skillToggleSchema = z.object({
+  provider: providerSchema,
+  id: z.string().trim().min(1).max(256),
+  enabled: z.boolean()
+})
+
 const observabilityLogSchema = z.object({
   level: z.enum(['debug', 'info', 'warn', 'error']),
   event: z.string().trim().min(1).max(200),
@@ -622,4 +628,14 @@ export function registerIpcHandlers(
       })
     })
   }
+
+  // ── Skills ───────────────────────────────────────────────────────────────
+
+  ipcMain.handle(IPC.SKILLS_SCAN, async () => {
+    return daemonClient.scanSkills()
+  })
+
+  ipcMain.handle(IPC.SKILLS_TOGGLE, async (_event, payload: unknown) => {
+    return daemonClient.toggleSkill(skillToggleSchema.parse(payload))
+  })
 }
