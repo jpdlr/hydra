@@ -218,6 +218,7 @@ export default function App() {
         agentStatus={selectedAgent.status}
         messages={messages}
         onSendPrompt={handleSendPrompt}
+        onSendCommand={sendCommand}
         onRestart={() => handleRestart(selectedAgent.agentId)}
         onBack={() => setView('agents')}
       />

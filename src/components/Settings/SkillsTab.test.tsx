@@ -73,12 +73,11 @@ describe('SkillsTab', () => {
     expect(screen.getByText('1 skill')).toBeTruthy()
   })
 
-  it('calls toggleSkill when group toggle is clicked', async () => {
+  it('calls toggleSkill when skill toggle is clicked', async () => {
     render(<SkillsTab />)
     await waitFor(() => {
       expect(screen.getByText('Brainstorming')).toBeTruthy()
     })
-    // First checkbox is the group toggle for superpowers@claude-plugins-official
     const toggles = screen.getAllByRole('checkbox')
     fireEvent.click(toggles[0])
     expect(window.hydra.toggleSkill).toHaveBeenCalledWith({

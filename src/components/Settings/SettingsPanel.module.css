@@ -9,7 +9,7 @@
 }
 
 .panel {
-  width: 440px;
+  width: 640px;
   max-height: 80vh;
   background: var(--color-surface);
   border-radius: var(--radius-xl);

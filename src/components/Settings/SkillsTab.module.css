@@ -1,5 +1,5 @@
 .container {
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-3) var(--space-4);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -60,106 +60,123 @@
   color: var(--color-text-primary);
 }
 
-/* Group list */
-.groupList {
+/* ── Section (group) ─────────────────────────────────────────────────── */
+
+.section {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
-/* Accordion group */
-.group {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-
-.groupHeader {
+.sectionHeader {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-3);
-  background: var(--color-surface-hover);
+  justify-content: space-between;
+  padding: 0 var(--space-1);
+}
+
+.sectionLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .groupToggleBtn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) 0;
   font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-  text-align: left;
-  min-width: 0;
+  font-weight: var(--font-weight-medium);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  transition: all var(--transition-fast);
 }
 
 .groupToggleBtn:hover {
+  color: var(--color-text-secondary);
+  border-color: var(--color-text-muted);
+}
+
+.groupToggleBtnActive {
   color: var(--color-text-primary);
+  background: var(--color-surface-hover);
+  border-color: var(--color-text-muted);
 }
 
-.chevron {
-  font-size: 10px;
-  color: var(--color-text-muted);
-  transition: transform var(--transition-fast);
-  flex-shrink: 0;
-  width: 12px;
-  text-align: center;
+.groupToggleBtnPartial {
+  color: var(--color-text-secondary);
+  border-style: dashed;
 }
 
-.chevronOpen {
-  transform: rotate(90deg);
-}
+/* ── Card grid ───────────────────────────────────────────────────────── */
 
-.groupLabel {
-  font-weight: var(--font-weight-semibold);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-
-.groupCount {
-  font-weight: var(--font-weight-normal);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  flex-shrink: 0;
-}
-
-/* Skill list inside group */
-.skillList {
+.cardGrid {
   display: flex;
   flex-direction: column;
+  gap: 1px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-border);
 }
 
-.skillRow {
+.card {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-6);
-  border-top: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  transition: background var(--transition-fast);
 }
 
-.skillMeta {
+.card:hover {
+  background: var(--color-surface-hover);
+}
+
+.cardDisabled {
+  opacity: 0.5;
+}
+
+/* ── Skill icon ──────────────────────────────────────────────────────── */
+
+.skillIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ── Card meta ───────────────────────────────────────────────────────── */
+
+.cardMeta {
   flex: 1;
   min-width: 0;
 }
 
-.skillName {
+.cardName {
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
-}
-
-.skillDesc {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Toggle switch */
+.cardDesc {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+/* ── Toggle switch ───────────────────────────────────────────────────── */
+
 .toggle {
   position: relative;
   width: 36px;
@@ -206,11 +223,7 @@
   background: var(--color-surface);
 }
 
-/* Partial / indeterminate state for group toggles */
-.togglePartial {
-  background: var(--color-border);
-  border-color: var(--color-text-muted);
-}
+/* ── Empty / loading states ──────────────────────────────────────────── */
 
 .empty {
   font-size: var(--font-size-sm);

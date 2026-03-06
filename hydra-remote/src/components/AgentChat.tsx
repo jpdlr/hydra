@@ -2,8 +2,14 @@ import { useState, useRef, useEffect, useMemo } from 'react'
 
 interface OutboxMessage {
   id: string
-  type: 'output' | 'status' | 'notification' | 'agent_list'
+  type: 'output' | 'status' | 'notification' | 'agent_list' | 'conversation_history'
   payload: Record<string, unknown>
+  timestamp: string
+}
+
+interface TranscriptMessage {
+  role: 'user' | 'assistant'
+  text: string
   timestamp: string
 }
 
@@ -13,6 +19,7 @@ interface AgentChatProps {
   agentStatus: string
   messages: OutboxMessage[]
   onSendPrompt: (input: string) => void | Promise<void>
+  onSendCommand: (type: 'get_history', payload: Record<string, unknown>) => void | Promise<void>
   onRestart: () => void
   onBack: () => void
 }
@@ -39,10 +46,9 @@ interface PersistedChatState {
 
 const OUTPUT_HISTORY_LIMIT = 220
 const LOCAL_USER_MAX = 24
-const USER_CONTEXT_MAX = 6
 const MAX_ASSISTANT_LINES = 40
 const MAX_ASSISTANT_CHARS = 4000
-const CHAT_STORAGE_VERSION = 'v2'
+const CHAT_STORAGE_VERSION = 'v3'
 
 export function AgentChat({
   agentId,
@@ -50,6 +56,7 @@ export function AgentChat({
   agentStatus,
   messages,
   onSendPrompt,
+  onSendCommand,
   onRestart,
   onBack
 }: AgentChatProps) {
@@ -59,7 +66,46 @@ export function AgentChat({
   const [promptAnchorTimestamp, setPromptAnchorTimestamp] = useState<string | null>(null)
   const [activePromptText, setActivePromptText] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [transcriptHistory, setTranscriptHistory] = useState<TranscriptMessage[]>([])
+  const historyRequestedRef = useRef(false)
   const storageKey = `hydra-remote:${CHAT_STORAGE_VERSION}:chat:${agentId}`
+
+  // Request conversation history from daemon on mount
+  useEffect(() => {
+    if (!historyRequestedRef.current) {
+      historyRequestedRef.current = true
+      void Promise.resolve(onSendCommand('get_history', { agentId }))
+    }
+    return () => { historyRequestedRef.current = false }
+  }, [agentId, onSendCommand])
+
+  // Pick up conversation_history outbox messages
+  useEffect(() => {
+    const historyMsg = messages.find(
+      (msg) =>
+        msg.type === 'conversation_history' &&
+        (msg.payload.agentId as string) === agentId
+    )
+    if (!historyMsg) return
+
+    const incoming = historyMsg.payload.messages
+    if (!Array.isArray(incoming) || incoming.length === 0) return
+
+    setTranscriptHistory(
+      incoming
+        .filter(
+          (m: TranscriptMessage) =>
+            (m.role === 'user' || m.role === 'assistant') &&
+            typeof m.text === 'string' &&
+            m.text.trim().length > 0
+        )
+        .map((m: TranscriptMessage) => ({
+          role: m.role,
+          text: m.text.trim(),
+          timestamp: m.timestamp || ''
+        }))
+    )
+  }, [messages, agentId])
 
   useEffect(() => {
     const state = loadPersistedChatState(storageKey)
@@ -99,6 +145,18 @@ export function AgentChat({
     if (!promptAnchorTimestamp) return []
     return outputMessages.filter((msg) => compareTimestamp(msg.timestamp, promptAnchorTimestamp) > 0)
   }, [outputMessages, promptAnchorTimestamp])
+
+  // Structured conversation history from JSONL transcript
+  const conversationHistory = useMemo(() => {
+    if (transcriptHistory.length === 0) return []
+
+    return transcriptHistory.map((msg, i) => ({
+      id: `transcript-${i}`,
+      role: msg.role,
+      text: msg.text,
+      timestamp: msg.timestamp
+    }))
+  }, [transcriptHistory])
 
   const assistantText = useMemo(() => {
     if (relevantOutputMessages.length === 0) return null
@@ -230,27 +288,43 @@ export function AgentChat({
   }, [awaitingReplySince, assistantText, latestTerminalStatusAt, agentStatus])
 
   const chatBubbles = useMemo(() => {
-    const userBubbles: ChatBubble[] = localUserMessages.slice(-USER_CONTEXT_MAX).map((message) => ({
-      id: message.id,
-      role: 'user',
-      text: message.text,
-      timestamp: message.timestamp
-    }))
+    // Dedupe: collect text keys from history so we don't show duplicates
+    const historyUserTexts = new Set(
+      conversationHistory
+        .filter((b) => b.role === 'user')
+        .map((b) => b.text.toLowerCase().trim())
+    )
 
-    if (!assistantText) return userBubbles
+    // Pending user messages not yet reflected in terminal history
+    const pendingUserBubbles: ChatBubble[] = localUserMessages
+      .filter((m) => !historyUserTexts.has(m.text.toLowerCase().trim()))
+      .map((message) => ({
+        id: message.id,
+        role: 'user' as const,
+        text: message.text,
+        timestamp: message.timestamp
+      }))
 
-    const assistantTimestamp =
-      relevantOutputMessages[relevantOutputMessages.length - 1]?.timestamp ??
-      new Date().toISOString()
-    const assistantBubble: ChatBubble = {
-      id: 'assistant-latest',
-      role: 'assistant',
-      text: assistantText,
-      timestamp: assistantTimestamp
+    // Current live assistant response (may duplicate the latest history entry)
+    const liveBubbles: ChatBubble[] = []
+    if (assistantText) {
+      // Only add live bubble if it's not already the last history assistant entry
+      const lastHistAssistant = [...conversationHistory].reverse().find((b: ChatBubble) => b.role === 'assistant')
+      if (!lastHistAssistant || lastHistAssistant.text !== assistantText) {
+        const assistantTimestamp =
+          relevantOutputMessages[relevantOutputMessages.length - 1]?.timestamp ??
+          new Date().toISOString()
+        liveBubbles.push({
+          id: 'assistant-latest',
+          role: 'assistant',
+          text: assistantText,
+          timestamp: assistantTimestamp
+        })
+      }
     }
 
-    return [...userBubbles, assistantBubble].sort(compareByTimestampThenId)
-  }, [localUserMessages, assistantText, relevantOutputMessages])
+    return [...conversationHistory, ...pendingUserBubbles, ...liveBubbles].sort(compareByTimestampThenId)
+  }, [conversationHistory, localUserMessages, assistantText, relevantOutputMessages])
 
   const isTyping = Boolean(
     awaitingReplySince &&
@@ -407,6 +481,7 @@ function savePersistedChatState(storageKey: string, state: PersistedChatState): 
     // Ignore storage quota/private mode failures.
   }
 }
+
 
 function getPayloadAgentId(payload: Record<string, unknown>): string | null {
   const candidates = [payload.agentId, payload.agentID, payload.agent_id]

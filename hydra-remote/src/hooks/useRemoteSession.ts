@@ -67,12 +67,12 @@ interface AgentSummary {
 
 interface OutboxMessage {
   id: string
-  type: 'output' | 'status' | 'notification' | 'agent_list'
+  type: 'output' | 'status' | 'notification' | 'agent_list' | 'conversation_history'
   payload: Record<string, unknown>
   timestamp: string
 }
 
-type InboxMessageType = 'handshake' | 'prompt' | 'kill' | 'create' | 'restart' | 'broadcast'
+type InboxMessageType = 'handshake' | 'prompt' | 'kill' | 'create' | 'restart' | 'broadcast' | 'get_history'
 
 interface QrPayload {
   sessionId: string
@@ -215,7 +215,7 @@ export function useRemoteSession() {
 
   const sendCommand = useCallback(
     async (
-      type: 'prompt' | 'kill' | 'create' | 'restart' | 'broadcast',
+      type: 'prompt' | 'kill' | 'create' | 'restart' | 'broadcast' | 'get_history',
       payload: Record<string, unknown>
     ) => {
       await sendInboxMessage(type, payload)

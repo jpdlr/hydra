@@ -14,6 +14,7 @@ import type {
   HydraNotification,
   CreateAgentPayload
 } from '@shared/types'
+import { readTranscriptHistory } from '../sessions/TranscriptReader'
 
 /**
  * Minimal interface satisfied by both AgentManager (direct) and DaemonClient (proxy).
@@ -337,7 +338,21 @@ export class RemoteControlService extends EventEmitter {
         }
         break
       }
+      case 'get_history': {
+        const agentId = payload.agentId as string
+        if (agentId) {
+          void this.sendConversationHistory(agentId)
+        }
+        break
+      }
     }
+  }
+
+  private async sendConversationHistory(agentId: string): Promise<void> {
+    const agent = await Promise.resolve(this.agentManager.get(agentId))
+    if (!agent?.sessionId) return
+    const messages = readTranscriptHistory(agent.sessionId)
+    await this.writeOutbox('conversation_history', { agentId, messages })
   }
 
   // ── Agent state sync ──────────────────────────────────────────────────────
@@ -376,7 +391,7 @@ export class RemoteControlService extends EventEmitter {
   // ── Outbox writing ────────────────────────────────────────────────────────
 
   private async writeOutbox(
-    type: 'output' | 'status' | 'notification' | 'agent_list',
+    type: 'output' | 'status' | 'notification' | 'agent_list' | 'conversation_history',
     payload: Record<string, unknown>
   ): Promise<void> {
     if (!this.firestore || !this.state.sessionId) return

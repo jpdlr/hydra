@@ -10,6 +10,7 @@ import type { WorkspaceStore } from '../workspace/WorkspaceStore'
 import type { DaemonNotificationService } from './DaemonNotificationService'
 import type { HydraMcpServer } from '../mcp/McpServer'
 import type { SkillScanner } from '../skills/SkillScanner'
+import { readTranscriptHistory } from '../sessions/TranscriptReader'
 import type { WsServerMessage } from './protocol'
 import type {
   AgentOutputPayload,
@@ -276,6 +277,17 @@ export class DaemonServer {
         const agentId = decodeURIComponent(bufferMatch[1])
         const buffer = this.agentManager.getBuffer(agentId)
         return this.json(res, 200, { lines: buffer })
+      }
+
+      // Agent conversation history (from JSONL transcript)
+      const historyMatch = path.match(/^\/agents\/([^/]+)\/history$/)
+      if (method === 'GET' && historyMatch) {
+        const agentId = decodeURIComponent(historyMatch[1])
+        const agent = this.agentManager.get(agentId)
+        if (!agent) return this.json(res, 404, { error: 'Agent not found' })
+        if (!agent.sessionId) return this.json(res, 200, { messages: [] })
+        const messages = readTranscriptHistory(agent.sessionId)
+        return this.json(res, 200, { messages })
       }
 
       // Broadcast
