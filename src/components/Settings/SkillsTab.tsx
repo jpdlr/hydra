@@ -412,6 +412,8 @@ export function SkillsTab() {
               <div className={styles.cardGrid}>
                 {groupSkillsList.map((skill) => {
                   const { icon, bg } = getSkillIcon(skill)
+                  const hasIndividualToggle =
+                    skill.provider !== 'claude' || skill.group === 'user'
                   return (
                     <div
                       key={`${skill.group}-${skill.id}`}
@@ -426,15 +428,17 @@ export function SkillsTab() {
                           </div>
                         )}
                       </div>
-                      <label className={styles.toggle}>
-                        <input
-                          type="checkbox"
-                          className={styles.toggleInput}
-                          checked={skill.enabled}
-                          onChange={() => handleToggle(skill)}
-                        />
-                        <span className={styles.toggleTrack} />
-                      </label>
+                      {hasIndividualToggle && (
+                        <label className={styles.toggle}>
+                          <input
+                            type="checkbox"
+                            className={styles.toggleInput}
+                            checked={skill.enabled}
+                            onChange={() => handleToggle(skill)}
+                          />
+                          <span className={styles.toggleTrack} />
+                        </label>
+                      )}
                     </div>
                   )
                 })}

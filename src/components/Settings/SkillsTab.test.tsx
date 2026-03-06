@@ -73,16 +73,17 @@ describe('SkillsTab', () => {
     expect(screen.getByText('1 skill')).toBeTruthy()
   })
 
-  it('calls toggleSkill when skill toggle is clicked', async () => {
+  it('calls toggleSkill when user skill toggle is clicked', async () => {
     render(<SkillsTab />)
     await waitFor(() => {
-      expect(screen.getByText('Brainstorming')).toBeTruthy()
+      expect(screen.getByText('Commit')).toBeTruthy()
     })
+    // Only user skills have individual toggles; Claude plugin skills do not
     const toggles = screen.getAllByRole('checkbox')
     fireEvent.click(toggles[0])
     expect(window.hydra.toggleSkill).toHaveBeenCalledWith({
       provider: 'claude',
-      id: 'superpowers@claude-plugins-official',
+      id: 'commit',
       enabled: false
     })
   })

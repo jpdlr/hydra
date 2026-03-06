@@ -169,6 +169,9 @@ export const IPC = {
   // Preflight
   PREFLIGHT_CHECK: 'preflight:check',
 
+  // Clipboard
+  CLIPBOARD_WRITE_IMAGE: 'clipboard:write-image',
+
   // Dialog
   DIALOG_SELECT_DIR: 'dialog:select-dir',
 

@@ -1,4 +1,4 @@
-import { ipcMain, dialog, BrowserWindow, shell } from 'electron'
+import { ipcMain, dialog, BrowserWindow, shell, clipboard, nativeImage } from 'electron'
 import { execFile } from 'child_process'
 import { DaemonClient } from '../daemon/DaemonClient'
 import { ConfigStore } from '../config/ConfigStore'
@@ -346,6 +346,14 @@ export function registerIpcHandlers(
     })
 
     return results
+  })
+
+  // ── Clipboard ──────────────────────────────────────────────────────────
+
+  ipcMain.handle(IPC.CLIPBOARD_WRITE_IMAGE, (_event, dataUrl: string) => {
+    const img = nativeImage.createFromDataURL(dataUrl)
+    clipboard.writeImage(img)
+    return true
   })
 
   // ── Dialog ───────────────────────────────────────────────────────────────

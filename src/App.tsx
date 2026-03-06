@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Header } from './components/Header/Header'
 import { Sidebar } from './components/Sidebar/Sidebar'
 import { ChatView } from './components/ChatView/ChatView'
+import type { AttachedImage } from './components/ChatView/InputBar'
 import { GridView } from './components/GridView/GridView'
 import { SettingsPanel } from './components/Settings/SettingsPanel'
 import { NewAgentDialog } from './components/NewAgent/NewAgentDialog'
@@ -229,13 +230,29 @@ export default function App() {
   )
 
   const handleSendInput = useCallback(
-    async (agentId: string, input: string) => {
+    async (agentId: string, input: string, images?: AttachedImage[]) => {
       const state = agents.get(agentId)?.state
       if (!state) return
       if (state.status !== 'running' && !(await ensurePreflightReady())) return
-      sendInput(agentId, input)
+
+      if (images && images.length > 0) {
+        // Write each image to system clipboard and send Ctrl+V to PTY
+        for (const img of images) {
+          await window.hydra.writeClipboardImage(img.dataUrl)
+          // Small delay to ensure clipboard is written
+          await new Promise((r) => setTimeout(r, 100))
+          // Send Ctrl+V (0x16) to trigger Claude CLI image paste
+          sendTerminalInput(agentId, '\x16')
+          // Wait for Claude CLI to process the image
+          await new Promise((r) => setTimeout(r, 600))
+        }
+      }
+
+      if (input) {
+        sendInput(agentId, input)
+      }
     },
-    [agents, ensurePreflightReady, sendInput]
+    [agents, ensurePreflightReady, sendInput, sendTerminalInput]
   )
 
   const handleBroadcast = useCallback(
@@ -570,9 +587,9 @@ export default function App() {
             <ChatView
               agent={selectedAgent?.state || null}
               rawOutput={selectedAgent?.rawOutput || ''}
-              onSendInput={(input) => {
+              onSendInput={(input, images) => {
                 if (selectedAgentId) {
-                  void handleSendInput(selectedAgentId, input)
+                  void handleSendInput(selectedAgentId, input, images)
                 }
               }}
               onTerminalData={(data) => {

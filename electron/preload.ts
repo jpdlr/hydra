@@ -107,6 +107,10 @@ const hydraApi = {
   toggleGlobalYolo: (enabled: boolean): Promise<string[]> =>
     ipcRenderer.invoke(IPC.GLOBAL_YOLO_TOGGLE, enabled),
 
+  // Clipboard
+  writeClipboardImage: (dataUrl: string): Promise<boolean> =>
+    ipcRenderer.invoke(IPC.CLIPBOARD_WRITE_IMAGE, dataUrl),
+
   // Dialog
   selectDirectory: (): Promise<string | null> =>
     ipcRenderer.invoke(IPC.DIALOG_SELECT_DIR),

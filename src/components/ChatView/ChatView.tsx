@@ -1,6 +1,7 @@
 import { useRef, useCallback, useState } from 'react'
 import { TerminalPane } from '../Terminal/TerminalPane'
 import { InputBar } from './InputBar'
+import type { AttachedImage } from './InputBar'
 import { EditorPanel } from '../EditorPanel'
 import { SplitHandle } from '../EditorPanel/SplitHandle'
 import { OpenInButton } from '../Header/OpenInButton'
@@ -11,7 +12,7 @@ import styles from './ChatView.module.css'
 interface ChatViewProps {
   agent: AgentState | null
   rawOutput: string
-  onSendInput: (input: string) => void
+  onSendInput: (input: string, images?: AttachedImage[]) => void
   onTerminalData: (data: string) => void
   onTerminalResize: (cols: number, rows: number) => void
   onRestartAgent: () => void
@@ -179,7 +180,7 @@ export function ChatView({
 
       {/* Input */}
       <InputBar
-        onSend={onSendInput}
+        onSend={(input, images) => onSendInput(input, images)}
         disabled={agent.status === 'starting'}
         model={agent.model}
         placeholder={
