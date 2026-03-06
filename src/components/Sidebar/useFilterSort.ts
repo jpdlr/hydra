@@ -16,7 +16,7 @@ export const EMPTY_FILTER: FilterState = {
   providers: [],
   yolo: null,
   manager: null,
-  ageDays: null,
+  ageDays: 7,
 }
 
 const STATUS_ORDER: Record<string, number> = {
@@ -71,7 +71,7 @@ export function isFilterActive(filter: FilterState): boolean {
     filter.providers.length > 0 ||
     filter.yolo !== null ||
     filter.manager !== null ||
-    filter.ageDays !== null
+    filter.ageDays !== EMPTY_FILTER.ageDays
   )
 }
 
@@ -86,7 +86,7 @@ export function getActiveChips(filter: FilterState): FilterChip[] {
   for (const p of filter.providers) chips.push({ key: `provider:${p}`, label: p })
   if (filter.yolo === true) chips.push({ key: 'flag:yolo', label: 'yolo' })
   if (filter.manager === true) chips.push({ key: 'flag:manager', label: 'manager' })
-  if (filter.ageDays !== null) chips.push({ key: 'age', label: `< ${filter.ageDays}d` })
+  if (filter.ageDays !== EMPTY_FILTER.ageDays) chips.push({ key: 'age', label: `< ${filter.ageDays}d` })
   return chips
 }
 
@@ -101,7 +101,7 @@ export function removeChip(filter: FilterState, chipKey: string): FilterState {
   }
   if (chipKey === 'flag:yolo') return { ...filter, yolo: null }
   if (chipKey === 'flag:manager') return { ...filter, manager: null }
-  if (chipKey === 'age') return { ...filter, ageDays: null }
+  if (chipKey === 'age') return { ...filter, ageDays: EMPTY_FILTER.ageDays }
   return filter
 }
 

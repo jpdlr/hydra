@@ -17,8 +17,8 @@ describe('isFilterActive', () => {
     expect(isFilterActive({ ...EMPTY_FILTER, statuses: ['running'] })).toBe(true)
   })
 
-  it('returns true when ageDays set', () => {
-    expect(isFilterActive({ ...EMPTY_FILTER, ageDays: 7 })).toBe(true)
+  it('returns true when ageDays differs from default', () => {
+    expect(isFilterActive({ ...EMPTY_FILTER, ageDays: 1 })).toBe(true)
   })
 
   it('returns true when yolo set', () => {
@@ -37,7 +37,7 @@ describe('getActiveChips', () => {
       providers: ['claude'],
       yolo: true,
       manager: null,
-      ageDays: 7,
+      ageDays: 1,
     })
     expect(chips).toHaveLength(5)
     expect(chips.map((c) => c.key)).toEqual([
@@ -57,10 +57,10 @@ describe('removeChip', () => {
     expect(result.statuses).toEqual(['idle'])
   })
 
-  it('removes age chip', () => {
-    const f = { ...EMPTY_FILTER, ageDays: 7 }
+  it('removes age chip resets to default', () => {
+    const f = { ...EMPTY_FILTER, ageDays: 1 }
     const result = removeChip(f, 'age')
-    expect(result.ageDays).toBeNull()
+    expect(result.ageDays).toBe(EMPTY_FILTER.ageDays)
   })
 
   it('removes yolo flag', () => {

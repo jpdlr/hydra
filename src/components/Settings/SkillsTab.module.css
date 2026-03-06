@@ -60,31 +60,84 @@
   color: var(--color-text-primary);
 }
 
-.group {
+/* Group list */
+.groupList {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
 }
 
-.groupLabel {
+/* Accordion group */
+.group {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.groupHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-surface-hover);
+}
+
+.groupToggleBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
   font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  text-align: left;
+  min-width: 0;
+}
+
+.groupToggleBtn:hover {
+  color: var(--color-text-primary);
+}
+
+.chevron {
+  font-size: 10px;
   color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding-bottom: var(--space-1);
+  transition: transform var(--transition-fast);
+  flex-shrink: 0;
+  width: 12px;
+  text-align: center;
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+.groupLabel {
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.groupCount {
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  flex-shrink: 0;
+}
+
+/* Skill list inside group */
+.skillList {
+  display: flex;
+  flex-direction: column;
 }
 
 .skillRow {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-2) 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
-}
-
-.skillRow:last-child {
-  border-bottom: none;
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-6);
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent);
 }
 
 .skillMeta {
@@ -144,13 +197,19 @@
 }
 
 .toggleInput:checked + .toggleTrack {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
+  background: var(--color-text-secondary);
+  border-color: var(--color-text-secondary);
 }
 
 .toggleInput:checked + .toggleTrack::after {
   transform: translateX(16px);
-  background: white;
+  background: var(--color-surface);
+}
+
+/* Partial / indeterminate state for group toggles */
+.togglePartial {
+  background: var(--color-border);
+  border-color: var(--color-text-muted);
 }
 
 .empty {

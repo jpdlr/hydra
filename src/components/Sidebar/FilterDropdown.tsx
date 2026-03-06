@@ -21,11 +21,10 @@ const PROVIDERS: { value: ProviderId; label: string }[] = [
   { value: 'codex', label: 'Codex' },
 ]
 
-const AGE_OPTIONS: { value: number | null; label: string }[] = [
+const AGE_OPTIONS: { value: number; label: string }[] = [
   { value: 1, label: 'Last 1d' },
   { value: 7, label: 'Last 7d' },
   { value: 30, label: 'Last 30d' },
-  { value: null, label: 'All' },
 ]
 
 export function FilterDropdown({ filter, onChange, onClear, hasActive }: FilterDropdownProps) {
