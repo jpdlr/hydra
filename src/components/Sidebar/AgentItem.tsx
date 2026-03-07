@@ -31,7 +31,7 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export function AgentItem({ agent, isSelected, onSelect }: AgentItemProps) {
-  const age = useMemo(() => relativeTime(agent.createdAt), [agent.createdAt])
+  const age = useMemo(() => relativeTime(agent.lastActivityAt), [agent.lastActivityAt])
 
   return (
     <button

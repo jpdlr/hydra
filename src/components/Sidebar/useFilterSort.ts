@@ -31,7 +31,7 @@ function sortAgents(agents: AgentState[], key: SortKey): AgentState[] {
   switch (key) {
     case 'recency':
       return sorted.sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        (a, b) => new Date(b.lastActivityAt).getTime() - new Date(a.lastActivityAt).getTime()
       )
     case 'status':
       return sorted.sort(
@@ -59,7 +59,7 @@ function filterAgents(agents: AgentState[], filter: FilterState, ageDays: number
     if (filter.manager === true && !a.isManager) return false
     if (cutoff !== null) {
       const isActive = a.status === 'running' || a.status === 'starting'
-      if (!isActive && new Date(a.createdAt).getTime() < cutoff) return false
+      if (!isActive && new Date(a.lastActivityAt).getTime() < cutoff) return false
     }
     return true
   })

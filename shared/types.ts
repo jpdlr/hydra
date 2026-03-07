@@ -21,6 +21,7 @@ export interface AgentState extends AgentConfig {
   pid: number | null
   restartCount: number
   startedAt: string | null
+  lastActivityAt: string
 }
 
 // ── Providers ────────────────────────────────────────────────────────────────

@@ -87,6 +87,7 @@ class MockAgentManager extends EventEmitter {
         isManager: false,
         initialPrompt: 'test',
         createdAt: new Date().toISOString(),
+        lastActivityAt: new Date().toISOString(),
         reasoningEffort: undefined
       }
     ]

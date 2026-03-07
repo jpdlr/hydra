@@ -124,7 +124,8 @@ export class AgentManager extends EventEmitter {
       status: 'starting',
       pid: null,
       restartCount: 0,
-      startedAt: null
+      startedAt: null,
+      lastActivityAt: now
     }
 
     const managed: ManagedAgent = {
@@ -178,7 +179,8 @@ export class AgentManager extends EventEmitter {
         status: 'idle',
         pid: null,
         restartCount: 0,
-        startedAt: null
+        startedAt: null,
+        lastActivityAt: session.createdAt || new Date().toISOString()
       }
 
       this.agents.set(state.id, {
@@ -227,7 +229,8 @@ export class AgentManager extends EventEmitter {
         status: 'idle',
         pid: null,
         restartCount: 0,
-        startedAt: null
+        startedAt: null,
+        lastActivityAt: persisted.createdAt
       }
 
       this.agents.set(id, {
@@ -366,6 +369,7 @@ export class AgentManager extends EventEmitter {
 
         // Track last output time for activity polling
         managed.lastOutputAt = Date.now()
+        managed.state.lastActivityAt = new Date().toISOString()
       })
 
       pty.onExit(({ exitCode }) => {
@@ -656,6 +660,7 @@ export class AgentManager extends EventEmitter {
     // Reset idle detection so we notify again after this task completes
     managed.notifiedIdle = false
     managed.lastOutputAt = Date.now()
+    managed.state.lastActivityAt = new Date().toISOString()
 
     managed.submitQueue = managed.submitQueue
       .catch(() => undefined)
@@ -671,6 +676,16 @@ export class AgentManager extends EventEmitter {
         })
         if (managed.pty !== pty) return
         pty.write('\r')
+        // Claude CLI may show long/pasted input as "[Pasted text ...]" and
+        // require a second Enter to confirm.  Always send a follow-up \r
+        // for Claude agents so it submits automatically.
+        if (managed.state.provider === 'claude') {
+          await new Promise<void>((resolve) => {
+            setTimeout(resolve, 300)
+          })
+          if (managed.pty !== pty) return
+          pty.write('\r')
+        }
       })
 
     return true

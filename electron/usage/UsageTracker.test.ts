@@ -29,6 +29,7 @@ function makeAgent(overrides: Partial<AgentState> = {}): AgentState {
     pid: 123,
     restartCount: 0,
     startedAt: '2026-02-09T12:00:00.000Z',
+    lastActivityAt: '2026-02-09T12:00:00.000Z',
     ...overrides
   }
 }
