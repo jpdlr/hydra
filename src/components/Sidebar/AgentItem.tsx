@@ -10,7 +10,7 @@ interface AgentItemProps {
 
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
-  if (diff < 0) return 'now'
+  if (isNaN(diff) || diff < 0) return 'now'
   const mins = Math.floor(diff / 60_000)
   if (mins < 1) return 'now'
   if (mins < 60) return `${mins}m`

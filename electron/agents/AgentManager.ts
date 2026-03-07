@@ -225,12 +225,12 @@ export class AgentManager extends EventEmitter {
         isManager: persisted.isManager ?? false,
         sessionId: persisted.sessionId,
         initialPrompt: '',
-        createdAt: persisted.createdAt,
+        createdAt: persisted.createdAt || new Date().toISOString(),
         status: 'idle',
         pid: null,
         restartCount: 0,
         startedAt: null,
-        lastActivityAt: persisted.createdAt
+        lastActivityAt: persisted.lastActivityAt || persisted.createdAt || new Date().toISOString()
       }
 
       this.agents.set(id, {
@@ -265,7 +265,8 @@ export class AgentManager extends EventEmitter {
         yolo: managed.state.yolo,
         isManager: managed.state.isManager,
         sessionId: managed.state.sessionId,
-        createdAt: managed.state.createdAt
+        createdAt: managed.state.createdAt,
+        lastActivityAt: managed.state.lastActivityAt
       }))
   }
 

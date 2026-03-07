@@ -12,6 +12,7 @@ export interface PersistedWorkspaceAgent {
   isManager?: boolean
   sessionId: string | null
   createdAt: string
+  lastActivityAt?: string
 }
 
 interface WorkspaceData {
