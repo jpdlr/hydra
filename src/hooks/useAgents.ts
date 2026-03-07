@@ -47,6 +47,7 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
 
         next.set(payload.agentId, {
           ...data,
+          state: { ...data.state, lastActivityAt: new Date().toISOString() },
           rawOutput: data.rawOutput + payload.data
         })
         return next
@@ -265,16 +266,16 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
       grouped.get(dir)!.push(data.state)
     }
     const groups = Array.from(grouped.entries()).map(([dir, agts]) => {
-      // Newest agent first within each project
-      agts.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+      // Most recently active agent first within each project
+      agts.sort((a, b) => Date.parse(b.lastActivityAt) - Date.parse(a.lastActivityAt))
       return { projectDir: dir, projectName: basename(dir), agents: agts }
     })
-    // Manager workspace pinned to the top, then newest-first
+    // Manager workspace pinned to the top, then most recently active first
     groups.sort((a, b) => {
       const aIsManager = a.agents.some((ag) => ag.isManager)
       const bIsManager = b.agents.some((ag) => ag.isManager)
       if (aIsManager !== bIsManager) return aIsManager ? -1 : 1
-      return Date.parse(b.agents[0].createdAt) - Date.parse(a.agents[0].createdAt)
+      return Date.parse(b.agents[0].lastActivityAt) - Date.parse(a.agents[0].lastActivityAt)
     })
     return groups
   })()
