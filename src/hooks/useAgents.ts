@@ -270,12 +270,17 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
       agts.sort((a, b) => Date.parse(b.lastActivityAt) - Date.parse(a.lastActivityAt))
       return { projectDir: dir, projectName: basename(dir), agents: agts }
     })
-    // Manager workspace pinned to the top, then most recently active first
+    // Manager workspace pinned to the top, then most recently active first.
+    // Quantize to 1-minute buckets to prevent flickering when multiple
+    // projects have agents producing output at the same time.
+    const SORT_BUCKET_MS = 60_000
     groups.sort((a, b) => {
       const aIsManager = a.agents.some((ag) => ag.isManager)
       const bIsManager = b.agents.some((ag) => ag.isManager)
       if (aIsManager !== bIsManager) return aIsManager ? -1 : 1
-      return Date.parse(b.agents[0].lastActivityAt) - Date.parse(a.agents[0].lastActivityAt)
+      const aTime = Math.floor(Date.parse(a.agents[0].lastActivityAt) / SORT_BUCKET_MS)
+      const bTime = Math.floor(Date.parse(b.agents[0].lastActivityAt) / SORT_BUCKET_MS)
+      return bTime - aTime
     })
     return groups
   })()
