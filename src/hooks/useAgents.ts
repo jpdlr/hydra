@@ -45,9 +45,16 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
         const data = next.get(payload.agentId)
         if (!data) return prev
 
+        // Only update lastActivityAt if >1 minute stale to avoid constant
+        // sidebar re-renders when multiple agents produce output.
+        const now = Date.now()
+        const prevActivity = Date.parse(data.state.lastActivityAt)
+        const stale = now - prevActivity > 60_000
         next.set(payload.agentId, {
           ...data,
-          state: { ...data.state, lastActivityAt: new Date().toISOString() },
+          state: stale
+            ? { ...data.state, lastActivityAt: new Date(now).toISOString() }
+            : data.state,
           rawOutput: data.rawOutput + payload.data
         })
         return next
@@ -265,21 +272,21 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
       if (!grouped.has(dir)) grouped.set(dir, [])
       grouped.get(dir)!.push(data.state)
     }
+    // Quantize to 1-minute buckets to prevent flickering when multiple
+    // agents/projects produce output at the same time.
+    const SORT_BUCKET_MS = 60_000
+    const bucketize = (ts: string) => Math.floor(Date.parse(ts) / SORT_BUCKET_MS)
     const groups = Array.from(grouped.entries()).map(([dir, agts]) => {
       // Most recently active agent first within each project
-      agts.sort((a, b) => Date.parse(b.lastActivityAt) - Date.parse(a.lastActivityAt))
+      agts.sort((a, b) => bucketize(b.lastActivityAt) - bucketize(a.lastActivityAt))
       return { projectDir: dir, projectName: basename(dir), agents: agts }
     })
-    // Manager workspace pinned to the top, then most recently active first.
-    // Quantize to 1-minute buckets to prevent flickering when multiple
-    // projects have agents producing output at the same time.
-    const SORT_BUCKET_MS = 60_000
     groups.sort((a, b) => {
       const aIsManager = a.agents.some((ag) => ag.isManager)
       const bIsManager = b.agents.some((ag) => ag.isManager)
       if (aIsManager !== bIsManager) return aIsManager ? -1 : 1
-      const aTime = Math.floor(Date.parse(a.agents[0].lastActivityAt) / SORT_BUCKET_MS)
-      const bTime = Math.floor(Date.parse(b.agents[0].lastActivityAt) / SORT_BUCKET_MS)
+      const aTime = bucketize(a.agents[0].lastActivityAt)
+      const bTime = bucketize(b.agents[0].lastActivityAt)
       return bTime - aTime
     })
     return groups
