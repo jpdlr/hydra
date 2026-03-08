@@ -142,7 +142,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   defaultModel: 'sonnet',
   globalYolo: false,
   maxAgents: 8,
-  theme: 'dark',
+  theme: 'midnight',
   defaultViewMode: 'chat',
   defaultProjectDir: '',
   defaultEditor: 'vscode',
