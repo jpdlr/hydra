@@ -19,6 +19,7 @@ interface ManagedAgent {
   state: AgentState
   pty: IPty | null
   outputBuffer: string[]
+  outputBufferLen: number
   killTimeout: ReturnType<typeof setTimeout> | null
   submitQueue: Promise<void>
   cols: number
@@ -31,7 +32,7 @@ interface ManagedAgent {
   lastOutputAt: number
 }
 
-const MAX_BUFFER_LINES = 5000
+const MAX_BUFFER_CHARS = 2_000_000 // ~2 MB raw output cap
 const GRACEFUL_KILL_TIMEOUT = 5000
 const INPUT_SUBMIT_DELAY_MS = 75
 const DEFAULT_PTY_COLS = 120
@@ -132,6 +133,7 @@ export class AgentManager extends EventEmitter {
       state,
       pty: null,
       outputBuffer: [],
+      outputBufferLen: 0,
       killTimeout: null,
       submitQueue: Promise.resolve(),
       cols: DEFAULT_PTY_COLS,
@@ -187,6 +189,7 @@ export class AgentManager extends EventEmitter {
         state,
         pty: null,
         outputBuffer: [],
+      outputBufferLen: 0,
         killTimeout: null,
         submitQueue: Promise.resolve(),
         cols: DEFAULT_PTY_COLS,
@@ -237,6 +240,7 @@ export class AgentManager extends EventEmitter {
         state,
         pty: null,
         outputBuffer: [],
+      outputBufferLen: 0,
         killTimeout: null,
         submitQueue: Promise.resolve(),
         cols: DEFAULT_PTY_COLS,
@@ -359,11 +363,15 @@ export class AgentManager extends EventEmitter {
         if (managed.pty !== pty) return
         this.captureSessionIdFromOutput(managed, data)
 
-        // Buffer output
-        const lines = data.split('\n')
-        managed.outputBuffer.push(...lines)
-        if (managed.outputBuffer.length > MAX_BUFFER_LINES) {
-          managed.outputBuffer = managed.outputBuffer.slice(-MAX_BUFFER_LINES)
+        // Buffer raw output (no splitting — preserves escape sequences)
+        managed.outputBuffer.push(data)
+        managed.outputBufferLen += data.length
+        if (managed.outputBufferLen > MAX_BUFFER_CHARS) {
+          // Compact: concatenate and trim from the front
+          const full = managed.outputBuffer.join('')
+          const trimmed = full.slice(full.length - MAX_BUFFER_CHARS)
+          managed.outputBuffer = [trimmed]
+          managed.outputBufferLen = trimmed.length
         }
 
         this.emit('output', { agentId: managed.state.id, data })
@@ -392,13 +400,24 @@ export class AgentManager extends EventEmitter {
         }
       })
 
+      // Rename Claude sessions if a name was provided (--name flag doesn't work).
+      const shouldRename = managed.state.provider === 'claude' && managed.state.name.trim()
+      if (shouldRename) {
+        const renameName = managed.state.name.trim()
+        setTimeout(() => {
+          if (managed.pty !== pty) return
+          pty.write(`/rename ${renameName}\r`)
+        }, 1500)
+      }
+
       // Send initial prompt once after startup (supports both fresh and resumed sessions).
       if (managed.state.initialPrompt) {
         const startupPrompt = managed.state.initialPrompt
         managed.state.initialPrompt = ''
+        const promptDelay = shouldRename ? 3000 : 1500
         setTimeout(() => {
           this.queueSubmittedInput(managed, startupPrompt)
-        }, 1500)
+        }, promptDelay)
       }
       return 'spawned'
     } catch (err) {
@@ -622,6 +641,7 @@ export class AgentManager extends EventEmitter {
     managed.state.restartCount++
     managed.state.status = 'starting'
     managed.outputBuffer = []
+    managed.outputBufferLen = 0
     managed.submitQueue = Promise.resolve()
     managed.notifiedIdle = false
     managed.lastOutputAt = 0
@@ -652,6 +672,29 @@ export class AgentManager extends EventEmitter {
     managed.state.yolo = yolo
     // Restart with new flag, preserving session
     return this.restart(agentId)
+  }
+
+  renameAgent(agentId: string, name: string): AgentState | null {
+    const managed = this.agents.get(agentId)
+    if (!managed) return null
+
+    const trimmed = name.trim()
+    if (!trimmed) return { ...managed.state }
+
+    managed.state.name = trimmed
+
+    // Send /rename to Claude CLI if the session is active
+    if (managed.state.provider === 'claude' && managed.pty) {
+      managed.pty.write(`/rename ${trimmed}\r`)
+    }
+
+    this.emit('status', {
+      agentId,
+      status: managed.state.status,
+      sessionId: managed.state.sessionId
+    })
+
+    return { ...managed.state }
   }
 
   private queueSubmittedInput(managed: ManagedAgent, input: string): boolean {

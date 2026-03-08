@@ -261,6 +261,16 @@ export class DaemonServer {
         return this.json(res, 200, { resized: true })
       }
 
+      // Agent rename
+      const renameMatch = path.match(/^\/agents\/([^/]+)\/rename$/)
+      if (method === 'POST' && renameMatch) {
+        const agentId = decodeURIComponent(renameMatch[1])
+        const body = await this.readBody<{ name: string }>(req)
+        const renamed = this.agentManager.renameAgent(agentId, body.name)
+        this.persistWorkspace()
+        return this.json(res, 200, renamed)
+      }
+
       // Agent YOLO toggle
       const yoloMatch = path.match(/^\/agents\/([^/]+)\/yolo$/)
       if (method === 'POST' && yoloMatch) {

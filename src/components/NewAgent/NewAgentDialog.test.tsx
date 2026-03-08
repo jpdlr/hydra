@@ -37,6 +37,7 @@ describe('NewAgentDialog', () => {
       watchDir: vi.fn(),
       unwatchDir: vi.fn(),
       onFsWatchEvent: vi.fn().mockReturnValue(() => undefined),
+      renameAgent: vi.fn().mockResolvedValue(null),
       searchFiles: vi.fn().mockResolvedValue([]),
       enableRemoteControl: vi.fn().mockResolvedValue({ enabled: false, status: 'creating', sessionId: null, qrPayload: null, connectedAt: null, expiresAt: null, mobileConnected: false, error: null }),
       disableRemoteControl: vi.fn().mockResolvedValue({ enabled: false, status: 'creating', sessionId: null, qrPayload: null, connectedAt: null, expiresAt: null, mobileConnected: false, error: null }),

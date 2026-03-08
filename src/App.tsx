@@ -104,6 +104,7 @@ export default function App() {
     removeAgent,
     restartAgent,
     toggleYolo,
+    renameAgent,
     sendInput,
     sendTerminalInput,
     resizeTerminal,
@@ -574,6 +575,9 @@ export default function App() {
               }}
               onNewAgentForProject={(projectDir) => {
                 void handleNewAgentForProject(projectDir)
+              }}
+              onRenameAgent={(agentId, newName) => {
+                void renameAgent(agentId, newName)
               }}
               width={sidebarWidth}
               onWidthChange={setSidebarWidth}

@@ -61,6 +61,9 @@ const hydraApi = {
   toggleYolo: (agentId: string, yolo: boolean): Promise<AgentState | null> =>
     ipcRenderer.invoke(IPC.AGENT_YOLO_TOGGLE, agentId, yolo),
 
+  renameAgent: (agentId: string, name: string): Promise<AgentState | null> =>
+    ipcRenderer.invoke(IPC.AGENT_RENAME, agentId, name),
+
   getAgentBuffer: (agentId: string): Promise<string[]> =>
     ipcRenderer.invoke(IPC.AGENT_GET_BUFFER, agentId),
 

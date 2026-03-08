@@ -14,8 +14,8 @@ interface AgentData {
   rawOutput: string
 }
 
-function bufferToText(lines: string[]): string {
-  return lines.length > 0 ? lines.join('\n') : ''
+function bufferToText(chunks: string[]): string {
+  return chunks.length > 0 ? chunks.join('') : ''
 }
 
 export function useAgents(initialSelectedAgentId: string | null = null) {
@@ -232,6 +232,20 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
     }
   }, [])
 
+  const renameAgent = useCallback(async (agentId: string, name: string) => {
+    const updated = await window.hydra.renameAgent(agentId, name)
+    if (updated) {
+      setAgents((prev) => {
+        const next = new Map(prev)
+        const data = next.get(agentId)
+        if (data) {
+          next.set(agentId, { ...data, state: updated })
+        }
+        return next
+      })
+    }
+  }, [])
+
   const sendInput = useCallback((agentId: string, input: string) => {
     logEvent({
       level: 'debug',
@@ -306,6 +320,7 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
     removeAgent,
     restartAgent,
     toggleYolo,
+    renameAgent,
     sendInput,
     sendTerminalInput,
     resizeTerminal,

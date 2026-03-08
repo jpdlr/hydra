@@ -216,6 +216,10 @@ export function registerIpcHandlers(
     return daemonClient.toggleYolo(agentIdSchema.parse(agentId), z.boolean().parse(yolo))
   })
 
+  ipcMain.handle(IPC.AGENT_RENAME, async (_event, agentId: string, name: string) => {
+    return daemonClient.renameAgent(agentIdSchema.parse(agentId), z.string().min(1).parse(name))
+  })
+
   ipcMain.handle(IPC.AGENT_GET_BUFFER, async (_event, agentId: string) => {
     return daemonClient.getBuffer(agentIdSchema.parse(agentId))
   })

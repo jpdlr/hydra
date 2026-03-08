@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import type { ModelId } from '@shared/types'
 import styles from './InputBar.module.css'
 
@@ -25,7 +25,17 @@ export function InputBar({
 }: InputBarProps) {
   const [value, setValue] = useState('')
   const [images, setImages] = useState<AttachedImage[]>([])
+  const [previewImage, setPreviewImage] = useState<AttachedImage | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (!previewImage) return
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPreviewImage(null)
+    }
+    window.addEventListener('keydown', handleEsc)
+    return () => window.removeEventListener('keydown', handleEsc)
+  }, [previewImage])
 
   const handleSubmit = useCallback(() => {
     const trimmed = value.trim()
@@ -156,7 +166,12 @@ export function InputBar({
         <div className={styles.imageStrip}>
           {images.map((img) => (
             <div key={img.id} className={styles.imageChip}>
-              <img src={img.dataUrl} alt={img.name} className={styles.imageThumb} />
+              <img
+                src={img.dataUrl}
+                alt={img.name}
+                className={styles.imageThumb}
+                onClick={() => setPreviewImage(img)}
+              />
               <span className={styles.imageName}>{img.name || 'Pasted image'}</span>
               <button
                 className={styles.imageRemove}
@@ -167,6 +182,19 @@ export function InputBar({
               </button>
             </div>
           ))}
+        </div>
+      )}
+      {previewImage && (
+        <div className={styles.lightbox} onClick={() => setPreviewImage(null)}>
+          <img
+            src={previewImage.dataUrl}
+            alt={previewImage.name}
+            className={styles.lightboxImage}
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button className={styles.lightboxClose} onClick={() => setPreviewImage(null)}>
+            ✕
+          </button>
         </div>
       )}
       <div className={styles.inputWrapper}>

@@ -190,6 +190,7 @@ function buildAgentsState(importedSessionId: string | null = null) {
     removeAgent: vi.fn().mockResolvedValue(true),
     restartAgent: vi.fn().mockResolvedValue(imported),
     toggleYolo: vi.fn().mockResolvedValue(imported),
+    renameAgent: vi.fn().mockResolvedValue(null),
     sendInput: vi.fn(),
     sendTerminalInput: vi.fn(),
     resizeTerminal: vi.fn(),

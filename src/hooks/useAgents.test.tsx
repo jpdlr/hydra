@@ -59,6 +59,7 @@ describe('useAgents', () => {
       killAgent: vi.fn().mockResolvedValue(true),
       removeAgent: vi.fn().mockResolvedValue(true),
       toggleYolo: vi.fn().mockResolvedValue(null),
+      renameAgent: vi.fn().mockResolvedValue(null),
       sendInput: vi.fn(),
       sendRawInput: vi.fn(),
       resizeAgent: vi.fn(),
@@ -116,7 +117,7 @@ describe('useAgents', () => {
     const created = makeAgent('created-1', { status: 'running' })
     createAgent.mockResolvedValue(created)
     getAgentBuffer.mockImplementation(async (agentId: string) =>
-      agentId === created.id ? ['line one', 'line two'] : []
+      agentId === created.id ? ['line one\nline two'] : []
     )
 
     const { result } = renderHook(() => useAgents())

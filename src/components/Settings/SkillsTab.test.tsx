@@ -45,7 +45,8 @@ describe('SkillsTab', () => {
     window.hydra = {
       ...window.hydra,
       scanSkills: vi.fn().mockResolvedValue(mockScanResult),
-      toggleSkill: vi.fn().mockResolvedValue({ success: true })
+      toggleSkill: vi.fn().mockResolvedValue({ success: true }),
+      renameAgent: vi.fn().mockResolvedValue(null)
     } as any
   })
 

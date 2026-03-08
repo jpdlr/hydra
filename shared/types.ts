@@ -157,6 +157,7 @@ export const IPC = {
   AGENT_STATUS: 'agent:status',
   AGENT_LIST: 'agent:list',
   AGENT_YOLO_TOGGLE: 'agent:yolo-toggle',
+  AGENT_RENAME: 'agent:rename',
   AGENT_GET_BUFFER: 'agent:get-buffer',
 
   // Config

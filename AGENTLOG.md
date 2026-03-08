@@ -332,6 +332,11 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Mistake**: Assuming prompt echoes always include a reliable `❯` marker; in practice some lines arrive with altered/partial prefixes and slip through.
 **Fix**: Normalize text and block any extracted line matching the active prompt text (exact/prefix) from assistant start and continuation paths.
 
+### "Test locally" means `npm run dev`, NOT deploy to `/Applications`
+**Date**: 2026-03-08
+**Mistake**: Ran `bash scripts/deploy-local.sh` when user said "test locally" or "build local".
+**Fix**: "Test locally" / "run locally" = `npm run dev`. Only "deploy locally" means `bash scripts/deploy-local.sh`.
+
 ### Remote chat needs strict assistant-marker gating, not prompt-echo inference
 **Date**: 2026-03-01
 **Context**: User required that nothing after `>` should ever render as assistant content; only text after `⏺` is valid.

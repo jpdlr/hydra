@@ -23,6 +23,7 @@ describe('FileSearchPopup', () => {
       watchDir: vi.fn(),
       unwatchDir: vi.fn(),
       onFsWatchEvent: vi.fn().mockReturnValue(() => undefined),
+      renameAgent: vi.fn().mockResolvedValue(null),
       enableRemoteControl: vi.fn().mockResolvedValue({ enabled: false, status: 'creating', sessionId: null, qrPayload: null, connectedAt: null, expiresAt: null, mobileConnected: false, error: null }),
       disableRemoteControl: vi.fn().mockResolvedValue({ enabled: false, status: 'creating', sessionId: null, qrPayload: null, connectedAt: null, expiresAt: null, mobileConnected: false, error: null }),
       getRemoteControlState: vi.fn().mockResolvedValue({ enabled: false, status: 'creating', sessionId: null, qrPayload: null, connectedAt: null, expiresAt: null, mobileConnected: false, error: null }),

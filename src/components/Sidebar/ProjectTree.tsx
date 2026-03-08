@@ -10,10 +10,11 @@ interface ProjectTreeProps {
   selectedAgentId: string | null
   onSelectAgent: (agentId: string) => void
   onNewAgentForProject: (projectDir: string) => void
+  onRenameAgent: (agentId: string, newName: string) => void
   defaultEditor?: EditorId
 }
 
-export function ProjectTree({ group, selectedAgentId, onSelectAgent, onNewAgentForProject, defaultEditor = 'vscode' }: ProjectTreeProps) {
+export function ProjectTree({ group, selectedAgentId, onSelectAgent, onNewAgentForProject, onRenameAgent, defaultEditor = 'vscode' }: ProjectTreeProps) {
   const [expanded, setExpanded] = useState(true)
 
   return (
@@ -53,6 +54,7 @@ export function ProjectTree({ group, selectedAgentId, onSelectAgent, onNewAgentF
               agent={agent}
               isSelected={agent.id === selectedAgentId}
               onSelect={() => onSelectAgent(agent.id)}
+              onRename={(newName) => onRenameAgent(agent.id, newName)}
             />
           ))}
         </div>

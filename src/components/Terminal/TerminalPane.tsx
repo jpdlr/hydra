@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
+import { ImageAddon } from '@xterm/addon-image'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import '@xterm/xterm/css/xterm.css'
 
@@ -87,8 +88,10 @@ export function TerminalPane({
     })
 
     const fitAddon = new FitAddon()
+    const imageAddon = new ImageAddon()
     const webLinksAddon = new WebLinksAddon()
     terminal.loadAddon(fitAddon)
+    terminal.loadAddon(imageAddon)
     terminal.loadAddon(webLinksAddon)
     terminal.open(containerRef.current)
 

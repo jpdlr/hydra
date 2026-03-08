@@ -180,6 +180,10 @@ export class DaemonClient extends EventEmitter {
     return this.post(`/agents/${encodeURIComponent(agentId)}/yolo`, { yolo })
   }
 
+  async renameAgent(agentId: string, name: string): Promise<AgentState | null> {
+    return this.post(`/agents/${encodeURIComponent(agentId)}/rename`, { name })
+  }
+
   sendInput(agentId: string, input: string): void {
     this.post(`/agents/${encodeURIComponent(agentId)}/input`, { input }).catch(() => {})
   }
