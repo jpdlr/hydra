@@ -44,18 +44,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: var(--radius-sm);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
   color: var(--color-text-secondary);
+  background: var(--color-surface-hover);
   border: 1px solid var(--color-border);
   transition: all var(--transition-fast);
 }
 
 .projectAddBtn:hover {
-  color: var(--color-accent);
-  border-color: var(--color-accent);
-  background: var(--color-accent-subtle);
+  color: var(--color-text-primary);
+  border-color: var(--color-text-muted);
+  background: color-mix(in srgb, var(--color-surface-hover) 80%, var(--color-text-muted) 20%);
 }
 
 .center {
@@ -69,35 +70,34 @@
   gap: var(--space-2);
 }
 
-.headlessBtn {
+/* ── Shared header button base ────────────────────── */
+
+.headerBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
   color: var(--color-text-secondary);
   background: var(--color-surface-hover);
-  transition: background var(--transition-fast), color var(--transition-fast);
+  border: 1px solid var(--color-border);
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  cursor: pointer;
 }
 
-.headlessBtn:hover {
-  background: var(--color-accent-subtle);
-  color: var(--color-accent);
+.headerBtn:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-text-muted);
+  background: color-mix(in srgb, var(--color-surface-hover) 80%, var(--color-text-muted) 20%);
 }
+
+/* ── Update button ────────────────────────────────── */
 
 .updateBtn {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-secondary);
-  background: var(--color-surface-hover);
-  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
-  border: 1px solid transparent;
-}
-
-.updateBtn:hover {
-  background: var(--color-accent-subtle);
-  color: var(--color-accent);
+  composes: headerBtn;
 }
 
 .updateAvailable {
@@ -116,20 +116,10 @@
   color: var(--color-accent-text);
 }
 
-.remoteBtn {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-secondary);
-  background: var(--color-surface-hover);
-  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
-  border: 1px solid transparent;
-}
+/* ── Remote button ────────────────────────────────── */
 
-.remoteBtn:hover {
-  background: var(--color-accent-subtle);
-  color: var(--color-accent);
+.remoteBtn {
+  composes: headerBtn;
 }
 
 .remoteActive {
@@ -138,29 +128,44 @@
   background: var(--color-accent-subtle);
 }
 
+/* ── Usage button ─────────────────────────────────── */
+
 .usageBtn {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-secondary);
-  background: var(--color-surface-hover);
-  transition: background var(--transition-fast), color var(--transition-fast);
+  composes: headerBtn;
 }
 
-.usageBtn:hover {
-  background: var(--color-accent-subtle);
-  color: var(--color-accent);
+/* ── Headless button (hidden but preserved) ───────── */
+
+.headlessBtn {
+  composes: headerBtn;
 }
+
+/* ── Settings icon button ─────────────────────────── */
+
+.settingsBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.settingsBtn:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-text-muted);
+  background: color-mix(in srgb, var(--color-surface-hover) 80%, var(--color-text-muted) 20%);
+}
+
+/* ── Legacy YOLO toggle (kept for reference) ──────── */
 
 .yoloToggle {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-hover);
-  color: var(--color-text-secondary);
-  transition: all var(--transition-fast);
+  composes: headerBtn;
 }
 
 .yoloToggle:hover {
@@ -171,21 +176,5 @@
 .yoloActive {
   background: var(--color-yolo-bg);
   color: var(--color-yolo);
-  border: 1px solid var(--color-yolo-border);
-}
-
-.settingsBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-md);
-  color: var(--color-text-secondary);
-  transition: all var(--transition-fast);
-}
-
-.settingsBtn:hover {
-  background: var(--color-surface-hover);
-  color: var(--color-text-primary);
+  border-color: var(--color-yolo-border);
 }

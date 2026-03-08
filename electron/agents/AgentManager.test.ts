@@ -3,6 +3,7 @@ import { MAX_CONCURRENT_AGENTS_HARD_LIMIT } from '@shared/types'
 import type { ClaudeSessionSummary } from '@shared/types'
 import { AgentManager } from './AgentManager'
 import type { SessionCatalog } from '../sessions/SessionCatalog'
+import type { CodexSessionCatalog } from '../sessions/CodexSessionCatalog'
 
 interface MockPty {
   pid: number
@@ -84,7 +85,7 @@ describe('AgentManager', () => {
     const writes = createdPtys[0].write.mock.calls.map((call) => call[0])
     expect(writes).toEqual(['Hi Claude'])
 
-    await vi.advanceTimersByTimeAsync(74)
+    await vi.advanceTimersByTimeAsync(499)
     const beforeSubmit = createdPtys[0].write.mock.calls.map((call) => call[0])
     expect(beforeSubmit).toEqual(['Hi Claude'])
 
@@ -158,6 +159,65 @@ describe('AgentManager', () => {
     })
   })
 
+  it('updates codex model from terminal output', () => {
+    const manager = new AgentManager()
+    const created = manager.create({
+      ...basePayload,
+      provider: 'codex',
+      model: 'gpt-5.3-codex'
+    })
+    const models: string[] = []
+
+    manager.on('status', (payload: { model?: string }) => {
+      if (payload.model) models.push(payload.model)
+    })
+
+    createdPtys[0].emitData('Model changed to gpt-5.4 high')
+
+    expect(manager.get(created.id)?.model).toBe('gpt-5.4')
+    expect(models).toContain('gpt-5.4')
+  })
+
+  it('discovers codex session ids and uses codex resume on restart', async () => {
+    const fakeClaudeCatalog = {
+      listSessions: vi.fn().mockReturnValue([])
+    } satisfies Partial<SessionCatalog>
+    const fakeCodexCatalog = {
+      listSessions: vi.fn().mockReturnValue([
+        {
+          sessionId: 'codex-session-01',
+          projectPath: '/tmp/project',
+          firstPrompt: 'Resume codex restart',
+          messageCount: 1,
+          createdAt: '2026-03-08T10:00:00.000Z',
+          modifiedAt: new Date().toISOString(),
+          gitBranch: 'main',
+          isSidechain: false,
+          sourcePath: '/tmp/codex-session-01.jsonl'
+        } satisfies ClaudeSessionSummary
+      ])
+    } satisfies Partial<CodexSessionCatalog>
+
+    const manager = new AgentManager(
+      fakeClaudeCatalog as unknown as SessionCatalog,
+      fakeCodexCatalog as unknown as CodexSessionCatalog
+    )
+    const created = manager.create({
+      ...basePayload,
+      provider: 'codex',
+      model: 'gpt-5.3-codex',
+      initialPrompt: 'Resume codex restart'
+    })
+
+    await vi.advanceTimersByTimeAsync(0)
+    expect(manager.get(created.id)?.sessionId).toBe('codex-session-01')
+
+    manager.restart(created.id)
+
+    expect(spawnMock).toHaveBeenCalledTimes(2)
+    expect(spawnMock.mock.calls[1][1]).toEqual(['resume', 'codex-session-01', '--model', 'gpt-5.3-codex'])
+  })
+
   it('ignores stale exit callbacks from replaced PTYs during restart', async () => {
     const manager = new AgentManager()
     const created = manager.create({ ...basePayload, name: 'race-check' })
@@ -197,6 +257,23 @@ describe('AgentManager', () => {
 
     expect(firstPty.kill).toHaveBeenCalled()
     expect(secondPty.kill).not.toHaveBeenCalled()
+  })
+
+  it('treats an explicit stop as idle even when the PTY exits non-zero', () => {
+    const manager = new AgentManager()
+    const created = manager.create({ ...basePayload, name: 'stop-check' })
+    const statuses: string[] = []
+
+    manager.on('status', (payload: { status: string }) => {
+      statuses.push(payload.status)
+    })
+
+    expect(manager.kill(created.id)).toBe(true)
+    createdPtys[0].emitExit({ exitCode: 1, signal: 15 })
+
+    expect(manager.get(created.id)?.status).toBe('idle')
+    expect(statuses.at(-1)).toBe('idle')
+    expect(statuses).not.toContain('errored')
   })
 
   it('enforces hard cap for concurrently active agents', () => {

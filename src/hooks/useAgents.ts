@@ -6,6 +6,7 @@ import type {
   AgentStatusPayload,
   ProjectGroup
 } from '@shared/types'
+import { detectLatestModelFromTerminalOutput } from '@shared/terminalModelDetection'
 import { basename } from '@/lib/pathUtils'
 import { createTraceId, logEvent } from '@/lib/observability'
 
@@ -44,6 +45,8 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
         const next = new Map(prev)
         const data = next.get(payload.agentId)
         if (!data) return prev
+        const nextOutput = data.rawOutput + payload.data
+        const detectedModel = detectLatestModelFromTerminalOutput(data.state.provider, nextOutput)
 
         // Only update lastActivityAt if >1 minute stale to avoid constant
         // sidebar re-renders when multiple agents produce output.
@@ -53,9 +56,16 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
         next.set(payload.agentId, {
           ...data,
           state: stale
-            ? { ...data.state, lastActivityAt: new Date(now).toISOString() }
-            : data.state,
-          rawOutput: data.rawOutput + payload.data
+            ? {
+                ...data.state,
+                lastActivityAt: new Date(now).toISOString(),
+                model: detectedModel ?? data.state.model
+              }
+            : {
+                ...data.state,
+                model: detectedModel ?? data.state.model
+              },
+          rawOutput: nextOutput
         })
         return next
       })
@@ -77,7 +87,8 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
         const updatedState = {
           ...data.state,
           status: payload.status,
-          sessionId: payload.sessionId ?? data.state.sessionId
+          sessionId: payload.sessionId ?? data.state.sessionId,
+          model: payload.model ?? data.state.model
         }
         next.set(payload.agentId, { ...data, state: updatedState })
         return next
@@ -99,7 +110,11 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
 
       const results = await Promise.all(bufferPromises)
       for (const { state, rawOutput } of results) {
-        map.set(state.id, { state, rawOutput })
+        const detectedModel = detectLatestModelFromTerminalOutput(state.provider, rawOutput)
+        map.set(state.id, {
+          state: detectedModel ? { ...state, model: detectedModel } : state,
+          rawOutput
+        })
       }
 
       setAgents(map)
@@ -246,6 +261,24 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
     }
   }, [])
 
+  const setAgentModel = useCallback(async (agentId: string, model: string) => {
+    try {
+      const updated = await window.hydra.setAgentModel(agentId, model)
+      if (updated) {
+        setAgents((prev) => {
+          const next = new Map(prev)
+          const data = next.get(agentId)
+          if (data) {
+            next.set(agentId, { ...data, state: updated })
+          }
+          return next
+        })
+      }
+    } catch {
+      // Keep the optimistic model locally; the terminal command has already been sent.
+    }
+  }, [])
+
   const sendInput = useCallback((agentId: string, input: string) => {
     logEvent({
       level: 'debug',
@@ -321,6 +354,7 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
     restartAgent,
     toggleYolo,
     renameAgent,
+    setAgentModel,
     sendInput,
     sendTerminalInput,
     resizeTerminal,

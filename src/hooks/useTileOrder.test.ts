@@ -71,6 +71,33 @@ describe('useTileOrder', () => {
     expect(result.current.orderedIds).toEqual(['b', 'a', 'c'])
   })
 
+  it('freezes the initial grid order across activity-driven rerenders', () => {
+    const initialAgents = [makeAgent('a'), makeAgent('b'), makeAgent('c')]
+    const { result, rerender } = renderHook(
+      ({ agents }) => useTileOrder('/tmp/project', agents, false),
+      { initialProps: { agents: initialAgents } }
+    )
+
+    expect(result.current.orderedIds).toEqual(['a', 'b', 'c'])
+
+    rerender({ agents: [makeAgent('c'), makeAgent('a'), makeAgent('b')] })
+
+    expect(result.current.orderedIds).toEqual(['a', 'b', 'c'])
+  })
+
+  it('appends newly appearing agents while keeping the frozen grid order stable', () => {
+    const { result, rerender } = renderHook(
+      ({ agents }) => useTileOrder('/tmp/project', agents, false),
+      { initialProps: { agents: [makeAgent('a'), makeAgent('b')] } }
+    )
+
+    expect(result.current.orderedIds).toEqual(['a', 'b'])
+
+    rerender({ agents: [makeAgent('b'), makeAgent('c'), makeAgent('a')] })
+
+    expect(result.current.orderedIds).toEqual(['a', 'b', 'c'])
+  })
+
   it('removes stale agent IDs from stored order', () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       '/tmp/project': ['a', 'b', 'c']

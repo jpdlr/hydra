@@ -51,6 +51,7 @@ export class DaemonServer {
   private readonly onShutdown: () => void
   private readonly startedAt = Date.now()
   private testPty: IPty | null = null
+  private freePty: IPty | null = null
 
   constructor(options: DaemonServerOptions) {
     this.socketPath = options.socketPath
@@ -125,8 +126,16 @@ export class DaemonServer {
     }
   }
 
+  private killFreePty(): void {
+    if (this.freePty) {
+      try { this.freePty.kill() } catch { /* already dead */ }
+      this.freePty = null
+    }
+  }
+
   stop(): void {
     this.killTestPty()
+    this.killFreePty()
     if (this.wss) {
       for (const client of this.wss.clients) {
         client.close()
@@ -280,6 +289,16 @@ export class DaemonServer {
         const renamed = this.agentManager.renameAgent(agentId, body.name)
         this.persistWorkspace()
         return this.json(res, 200, renamed)
+      }
+
+      // Agent model update
+      const modelMatch = path.match(/^\/agents\/([^/]+)\/model$/)
+      if (method === 'POST' && modelMatch) {
+        const agentId = decodeURIComponent(modelMatch[1])
+        const body = await this.readBody<{ model: string }>(req)
+        const updated = this.agentManager.setModel(agentId, body.model)
+        this.persistWorkspace()
+        return this.json(res, 200, updated)
       }
 
       // Agent YOLO toggle
@@ -456,6 +475,47 @@ export class DaemonServer {
 
       if (method === 'POST' && path === '/test-terminal/kill') {
         this.killTestPty()
+        return this.json(res, 200, { ok: true })
+      }
+
+      // ── Free Terminal (integrated shell) ─────────────────────────────────
+      if (method === 'POST' && path === '/free-terminal/spawn') {
+        this.killFreePty()
+        const body = await this.readBody<{ cwd?: string }>(req)
+        const shellPath = process.env.SHELL || (process.platform === 'win32' ? 'powershell.exe' : '/bin/bash')
+        const env: Record<string, string> = { ...process.env as Record<string, string>, TERM: 'xterm-256color', FORCE_COLOR: '1' }
+        delete env.ELECTRON_RUN_AS_NODE
+        this.freePty = ptySpawn(shellPath, ['-l', '-i'], {
+          name: 'xterm-256color',
+          cols: 80,
+          rows: 24,
+          cwd: body.cwd || homedir(),
+          env
+        })
+        this.freePty.onData((data: string) => {
+          this.broadcast({ type: 'free-terminal:output', payload: { data } })
+        })
+        this.freePty.onExit(({ exitCode }) => {
+          this.freePty = null
+          this.broadcast({ type: 'free-terminal:exit', payload: { exitCode } })
+        })
+        return this.json(res, 200, { ok: true })
+      }
+
+      if (method === 'POST' && path === '/free-terminal/input') {
+        const body = await this.readBody<{ data: string }>(req)
+        this.freePty?.write(body.data)
+        return this.json(res, 200, { ok: true })
+      }
+
+      if (method === 'POST' && path === '/free-terminal/resize') {
+        const body = await this.readBody<{ cols: number; rows: number }>(req)
+        try { this.freePty?.resize(body.cols, body.rows) } catch { /* ignore */ }
+        return this.json(res, 200, { ok: true })
+      }
+
+      if (method === 'POST' && path === '/free-terminal/kill') {
+        this.killFreePty()
         return this.json(res, 200, { ok: true })
       }
 

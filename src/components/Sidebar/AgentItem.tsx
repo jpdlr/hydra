@@ -103,16 +103,13 @@ export function AgentItem({ agent, isSelected, onSelect, onRename, onRemove }: A
   return (
     <>
       <button
-        className={`${styles.item} ${isSelected ? styles.selected : ''} ${agent.yolo ? styles.yolo : ''}`}
+        className={`${styles.item} ${isSelected ? styles.selected : ''}`}
         onClick={onSelect}
         onContextMenu={handleContextMenu}
         title={`${agent.name} — ${agent.status}`}
       >
-        <span
-          className={styles.statusDot}
-          style={{ color: STATUS_COLORS[agent.status] || STATUS_COLORS.idle }}
-        >
-          {agent.status === 'errored' ? '✖' : agent.status === 'running' || agent.status === 'starting' ? '●' : '○'}
+        <span className={styles.statusDot}>
+          <StatusIcon status={agent.status} />
         </span>
         {editing ? (
           <input
@@ -148,6 +145,34 @@ export function AgentItem({ agent, isSelected, onSelect, onRename, onRemove }: A
         </div>
       )}
     </>
+  )
+}
+
+function StatusIcon({ status }: { status: string }) {
+  const color = STATUS_COLORS[status] || STATUS_COLORS.idle
+  if (status === 'errored') {
+    return (
+      <svg width="10" height="10" viewBox="0 0 10 10">
+        <circle cx="5" cy="5" r="4" fill={color} opacity="0.2" />
+        <line x1="3" y1="3" x2="7" y2="7" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+        <line x1="7" y1="3" x2="3" y2="7" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    )
+  }
+  if (status === 'running' || status === 'starting') {
+    return (
+      <svg width="10" height="10" viewBox="0 0 10 10">
+        <circle cx="5" cy="5" r="3.5" fill={color} />
+        {status === 'running' && <circle cx="5" cy="5" r="3.5" fill={color}>
+          <animate attributeName="opacity" values="1;0.4;1" dur="2s" repeatCount="indefinite" />
+        </circle>}
+      </svg>
+    )
+  }
+  return (
+    <svg width="10" height="10" viewBox="0 0 10 10">
+      <circle cx="5" cy="5" r="3" fill="none" stroke={color} strokeWidth="1.5" />
+    </svg>
   )
 }
 

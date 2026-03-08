@@ -59,6 +59,12 @@
   transform: rotate(90deg);
 }
 
+.folderIcon {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  opacity: 0.8;
+}
+
 .projectName {
   flex: 1;
   text-align: left;

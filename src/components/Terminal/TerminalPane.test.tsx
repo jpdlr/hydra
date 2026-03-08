@@ -7,6 +7,7 @@ import { TerminalPane } from './TerminalPane'
 const { terminalState } = vi.hoisted(() => ({
   terminalState: {
     instances: [] as Array<{
+      options: Record<string, unknown>
       write: ReturnType<typeof vi.fn>
       reset: ReturnType<typeof vi.fn>
       dispose: ReturnType<typeof vi.fn>
@@ -22,6 +23,7 @@ vi.mock('@xterm/xterm', () => ({
   Terminal: class MockTerminal {
     cols = 80
     rows = 24
+    options: Record<string, unknown>
     write = vi.fn()
     reset = vi.fn()
     dispose = vi.fn()
@@ -33,7 +35,8 @@ vi.mock('@xterm/xterm', () => ({
     buffer = { active: { baseY: 0, viewportY: 0, length: 24 } }
     onDataHandler: ((data: string) => void) | null = null
 
-    constructor() {
+    constructor(options: Record<string, unknown> = {}) {
+      this.options = options
       terminalState.instances.push(this)
     }
 
@@ -102,6 +105,13 @@ describe('TerminalPane', () => {
 
     expect(onData).toHaveBeenNthCalledWith(1, '\r')
     expect(onData).toHaveBeenNthCalledWith(2, 'a')
+  })
+
+  it('preserves raw line-ending semantics for TUI apps', () => {
+    render(<TerminalPane rawOutput="" />)
+    const term = terminalState.instances[0]
+
+    expect(term.options.convertEol).toBe(false)
   })
 
   it('notifies terminal size changes through onResize', () => {

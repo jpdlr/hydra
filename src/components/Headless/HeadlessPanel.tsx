@@ -6,7 +6,8 @@ import type {
   ModelId,
   ProviderId
 } from '@shared/types'
-import { PROVIDER_MODELS, PROVIDER_LABELS, CODEX_REASONING_LEVELS, getDefaultModelForProvider } from '@shared/types'
+import { PROVIDER_LABELS, CODEX_REASONING_LEVELS } from '@shared/types'
+import { useRuntimeProviderModels } from '../../hooks/useRuntimeProviderModels'
 import styles from './HeadlessPanel.module.css'
 
 const PROVIDERS: ProviderId[] = ['claude', 'codex']
@@ -47,6 +48,7 @@ export function HeadlessPanel({ defaultProjectDir, defaultProvider, defaultModel
   const [isStarting, setIsStarting] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isLoadingLog, setIsLoadingLog] = useState(false)
+  const { providerModels, getDefaultModel, getModelOption } = useRuntimeProviderModels()
 
   const refreshRuns = useCallback(async () => {
     setIsRefreshing(true)
@@ -120,6 +122,26 @@ export function HeadlessPanel({ defaultProjectDir, defaultProvider, defaultModel
     return [...runs].sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))
   }, [runs])
 
+  const selectedModelOption = useMemo(() => {
+    const selectedModelId = useCustomModel ? customModel.trim() : model
+    if (!selectedModelId) return null
+    return getModelOption(provider, selectedModelId)
+  }, [customModel, getModelOption, model, provider, useCustomModel])
+
+  const codexReasoningOptions = useMemo(() => {
+    if (provider !== 'codex') return []
+    return selectedModelOption?.reasoningEfforts?.length
+      ? selectedModelOption.reasoningEfforts
+      : [...CODEX_REASONING_LEVELS]
+  }, [provider, selectedModelOption])
+
+  useEffect(() => {
+    if (provider !== 'codex') return
+    if (!reasoningEffort) return
+    if (codexReasoningOptions.includes(reasoningEffort)) return
+    setReasoningEffort('')
+  }, [codexReasoningOptions, provider, reasoningEffort])
+
   const effectiveModel = useCustomModel ? customModel.trim() : model
 
   const handleStart = async (e: React.FormEvent) => {
@@ -180,7 +202,7 @@ export function HeadlessPanel({ defaultProjectDir, defaultProvider, defaultModel
               onChange={(e) => {
                 const p = e.target.value as ProviderId
                 setProvider(p)
-                setModel(getDefaultModelForProvider(p))
+                setModel(getDefaultModel(p))
                 setUseCustomModel(false)
                 setCustomModel('')
                 setReasoningEffort('')
@@ -203,7 +225,7 @@ export function HeadlessPanel({ defaultProjectDir, defaultProvider, defaultModel
                 }
               }}
             >
-              {PROVIDER_MODELS[provider].map((m) => (
+              {providerModels[provider].map((m) => (
                 <option key={m.id} value={m.id}>{m.label}</option>
               ))}
               <option value="__custom__">Custom...</option>
@@ -215,9 +237,9 @@ export function HeadlessPanel({ defaultProjectDir, defaultProvider, defaultModel
                 onChange={(e) => setReasoningEffort(e.target.value)}
               >
                 <option value="">Reasoning: Default</option>
-                {CODEX_REASONING_LEVELS.map((level) => (
+                {codexReasoningOptions.map((level) => (
                   <option key={level} value={level}>
-                    {level.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                    {formatReasoningEffort(level)}
                   </option>
                 ))}
               </select>
@@ -362,6 +384,11 @@ export function HeadlessPanel({ defaultProjectDir, defaultProvider, defaultModel
       </div>
     </div>
   )
+}
+
+function formatReasoningEffort(level: string): string {
+  if (level === 'xhigh') return 'Extra High'
+  return level.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
 function formatDate(iso: string): string {

@@ -31,6 +31,7 @@ describe('NewAgentDialog', () => {
         error: null,
         managerWorkspace: null
       }),
+      listProviderModels: vi.fn().mockResolvedValue([]),
       readDir: vi.fn().mockResolvedValue([]),
       readFile: vi.fn().mockResolvedValue({ content: '', path: '' }),
       writeFile: vi.fn().mockResolvedValue(true),

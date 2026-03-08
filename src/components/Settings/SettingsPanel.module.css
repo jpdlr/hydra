@@ -53,12 +53,53 @@
   padding: var(--space-3) var(--space-5) 0;
 }
 
+.searchBar {
+  padding: var(--space-4) var(--space-5) 0;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 10px var(--space-4);
+  font-size: var(--font-size-sm);
+  background: var(--color-input-bg);
+  border: 1px solid var(--color-input-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.searchInput::placeholder {
+  color: var(--color-text-muted);
+}
+
+.searchInput:focus {
+  border-color: var(--color-accent);
+}
+
 .body {
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-5) var(--space-5) var(--space-6);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  gap: var(--space-8);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
   gap: var(--space-5);
+}
+
+.sectionTitle {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-1);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .field {
@@ -256,4 +297,31 @@
 .clearBtn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.yoloToggle {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  transition: all var(--transition-fast);
+  min-width: 48px;
+  text-align: center;
+}
+
+.yoloToggle:hover {
+  background: var(--color-surface-hover);
+}
+
+.yoloActive {
+  background: var(--color-yolo-bg);
+  color: var(--color-yolo);
+  border-color: var(--color-yolo-border);
+}
+
+.yoloActive:hover {
+  background: var(--color-yolo-bg);
+  opacity: 0.85;
 }

@@ -1,5 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import type { ModelId } from '@shared/types'
+import type { ModelId, ProviderId, GitBranch } from '@shared/types'
+import claudeIcon from '@/assets/claude-icon.png'
+import codexIcon from '@/assets/codex-icon.png'
+import { useRuntimeProviderModels } from '../../hooks/useRuntimeProviderModels'
 import styles from './InputBar.module.css'
 
 export interface AttachedImage {
@@ -10,8 +13,13 @@ export interface AttachedImage {
 
 interface InputBarProps {
   onSend: (input: string, images?: AttachedImage[]) => void
+  onModelChange?: (model: ModelId) => void
   disabled?: boolean
+  provider?: ProviderId
   model?: ModelId
+  gitBranch?: string | null
+  projectDir?: string
+  onBranchChanged?: (branch: string) => void
   placeholder?: string
 }
 
@@ -19,14 +27,30 @@ let imageIdCounter = 0
 
 export function InputBar({
   onSend,
+  onModelChange,
   disabled = false,
+  provider,
   model,
+  gitBranch,
+  projectDir,
+  onBranchChanged,
   placeholder = 'Send a message...'
 }: InputBarProps) {
   const [value, setValue] = useState('')
   const [images, setImages] = useState<AttachedImage[]>([])
   const [previewImage, setPreviewImage] = useState<AttachedImage | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const { providerModels, getModelOption } = useRuntimeProviderModels()
+
+  // Branch picker state
+  const [modelPickerOpen, setModelPickerOpen] = useState(false)
+  const modelPickerRef = useRef<HTMLDivElement>(null)
+  const [branchPickerOpen, setBranchPickerOpen] = useState(false)
+  const [branches, setBranches] = useState<GitBranch[]>([])
+  const [branchFilter, setBranchFilter] = useState('')
+  const [branchLoading, setBranchLoading] = useState(false)
+  const branchPickerRef = useRef<HTMLDivElement>(null)
+  const branchFilterRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!previewImage) return
@@ -36,6 +60,66 @@ export function InputBar({
     window.addEventListener('keydown', handleEsc)
     return () => window.removeEventListener('keydown', handleEsc)
   }, [previewImage])
+
+  // Close branch picker on outside click
+  useEffect(() => {
+    if (!branchPickerOpen) return
+    const handleClick = (e: MouseEvent) => {
+      if (branchPickerRef.current && !branchPickerRef.current.contains(e.target as Node)) {
+        setBranchPickerOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [branchPickerOpen])
+
+  useEffect(() => {
+    if (!modelPickerOpen) return
+    const handleClick = (e: MouseEvent) => {
+      if (modelPickerRef.current && !modelPickerRef.current.contains(e.target as Node)) {
+        setModelPickerOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [modelPickerOpen])
+
+  const openBranchPicker = useCallback(async () => {
+    if (!projectDir) return
+    if (branchPickerOpen) {
+      setBranchPickerOpen(false)
+      return
+    }
+    setBranchLoading(true)
+    setBranchPickerOpen(true)
+    setBranchFilter('')
+    try {
+      const list = await window.hydra.gitListBranches(projectDir)
+      setBranches(list)
+    } catch {
+      setBranches([])
+    } finally {
+      setBranchLoading(false)
+      requestAnimationFrame(() => branchFilterRef.current?.focus())
+    }
+  }, [projectDir, branchPickerOpen])
+
+  const handleCheckout = useCallback(async (branchName: string) => {
+    if (!projectDir) return
+    setBranchPickerOpen(false)
+    try {
+      await window.hydra.gitCheckout(projectDir, branchName)
+      onBranchChanged?.(branchName)
+    } catch {
+      // checkout failed — could have uncommitted changes
+    }
+  }, [projectDir, onBranchChanged])
+
+  const handleModelSelect = useCallback((nextModel: ModelId) => {
+    setModelPickerOpen(false)
+    if (!nextModel || !onModelChange || nextModel === model) return
+    onModelChange(nextModel)
+  }, [model, onModelChange])
 
   const handleSubmit = useCallback(() => {
     const trimmed = value.trim()
@@ -210,7 +294,6 @@ export function InputBar({
           rows={1}
         />
         <div className={styles.actions}>
-          {model && <span className={styles.model}>{model}</span>}
           <button
             className={styles.sendBtn}
             onClick={handleSubmit}
@@ -221,6 +304,72 @@ export function InputBar({
           </button>
         </div>
       </div>
+      {(model || gitBranch) && (
+        <div className={styles.statusRow}>
+          {model && (
+            <div className={styles.modelPickerAnchor} ref={modelPickerRef}>
+              <button
+                type="button"
+                className={`${styles.modelPill} ${onModelChange && provider ? styles.modelPillClickable : ''}`}
+                onClick={() => {
+                  if (!onModelChange || !provider || !model) return
+                  if (provider === 'codex') {
+                    onModelChange(model)
+                    return
+                  }
+                  setModelPickerOpen((open) => !open)
+                }}
+                title={
+                  !onModelChange || !provider
+                    ? undefined
+                    : provider === 'codex'
+                      ? 'Open Codex model picker'
+                      : 'Switch model'
+                }
+              >
+                <ProviderIcon provider={provider} />
+                {formatModelLabel(provider, getModelOption(provider ?? 'claude', model)?.label ?? model)}
+                {onModelChange && provider === 'claude' && <ChevronIcon open={modelPickerOpen} />}
+                {onModelChange && provider === 'codex' && <OpenChevronIcon />}
+              </button>
+              {modelPickerOpen && provider === 'claude' && (
+                <ModelPickerDropdown
+                  models={providerModels[provider]}
+                  currentModel={model}
+                  provider={provider}
+                  onSelect={handleModelSelect}
+                />
+              )}
+            </div>
+          )}
+          <span className={styles.statusSpacer} />
+          {gitBranch && (
+            <div className={styles.branchPickerAnchor} ref={branchPickerRef}>
+              <button
+                className={`${styles.branchPill} ${projectDir ? styles.branchPillClickable : ''}`}
+                onClick={openBranchPicker}
+                title="Switch branch"
+              >
+                <BranchIcon />
+                {gitBranch}
+                {projectDir && <ChevronIcon open={branchPickerOpen} />}
+              </button>
+              {branchPickerOpen && (
+                <BranchPickerDropdown
+                  branches={branches}
+                  filter={branchFilter}
+                  onFilterChange={setBranchFilter}
+                  filterRef={branchFilterRef}
+                  loading={branchLoading}
+                  currentBranch={gitBranch}
+                  onSelect={handleCheckout}
+                  onClose={() => setBranchPickerOpen(false)}
+                />
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -230,5 +379,177 @@ function SendIcon() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
       <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
     </svg>
+  )
+}
+
+function ProviderIcon({ provider }: { provider?: ProviderId }) {
+  const src = provider === 'codex' ? codexIcon : claudeIcon
+  const alt = provider === 'codex' ? 'Codex' : 'Claude'
+  return (
+    <img
+      src={src}
+      alt={alt}
+      width={14}
+      height={14}
+      className={styles.providerIcon}
+    />
+  )
+}
+
+function formatModelLabel(provider: ProviderId | undefined, label: string): string {
+  if (provider === 'codex') return label.toUpperCase()
+  return label.charAt(0).toUpperCase() + label.slice(1).toLowerCase()
+}
+
+function BranchIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <line x1="6" y1="3" x2="6" y2="15" />
+      <circle cx="18" cy="6" r="3" />
+      <circle cx="6" cy="18" r="3" />
+      <path d="M18 9a9 9 0 0 1-9 9" />
+    </svg>
+  )
+}
+
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="10"
+      height="10"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ flexShrink: 0, transition: 'transform 150ms', transform: open ? 'rotate(180deg)' : 'none' }}
+    >
+      <path d="M4 6l4 4 4-4" />
+    </svg>
+  )
+}
+
+function OpenChevronIcon() {
+  return (
+    <svg
+      width="10"
+      height="10"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ flexShrink: 0 }}
+    >
+      <path d="M6 4l4 4-4 4" />
+    </svg>
+  )
+}
+
+function BranchPickerDropdown({
+  branches,
+  filter,
+  onFilterChange,
+  filterRef,
+  loading,
+  currentBranch,
+  onSelect,
+  onClose,
+}: {
+  branches: GitBranch[]
+  filter: string
+  onFilterChange: (v: string) => void
+  filterRef: React.RefObject<HTMLInputElement>
+  loading: boolean
+  currentBranch: string
+  onSelect: (name: string) => void
+  onClose: () => void
+}) {
+  const filtered = filter
+    ? branches.filter((b) => b.name.toLowerCase().includes(filter.toLowerCase()))
+    : branches
+
+  // Sort: current first, then alphabetical
+  const sorted = [...filtered].sort((a, b) => {
+    if (a.isCurrent && !b.isCurrent) return -1
+    if (!a.isCurrent && b.isCurrent) return 1
+    return a.name.localeCompare(b.name)
+  })
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation()
+      onClose()
+    }
+  }
+
+  return (
+    <div className={styles.branchDropdown} onKeyDown={handleKeyDown}>
+      <div className={styles.branchSearchRow}>
+        <input
+          ref={filterRef}
+          className={styles.branchSearchInput}
+          type="text"
+          value={filter}
+          onChange={(e) => onFilterChange(e.target.value)}
+          placeholder="Filter branches..."
+          autoFocus
+        />
+      </div>
+      <div className={styles.branchList}>
+        {loading && <div className={styles.branchListEmpty}>Loading...</div>}
+        {!loading && sorted.length === 0 && (
+          <div className={styles.branchListEmpty}>No branches found</div>
+        )}
+        {!loading &&
+          sorted.map((b) => (
+            <button
+              key={b.name}
+              className={`${styles.branchItem} ${b.name === currentBranch ? styles.branchItemCurrent : ''}`}
+              onClick={() => {
+                if (b.name !== currentBranch) onSelect(b.name)
+                else onClose()
+              }}
+            >
+              <BranchIcon />
+              <span className={styles.branchItemName}>{b.name}</span>
+              {b.name === currentBranch && <span className={styles.branchItemCheck}>✓</span>}
+            </button>
+          ))}
+      </div>
+    </div>
+  )
+}
+
+function ModelPickerDropdown({
+  models,
+  currentModel,
+  provider,
+  onSelect
+}: {
+  models: { id: ModelId; label: string }[]
+  currentModel: ModelId
+  provider: ProviderId
+  onSelect: (model: ModelId) => void
+}) {
+  return (
+    <div className={styles.modelDropdown}>
+      {models.map((entry) => {
+        const selected = entry.id === currentModel
+        return (
+          <button
+            key={entry.id}
+            type="button"
+            className={`${styles.modelOption} ${selected ? styles.modelOptionActive : ''}`}
+            onClick={() => onSelect(entry.id)}
+          >
+            <span>{formatModelLabel(provider, entry.label)}</span>
+            {selected && <span className={styles.modelOptionCheck}>✓</span>}
+          </button>
+        )
+      })}
+    </div>
   )
 }

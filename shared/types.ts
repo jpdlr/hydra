@@ -31,22 +31,33 @@ export type ProviderId = 'claude' | 'codex'
 /** Free-form model identifier — any string accepted so new models work without code changes. */
 export type ModelId = string
 
-export const PROVIDER_MODELS: Record<ProviderId, { id: ModelId; label: string }[]> = {
+export interface ProviderModelOption {
+  id: ModelId
+  label: string
+  description?: string
+  hidden?: boolean
+  isDefault?: boolean
+  reasoningEfforts?: string[]
+  defaultReasoningEffort?: string | null
+}
+
+export const PROVIDER_MODELS: Record<ProviderId, ProviderModelOption[]> = {
   claude: [
     { id: 'opus', label: 'Opus' },
     { id: 'sonnet', label: 'Sonnet' },
     { id: 'haiku', label: 'Haiku' }
   ],
   codex: [
+    { id: 'gpt-5.3-codex', label: 'GPT-5.3 Codex', isDefault: true },
+    { id: 'gpt-5.4', label: 'GPT-5.4' },
     { id: 'gpt-5.2-codex', label: 'GPT-5.2 Codex' },
-    { id: 'gpt-5.3-codex', label: 'GPT-5.3 Codex' },
     { id: 'gpt-5.1-codex-max', label: 'GPT-5.1 Codex Max' },
     { id: 'gpt-5.2', label: 'GPT-5.2' },
     { id: 'gpt-5.1-codex-mini', label: 'GPT-5.1 Codex Mini' }
   ]
 }
 
-export const CODEX_REASONING_LEVELS = ['low', 'medium', 'high', 'extra_high'] as const
+export const CODEX_REASONING_LEVELS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh'] as const
 export type CodexReasoningLevel = (typeof CODEX_REASONING_LEVELS)[number]
 
 export const PROVIDER_LABELS: Record<ProviderId, string> = {
@@ -67,7 +78,7 @@ export function getProviderForModel(model: ModelId): ProviderId {
 
 // ── Editors ──────────────────────────────────────────────────────────────────
 
-export type EditorId = 'vscode' | 'cursor' | 'windsurf' | 'zed' | 'finder' | 'terminal'
+export type EditorId = 'vscode' | 'cursor' | 'windsurf' | 'antigravity' | 'zed' | 'finder' | 'terminal'
 
 export interface EditorDefinition {
   id: EditorId
@@ -80,6 +91,7 @@ export const EDITOR_REGISTRY: EditorDefinition[] = [
   { id: 'vscode', label: 'VS Code', command: 'code' },
   { id: 'cursor', label: 'Cursor', command: 'cursor' },
   { id: 'windsurf', label: 'Windsurf', command: 'windsurf' },
+  { id: 'antigravity', label: 'Antigravity', command: 'antigravity' },
   { id: 'zed', label: 'Zed', command: 'zed' },
   { id: 'finder', label: 'Finder', command: 'open' },
   { id: 'terminal', label: 'Terminal', command: 'open', extraArgs: ['-a', 'Terminal'] }
@@ -158,6 +170,7 @@ export const IPC = {
   AGENT_LIST: 'agent:list',
   AGENT_YOLO_TOGGLE: 'agent:yolo-toggle',
   AGENT_RENAME: 'agent:rename',
+  AGENT_MODEL_SET: 'agent:model-set',
   AGENT_GET_BUFFER: 'agent:get-buffer',
 
   // Config
@@ -180,12 +193,14 @@ export const IPC = {
   // Shell
   OPEN_IN_EDITOR: 'shell:open-in-editor',
   OPEN_IN_APP: 'shell:open-in-app',
+  GET_INSTALLED_EDITORS: 'shell:get-installed-editors',
 
   // Broadcast
   AGENT_BROADCAST: 'agent:broadcast',
 
   // Sessions
   SESSIONS_LIST: 'sessions:list',
+  PROVIDER_MODELS_LIST: 'provider-models:list',
 
   // App lifecycle
   APP_CONFIRM_QUIT: 'app:confirm-quit',
@@ -265,7 +280,15 @@ export const IPC = {
   TEST_TERMINAL_RESIZE: 'test-terminal:resize',
   TEST_TERMINAL_OUTPUT: 'test-terminal:output',
   TEST_TERMINAL_EXIT: 'test-terminal:exit',
-  TEST_TERMINAL_KILL: 'test-terminal:kill'
+  TEST_TERMINAL_KILL: 'test-terminal:kill',
+
+  // Free terminal (integrated shell)
+  FREE_TERMINAL_SPAWN: 'free-terminal:spawn',
+  FREE_TERMINAL_INPUT: 'free-terminal:input',
+  FREE_TERMINAL_RESIZE: 'free-terminal:resize',
+  FREE_TERMINAL_OUTPUT: 'free-terminal:output',
+  FREE_TERMINAL_EXIT: 'free-terminal:exit',
+  FREE_TERMINAL_KILL: 'free-terminal:kill'
 } as const
 
 // ── IPC Payloads ─────────────────────────────────────────────────────────────
@@ -291,6 +314,7 @@ export interface AgentStatusPayload {
   agentId: string
   status: AgentStatus
   sessionId?: string | null
+  model?: ModelId
 }
 
 export interface PreflightResult {

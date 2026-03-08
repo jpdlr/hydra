@@ -60,6 +60,7 @@ describe('useAgents', () => {
       removeAgent: vi.fn().mockResolvedValue(true),
       toggleYolo: vi.fn().mockResolvedValue(null),
       renameAgent: vi.fn().mockResolvedValue(null),
+      setAgentModel: vi.fn().mockResolvedValue(null),
       sendInput: vi.fn(),
       sendRawInput: vi.fn(),
       resizeAgent: vi.fn(),

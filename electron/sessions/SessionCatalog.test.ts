@@ -23,6 +23,8 @@ describe('SessionCatalog', () => {
     const projectsRoot = makeProjectsRoot()
     const projectDir = join(projectsRoot, 'project-a')
     mkdirSync(projectDir, { recursive: true })
+    writeFileSync(join(projectDir, 'session-new.jsonl'), '', 'utf-8')
+    writeFileSync(join(projectDir, 'session-old.jsonl'), '', 'utf-8')
 
     writeFileSync(
       join(projectDir, 'sessions-index.json'),
@@ -32,14 +34,14 @@ describe('SessionCatalog', () => {
           entries: [
             {
               sessionId: 'session-new',
-              fullPath: '/tmp/session-new.jsonl',
+              fullPath: join(projectDir, 'session-new.jsonl'),
               projectPath: '/Users/jp/workspace/ep_inventory',
               firstPrompt: 'Newest',
               modified: '2026-01-05T10:00:00.000Z'
             },
             {
               sessionId: 'session-old',
-              fullPath: '/tmp/session-old.jsonl',
+              fullPath: join(projectDir, 'session-old.jsonl'),
               projectPath: '/Users/jp/workspace/drug_module',
               firstPrompt: 'Older',
               modified: '2026-01-02T10:00:00.000Z'
@@ -101,10 +103,194 @@ describe('SessionCatalog', () => {
     })
   })
 
+  it('extracts the first meaningful prompt from structured jsonl content', () => {
+    const projectsRoot = makeProjectsRoot()
+    const projectDir = join(projectsRoot, 'project-structured')
+    mkdirSync(projectDir, { recursive: true })
+
+    const sessionId = 'structured-session'
+    writeFileSync(
+      join(projectDir, `${sessionId}.jsonl`),
+      [
+        JSON.stringify({
+          sessionId,
+          cwd: '/Users/jp/workspace/hydra',
+          gitBranch: 'feature/session-fix',
+          isSidechain: false
+        }),
+        JSON.stringify({
+          type: 'user',
+          isMeta: true,
+          message: {
+            role: 'user',
+            content: '<local-command-caveat>ignore me</local-command-caveat>'
+          }
+        }),
+        JSON.stringify({
+          type: 'user',
+          message: {
+            role: 'user',
+            content: '<command-name>/clear</command-name>\n<command-message>clear</command-message>'
+          }
+        }),
+        JSON.stringify({
+          type: 'user',
+          message: {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Resume the invoice workflow and fix the restart mapping.' },
+              { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'abc' } }
+            ]
+          }
+        })
+      ].join('\n'),
+      'utf-8'
+    )
+
+    const catalog = new SessionCatalog(projectsRoot)
+    const sessions = catalog.listSessions()
+
+    expect(sessions).toHaveLength(1)
+    expect(sessions[0]).toMatchObject({
+      sessionId,
+      firstPrompt: 'Resume the invoice workflow and fix the restart mapping.'
+    })
+  })
+
+  it('ignores stale index entries whose transcript file is gone and falls back to jsonl', () => {
+    const projectsRoot = makeProjectsRoot()
+    const projectDir = join(projectsRoot, 'project-stale-index')
+    mkdirSync(projectDir, { recursive: true })
+
+    const sessionId = 'stale-session'
+    writeFileSync(
+      join(projectDir, 'sessions-index.json'),
+      JSON.stringify(
+        {
+          originalPath: '/Users/jp/workspace/stale',
+          entries: [
+            {
+              sessionId,
+              fullPath: '/tmp/does-not-exist/stale-session.jsonl',
+              projectPath: '/Users/jp/workspace/stale',
+              firstPrompt: 'Wrong stale prompt',
+              modified: '2026-01-15T10:00:00.000Z'
+            }
+          ]
+        },
+        null,
+        2
+      ),
+      'utf-8'
+    )
+
+    writeFileSync(
+      join(projectDir, `${sessionId}.jsonl`),
+      [
+        JSON.stringify({
+          sessionId,
+          cwd: '/Users/jp/workspace/stale/live',
+          gitBranch: 'main',
+          isSidechain: false
+        }),
+        JSON.stringify({
+          type: 'user',
+          message: {
+            role: 'user',
+            content: 'Live prompt from the transcript file'
+          }
+        })
+      ].join('\n'),
+      'utf-8'
+    )
+
+    const catalog = new SessionCatalog(projectsRoot)
+    const sessions = catalog.listSessions()
+
+    expect(sessions).toHaveLength(1)
+    expect(sessions[0]).toMatchObject({
+      sessionId,
+      projectPath: '/Users/jp/workspace/stale/live',
+      firstPrompt: 'Live prompt from the transcript file'
+    })
+  })
+
+  it('refreshes meta index prompts from the transcript header when available', () => {
+    const projectsRoot = makeProjectsRoot()
+    const projectDir = join(projectsRoot, 'project-index-refresh')
+    mkdirSync(projectDir, { recursive: true })
+
+    const sessionId = 'indexed-session'
+    const fullPath = join(projectDir, `${sessionId}.jsonl`)
+    writeFileSync(
+      fullPath,
+      [
+        JSON.stringify({
+          sessionId,
+          cwd: '/Users/jp/workspace/index-refresh',
+          gitBranch: 'feature/resume',
+          isSidechain: false
+        }),
+        JSON.stringify({
+          type: 'user',
+          isMeta: true,
+          message: {
+            role: 'user',
+            content: '<local-command-caveat>ignore me</local-command-caveat>'
+          }
+        }),
+        JSON.stringify({
+          type: 'user',
+          message: {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Continue the real work from this resumed session.' }
+            ]
+          }
+        })
+      ].join('\n'),
+      'utf-8'
+    )
+
+    writeFileSync(
+      join(projectDir, 'sessions-index.json'),
+      JSON.stringify(
+        {
+          originalPath: '/Users/jp/workspace/index-refresh',
+          entries: [
+            {
+              sessionId,
+              fullPath,
+              projectPath: '/Users/jp/workspace/index-refresh',
+              firstPrompt: '<command-name>/clear</command-name>',
+              modified: '2026-01-16T10:00:00.000Z'
+            }
+          ]
+        },
+        null,
+        2
+      ),
+      'utf-8'
+    )
+
+    const catalog = new SessionCatalog(projectsRoot)
+    const sessions = catalog.listSessions()
+
+    expect(sessions).toHaveLength(1)
+    expect(sessions[0]).toMatchObject({
+      sessionId,
+      firstPrompt: 'Continue the real work from this resumed session.',
+      gitBranch: 'feature/resume'
+    })
+  })
+
   it('caches scans and refreshes via forceRefresh or explicit invalidation', () => {
     const projectsRoot = makeProjectsRoot()
     const projectDir = join(projectsRoot, 'project-cache')
     mkdirSync(projectDir, { recursive: true })
+    writeFileSync(join(projectDir, 'cache-a.jsonl'), '', 'utf-8')
+    writeFileSync(join(projectDir, 'cache-b.jsonl'), '', 'utf-8')
+    writeFileSync(join(projectDir, 'cache-c.jsonl'), '', 'utf-8')
 
     const indexPath = join(projectDir, 'sessions-index.json')
     writeFileSync(
@@ -115,7 +301,7 @@ describe('SessionCatalog', () => {
           entries: [
             {
               sessionId: 'cache-a',
-              fullPath: '/tmp/cache-a.jsonl',
+              fullPath: join(projectDir, 'cache-a.jsonl'),
               projectPath: '/Users/jp/workspace/cache',
               firstPrompt: 'Alpha',
               modified: '2026-01-10T10:00:00.000Z'
@@ -140,14 +326,14 @@ describe('SessionCatalog', () => {
           entries: [
             {
               sessionId: 'cache-a',
-              fullPath: '/tmp/cache-a.jsonl',
+              fullPath: join(projectDir, 'cache-a.jsonl'),
               projectPath: '/Users/jp/workspace/cache',
               firstPrompt: 'Alpha',
               modified: '2026-01-10T10:00:00.000Z'
             },
             {
               sessionId: 'cache-b',
-              fullPath: '/tmp/cache-b.jsonl',
+              fullPath: join(projectDir, 'cache-b.jsonl'),
               projectPath: '/Users/jp/workspace/cache',
               firstPrompt: 'Beta',
               modified: '2026-01-11T10:00:00.000Z'
@@ -174,21 +360,21 @@ describe('SessionCatalog', () => {
           entries: [
             {
               sessionId: 'cache-a',
-              fullPath: '/tmp/cache-a.jsonl',
+              fullPath: join(projectDir, 'cache-a.jsonl'),
               projectPath: '/Users/jp/workspace/cache',
               firstPrompt: 'Alpha',
               modified: '2026-01-10T10:00:00.000Z'
             },
             {
               sessionId: 'cache-b',
-              fullPath: '/tmp/cache-b.jsonl',
+              fullPath: join(projectDir, 'cache-b.jsonl'),
               projectPath: '/Users/jp/workspace/cache',
               firstPrompt: 'Beta',
               modified: '2026-01-11T10:00:00.000Z'
             },
             {
               sessionId: 'cache-c',
-              fullPath: '/tmp/cache-c.jsonl',
+              fullPath: join(projectDir, 'cache-c.jsonl'),
               projectPath: '/Users/jp/workspace/cache',
               firstPrompt: 'Gamma',
               modified: '2026-01-12T10:00:00.000Z'
@@ -208,6 +394,7 @@ describe('SessionCatalog', () => {
     const projectsRoot = makeProjectsRoot()
     const projectDir = join(projectsRoot, 'project-prefix')
     mkdirSync(projectDir, { recursive: true })
+    writeFileSync(join(projectDir, 'session-win-path.jsonl'), '', 'utf-8')
 
     writeFileSync(
       join(projectDir, 'sessions-index.json'),
@@ -217,7 +404,7 @@ describe('SessionCatalog', () => {
           entries: [
             {
               sessionId: 'session-win-path',
-              fullPath: 'C:\\temp\\session-win-path.jsonl',
+              fullPath: join(projectDir, 'session-win-path.jsonl'),
               projectPath: 'C:\\Users\\jp\\workspace\\ep_inventory',
               firstPrompt: 'Windows path',
               modified: '2026-01-20T10:00:00.000Z'

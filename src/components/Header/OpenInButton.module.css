@@ -2,26 +2,34 @@
   position: relative;
   display: flex;
   align-items: center;
+  background: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  transition: border-color var(--transition-fast);
+}
+
+.container:hover {
+  border-color: var(--color-text-muted);
 }
 
 .mainBtn {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: 5px;
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  padding: 6px 8px 6px 14px;
+  border-radius: var(--radius-full) 0 0 var(--radius-full);
   color: var(--color-text-secondary);
-  background: var(--color-surface-hover);
+  background: transparent;
   border: none;
   cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition: color var(--transition-fast), background var(--transition-fast);
 }
 
 .mainBtn:hover {
-  background: var(--color-accent-subtle);
-  color: var(--color-accent);
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-surface-hover) 50%, var(--color-text-muted) 10%);
 }
 
 .label {
@@ -32,20 +40,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-1) 5px;
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 6px 10px 6px 8px;
+  border-radius: 0 var(--radius-full) var(--radius-full) 0;
   color: var(--color-text-secondary);
-  background: var(--color-surface-hover);
+  background: transparent;
   border: none;
   border-left: 1px solid var(--color-border-subtle);
   cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition: color var(--transition-fast), background var(--transition-fast);
 }
 
 .chevronBtn:hover,
 .chevronBtnOpen {
-  background: var(--color-accent-subtle);
-  color: var(--color-accent);
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-surface-hover) 50%, var(--color-text-muted) 10%);
 }
 
 .dropdown {

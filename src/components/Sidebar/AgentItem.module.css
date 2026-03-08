@@ -23,15 +23,13 @@
   border-left-color: var(--color-accent);
 }
 
-.yolo {
-  border-left-color: var(--color-yolo);
-}
 
 .statusDot {
-  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
   width: 14px;
-  text-align: center;
 }
 
 .name {

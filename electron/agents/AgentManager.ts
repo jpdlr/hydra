@@ -3,8 +3,10 @@ import { EventEmitter } from 'events'
 import { randomUUID } from 'crypto'
 import { basename } from 'path'
 import { SessionCatalog } from '../sessions/SessionCatalog'
+import { CodexSessionCatalog } from '../sessions/CodexSessionCatalog'
 import { getProvider } from './providers'
 import { MAX_CONCURRENT_AGENTS_HARD_LIMIT } from '@shared/types'
+import { detectLatestModelFromTerminalOutput } from '@shared/terminalModelDetection'
 import type { PersistedWorkspaceAgent } from '../workspace/WorkspaceStore'
 import type {
   AgentState,
@@ -21,6 +23,7 @@ interface ManagedAgent {
   outputBuffer: string[]
   outputBufferLen: number
   killTimeout: ReturnType<typeof setTimeout> | null
+  stopRequested: boolean
   submitQueue: Promise<void>
   cols: number
   rows: number
@@ -34,7 +37,7 @@ interface ManagedAgent {
 
 const MAX_BUFFER_CHARS = 2_000_000 // ~2 MB raw output cap
 const GRACEFUL_KILL_TIMEOUT = 5000
-const INPUT_SUBMIT_DELAY_MS = 75
+const INPUT_SUBMIT_DELAY_MS = 500
 const DEFAULT_PTY_COLS = 120
 const DEFAULT_PTY_ROWS = 30
 const SESSION_DISCOVERY_INITIAL_INTERVAL_MS = 2500
@@ -51,7 +54,10 @@ export class AgentManager extends EventEmitter {
   private providerPaths: Map<ProviderId, string> = new Map()
   private activityPollInterval: ReturnType<typeof setInterval> | null = null
 
-  constructor(private readonly sessionCatalog: SessionCatalog = new SessionCatalog()) {
+  constructor(
+    private readonly sessionCatalog: SessionCatalog = new SessionCatalog(),
+    private readonly codexSessionCatalog: CodexSessionCatalog = new CodexSessionCatalog()
+  ) {
     super()
     this.startActivityPolling()
   }
@@ -135,6 +141,7 @@ export class AgentManager extends EventEmitter {
       outputBuffer: [],
       outputBufferLen: 0,
       killTimeout: null,
+      stopRequested: false,
       submitQueue: Promise.resolve(),
       cols: DEFAULT_PTY_COLS,
       rows: DEFAULT_PTY_ROWS,
@@ -189,8 +196,9 @@ export class AgentManager extends EventEmitter {
         state,
         pty: null,
         outputBuffer: [],
-      outputBufferLen: 0,
+        outputBufferLen: 0,
         killTimeout: null,
+        stopRequested: false,
         submitQueue: Promise.resolve(),
         cols: DEFAULT_PTY_COLS,
         rows: DEFAULT_PTY_ROWS,
@@ -199,7 +207,7 @@ export class AgentManager extends EventEmitter {
         sessionSyncTimer: null,
         sessionDiscoveryAttempts: 0,
         notifiedIdle: false,
-      lastOutputAt: 0
+        lastOutputAt: 0
       })
       imported++
     }
@@ -240,8 +248,9 @@ export class AgentManager extends EventEmitter {
         state,
         pty: null,
         outputBuffer: [],
-      outputBufferLen: 0,
+        outputBufferLen: 0,
         killTimeout: null,
+        stopRequested: false,
         submitQueue: Promise.resolve(),
         cols: DEFAULT_PTY_COLS,
         rows: DEFAULT_PTY_ROWS,
@@ -250,7 +259,7 @@ export class AgentManager extends EventEmitter {
         sessionSyncTimer: null,
         sessionDiscoveryAttempts: 0,
         notifiedIdle: false,
-      lastOutputAt: 0
+        lastOutputAt: 0
       })
       restored++
     }
@@ -354,6 +363,7 @@ export class AgentManager extends EventEmitter {
       })
 
       managed.pty = pty
+      managed.stopRequested = false
       managed.state.pid = pty.pid
       managed.state.startedAt = new Date().toISOString()
       this.updateStatus(managed.state.id, 'running')
@@ -374,6 +384,8 @@ export class AgentManager extends EventEmitter {
           managed.outputBufferLen = trimmed.length
         }
 
+        this.captureModelFromOutput(managed)
+
         this.emit('output', { agentId: managed.state.id, data })
 
         // Track last output time for activity polling
@@ -393,7 +405,8 @@ export class AgentManager extends EventEmitter {
         this.stopSessionDiscovery(managed)
         this.probeSessionIdFromCatalog(managed, { forceRefresh: true })
 
-        if (exitCode === 0) {
+        if (managed.stopRequested || exitCode === 0) {
+          managed.stopRequested = false
           this.updateStatus(managed.state.id, 'idle')
         } else {
           this.updateStatus(managed.state.id, 'errored')
@@ -435,7 +448,8 @@ export class AgentManager extends EventEmitter {
     this.emit('status', {
       agentId,
       status,
-      sessionId: managed.state.sessionId
+      sessionId: managed.state.sessionId,
+      model: managed.state.model
     })
   }
 
@@ -446,7 +460,21 @@ export class AgentManager extends EventEmitter {
     this.emit('status', {
       agentId: managed.state.id,
       status: managed.state.status,
-      sessionId: managed.state.sessionId
+      sessionId: managed.state.sessionId,
+      model: managed.state.model
+    })
+  }
+
+  private captureModelFromOutput(managed: ManagedAgent): void {
+    const output = this.getRecentOutput(managed, 12_000)
+    const detected = detectLatestModelFromTerminalOutput(managed.state.provider, output)
+    if (!detected || detected === managed.state.model) return
+    managed.state.model = detected
+    this.emit('status', {
+      agentId: managed.state.id,
+      status: managed.state.status,
+      sessionId: managed.state.sessionId,
+      model: managed.state.model
     })
   }
 
@@ -518,7 +546,8 @@ export class AgentManager extends EventEmitter {
     if (!managed.state.projectDir) return
 
     try {
-      const sessions = this.sessionCatalog.listSessions({
+      const catalog = managed.state.provider === 'codex' ? this.codexSessionCatalog : this.sessionCatalog
+      const sessions = catalog.listSessions({
         limit: 120,
         projectPathPrefix: managed.state.projectDir,
         forceRefresh: options.forceRefresh === true
@@ -582,6 +611,8 @@ export class AgentManager extends EventEmitter {
         managed.killTimeout = null
       }
 
+      managed.stopRequested = true
+
       // Graceful: send SIGTERM
       this.killPtyProcess(managed.pty, false)
 
@@ -643,6 +674,7 @@ export class AgentManager extends EventEmitter {
     managed.outputBuffer = []
     managed.outputBufferLen = 0
     managed.submitQueue = Promise.resolve()
+    managed.stopRequested = false
     managed.notifiedIdle = false
     managed.lastOutputAt = 0
     this.stopSessionDiscovery(managed)
@@ -691,7 +723,27 @@ export class AgentManager extends EventEmitter {
     this.emit('status', {
       agentId,
       status: managed.state.status,
-      sessionId: managed.state.sessionId
+      sessionId: managed.state.sessionId,
+      model: managed.state.model
+    })
+
+    return { ...managed.state }
+  }
+
+  setModel(agentId: string, model: ModelId): AgentState | null {
+    const managed = this.agents.get(agentId)
+    if (!managed) return null
+
+    const trimmed = model.trim()
+    if (!trimmed) return { ...managed.state }
+
+    managed.state.model = trimmed
+
+    this.emit('status', {
+      agentId,
+      status: managed.state.status,
+      sessionId: managed.state.sessionId,
+      model: managed.state.model
     })
 
     return { ...managed.state }
@@ -733,6 +785,23 @@ export class AgentManager extends EventEmitter {
       })
 
     return true
+  }
+
+  private getRecentOutput(managed: ManagedAgent, maxChars: number): string {
+    if (managed.outputBuffer.length === 0) return ''
+    let remaining = maxChars
+    const chunks: string[] = []
+    for (let i = managed.outputBuffer.length - 1; i >= 0 && remaining > 0; i--) {
+      const chunk = managed.outputBuffer[i]
+      if (chunk.length <= remaining) {
+        chunks.push(chunk)
+        remaining -= chunk.length
+        continue
+      }
+      chunks.push(chunk.slice(chunk.length - remaining))
+      remaining = 0
+    }
+    return chunks.reverse().join('')
   }
 
   private ensureProcess(managed: ManagedAgent): boolean {

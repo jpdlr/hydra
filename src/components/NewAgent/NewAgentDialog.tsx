@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ModelId, ProviderId, CreateAgentPayload, ClaudeSessionSummary, McpServerStatus } from '@shared/types'
-import { PROVIDER_MODELS, PROVIDER_LABELS, CODEX_REASONING_LEVELS, getDefaultModelForProvider } from '@shared/types'
+import { PROVIDER_LABELS, CODEX_REASONING_LEVELS } from '@shared/types'
+import { useRuntimeProviderModels } from '../../hooks/useRuntimeProviderModels'
 import styles from './NewAgentDialog.module.css'
 
 const PROVIDERS: ProviderId[] = ['claude', 'codex']
@@ -38,6 +39,7 @@ export function NewAgentDialog({
   const [isLoadingSessions, setIsLoadingSessions] = useState(false)
   const [sessionSearch, setSessionSearch] = useState('')
   const [selectedSessionId, setSelectedSessionId] = useState('')
+  const { providerModels, getDefaultModel, getModelOption } = useRuntimeProviderModels()
 
   useEffect(() => {
     window.hydra.getMcpServerStatus().then(setMcpStatus).catch(console.error)
@@ -95,6 +97,26 @@ export function NewAgentDialog({
       setProjectDir(selectedSession.projectPath)
     }
   }, [resumeExisting, selectedSession])
+
+  const selectedModelOption = useMemo(() => {
+    const selectedModelId = useCustomModel ? customModel.trim() : model
+    if (!selectedModelId) return null
+    return getModelOption(provider, selectedModelId)
+  }, [customModel, getModelOption, model, provider, useCustomModel])
+
+  const codexReasoningOptions = useMemo(() => {
+    if (provider !== 'codex') return []
+    return selectedModelOption?.reasoningEfforts?.length
+      ? selectedModelOption.reasoningEfforts
+      : [...CODEX_REASONING_LEVELS]
+  }, [provider, selectedModelOption])
+
+  useEffect(() => {
+    if (provider !== 'codex') return
+    if (!reasoningEffort) return
+    if (codexReasoningOptions.includes(reasoningEffort)) return
+    setReasoningEffort('')
+  }, [codexReasoningOptions, provider, reasoningEffort])
 
   const effectiveModel = useCustomModel ? customModel.trim() : model
 
@@ -185,7 +207,7 @@ export function NewAgentDialog({
                   className={`${styles.segment} ${provider === p ? styles.active : ''}`}
                   onClick={() => {
                     setProvider(p)
-                    setModel(getDefaultModelForProvider(p))
+                    setModel(getDefaultModel(p))
                     setUseCustomModel(false)
                     setCustomModel('')
                     setReasoningEffort('')
@@ -214,7 +236,7 @@ export function NewAgentDialog({
                 }
               }}
             >
-              {PROVIDER_MODELS[provider].map((m) => (
+              {providerModels[provider].map((m) => (
                 <option key={m.id} value={m.id}>{m.label}</option>
               ))}
               <option value="__custom__">Custom...</option>
@@ -241,9 +263,9 @@ export function NewAgentDialog({
                 onChange={(e) => setReasoningEffort(e.target.value)}
               >
                 <option value="">Default</option>
-                {CODEX_REASONING_LEVELS.map((level) => (
+                {codexReasoningOptions.map((level) => (
                   <option key={level} value={level}>
-                    {level.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                    {formatReasoningEffort(level)}
                   </option>
                 ))}
               </select>
@@ -424,4 +446,9 @@ function formatDate(iso: string): string {
     hour: 'numeric',
     minute: '2-digit'
   })
+}
+
+function formatReasoningEffort(level: string): string {
+  if (level === 'xhigh') return 'Extra High'
+  return level.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }

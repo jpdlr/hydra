@@ -84,7 +84,8 @@ export function TerminalPane({
       cursorStyle: 'bar',
       disableStdin: !onData,
       scrollback: 5000,
-      convertEol: true
+      // Preserve raw terminal newline/cursor semantics for TUI apps like Codex.
+      convertEol: false
     })
 
     const fitAddon = new FitAddon()

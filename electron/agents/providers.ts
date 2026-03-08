@@ -114,12 +114,15 @@ const claudeProvider: ProviderConfig = {
 const codexProvider: ProviderConfig = {
   id: 'codex',
   command: 'codex',
-  supportsResume: false,
+  supportsResume: true,
   yoloFlag: '--full-auto',
   sessionIdRegex: null,
 
   buildArgs(state: AgentState): string[] {
     const args: string[] = []
+    if (state.sessionId) {
+      args.push('resume', state.sessionId)
+    }
     if (state.yolo) args.push('--full-auto')
     args.push('--model', state.model)
     if (state.reasoningEffort) {

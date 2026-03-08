@@ -1,5 +1,8 @@
 import { ipcMain, dialog, BrowserWindow, shell, clipboard, nativeImage } from 'electron'
 import { execFile } from 'child_process'
+import { existsSync } from 'fs'
+import { homedir } from 'os'
+import { join } from 'path'
 import { DaemonClient } from '../daemon/DaemonClient'
 import { ConfigStore } from '../config/ConfigStore'
 import { NotificationService } from '../notifications/NotificationService'
@@ -7,6 +10,7 @@ import { UpdateService } from '../updates/UpdateService'
 import { FileSystemService } from '../fs/FileSystemService'
 import { GitService } from '../git/GitService'
 import { RemoteControlService } from '../remote/RemoteControlService'
+import { ProviderModelCatalog } from '../agents/ProviderModelCatalog'
 import { IPC, EDITOR_REGISTRY, MAX_CONCURRENT_AGENTS_HARD_LIMIT } from '@shared/types'
 import type {
   CreateAgentPayload,
@@ -15,11 +19,12 @@ import type {
   ExportDiagnosticsResult,
   CcusageOptions,
   CcusageSnapshot,
-  CcusageDailyEntry
+  CcusageDailyEntry,
+  EditorId
 } from '@shared/types'
 import { z } from 'zod'
 
-const editorIdSchema = z.enum(['vscode', 'cursor', 'windsurf', 'zed', 'finder', 'terminal'])
+const editorIdSchema = z.enum(['vscode', 'cursor', 'windsurf', 'antigravity', 'zed', 'finder', 'terminal'])
 const agentIdSchema = z.string().trim().min(1).max(128)
 const projectDirSchema = z.string().trim().min(1).max(4096)
 const providerSchema = z.enum(['claude', 'codex'])
@@ -132,6 +137,15 @@ const observabilityLogSchema = z.object({
   meta: z.record(z.unknown()).optional()
 })
 
+const MAC_EDITOR_APP_NAMES: Partial<Record<EditorId, string>> = {
+  vscode: 'Visual Studio Code',
+  cursor: 'Cursor',
+  windsurf: 'Windsurf',
+  antigravity: 'Antigravity',
+  zed: 'Zed',
+  terminal: 'Terminal'
+}
+
 interface ObservabilityHandlers {
   logRendererEvent: (payload: ObservabilityLogEventPayload) => void
   exportDiagnostics: () => Promise<ExportDiagnosticsResult>
@@ -148,11 +162,18 @@ export function registerIpcHandlers(
   gitService?: GitService | null,
   remoteControlService?: RemoteControlService | null
 ): void {
+  const providerModelCatalog = new ProviderModelCatalog()
+
   // ── Preflight ────────────────────────────────────────────────────────────
 
   ipcMain.handle(IPC.PREFLIGHT_CHECK, async (_event, provider?: string) => {
     const providerId = providerSchema.catch('claude').parse(provider ?? 'claude')
     return daemonClient.preflight(providerId)
+  })
+
+  ipcMain.handle(IPC.PROVIDER_MODELS_LIST, async (_event, provider?: string) => {
+    const providerId = providerSchema.catch('claude').parse(provider ?? 'claude')
+    return providerModelCatalog.list(providerId)
   })
 
   // ── Agent lifecycle ──────────────────────────────────────────────────────
@@ -215,6 +236,10 @@ export function registerIpcHandlers(
 
   ipcMain.handle(IPC.AGENT_RENAME, async (_event, agentId: string, name: string) => {
     return daemonClient.renameAgent(agentIdSchema.parse(agentId), z.string().min(1).parse(name))
+  })
+
+  ipcMain.handle(IPC.AGENT_MODEL_SET, async (_event, agentId: string, model: string) => {
+    return daemonClient.setAgentModel(agentIdSchema.parse(agentId), modelSchema.parse(model))
   })
 
   ipcMain.handle(IPC.AGENT_GET_BUFFER, async (_event, agentId: string) => {
@@ -371,40 +396,90 @@ export function registerIpcHandlers(
 
   // ── Shell ────────────────────────────────────────────────────────────────
 
+  const runExec = (command: string, args: string[]): Promise<boolean> => {
+    return new Promise<boolean>((resolve) => {
+      execFile(command, args, (err) => resolve(!err))
+    })
+  }
+
+  const runOpenPath = async (targetPath: string): Promise<boolean> => {
+    try {
+      await shell.openPath(targetPath)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  const isMacAppInstalled = (appName: string): boolean => {
+    const appBundle = `${appName}.app`
+    const candidates = [
+      join('/Applications', appBundle),
+      join(homedir(), 'Applications', appBundle)
+    ]
+    return candidates.some((candidate) => existsSync(candidate))
+  }
+
+  const openInAppTarget = async (editorId: EditorId, targetPath: string): Promise<boolean> => {
+    if (editorId === 'finder') {
+      return runOpenPath(targetPath)
+    }
+
+    if (process.platform === 'darwin') {
+      const appName = MAC_EDITOR_APP_NAMES[editorId]
+      if (appName && isMacAppInstalled(appName)) {
+        const launched = await runExec('open', ['-a', appName, targetPath])
+        if (launched) return true
+      }
+    }
+
+    const editorDef = EDITOR_REGISTRY.find((e) => e.id === editorId)
+    if (!editorDef) {
+      return runOpenPath(targetPath)
+    }
+
+    const launched = await runExec(editorDef.command, [...(editorDef.extraArgs || []), targetPath])
+    if (launched) return true
+
+    return runOpenPath(targetPath)
+  }
+
+  const probeCommand = process.platform === 'win32' ? 'where' : 'which'
+  const hasCliCommand = (command: string): Promise<boolean> => runExec(probeCommand, [command])
+
+  const isEditorInstalled = async (editorId: EditorId): Promise<boolean> => {
+    if (editorId === 'finder') return true
+    if (editorId === 'terminal') return process.platform === 'darwin'
+
+    if (process.platform === 'darwin') {
+      const appName = MAC_EDITOR_APP_NAMES[editorId]
+      if (appName && isMacAppInstalled(appName)) return true
+    }
+
+    const editorDef = EDITOR_REGISTRY.find((e) => e.id === editorId)
+    if (!editorDef) return false
+    return hasCliCommand(editorDef.command)
+  }
+
   ipcMain.handle(IPC.OPEN_IN_EDITOR, (_event, dir: string) => {
     const validated = projectDirSchema.parse(dir)
-    return new Promise<boolean>((resolve) => {
-      const command = process.platform === 'win32' ? 'cmd' : 'code'
-      const args = process.platform === 'win32' ? ['/c', 'code', validated] : [validated]
-      execFile(command, args, (err) => {
-        if (err) {
-          shell.openPath(validated).then(() => resolve(true)).catch(() => resolve(false))
-          return
-        }
-        resolve(true)
-      })
-    })
+    return openInAppTarget('vscode', validated)
   })
 
   ipcMain.handle(IPC.OPEN_IN_APP, (_event, editorId: string, dir: string) => {
     const validEditor = editorIdSchema.parse(editorId)
     const validated = projectDirSchema.parse(dir)
+    return openInAppTarget(validEditor, validated)
+  })
 
-    const editorDef = EDITOR_REGISTRY.find((e) => e.id === validEditor)
-    if (!editorDef) {
-      return shell.openPath(validated).then(() => true).catch(() => false)
+  ipcMain.handle(IPC.GET_INSTALLED_EDITORS, async () => {
+    const installed: EditorId[] = []
+    for (const editor of EDITOR_REGISTRY) {
+      if (await isEditorInstalled(editor.id)) {
+        installed.push(editor.id)
+      }
     }
-
-    return new Promise<boolean>((resolve) => {
-      const args = [...(editorDef.extraArgs || []), validated]
-      execFile(editorDef.command, args, (err) => {
-        if (err) {
-          shell.openPath(validated).then(() => resolve(true)).catch(() => resolve(false))
-          return
-        }
-        resolve(true)
-      })
-    })
+    return installed
   })
 
   // ── Observability ───────────────────────────────────────────────────────
@@ -759,5 +834,35 @@ export function registerIpcHandlers(
 
   ipcMain.on(IPC.TEST_TERMINAL_KILL, () => {
     daemonClient.killTestTerminal()
+  })
+
+  // ── Free Terminal (integrated shell) ────────────────────────────────────
+
+  daemonClient.on('free-terminal:output', (data: string) => {
+    BrowserWindow.getAllWindows().forEach((win) => {
+      win.webContents.send(IPC.FREE_TERMINAL_OUTPUT, data)
+    })
+  })
+
+  daemonClient.on('free-terminal:exit', (exitCode: number) => {
+    BrowserWindow.getAllWindows().forEach((win) => {
+      win.webContents.send(IPC.FREE_TERMINAL_EXIT, exitCode)
+    })
+  })
+
+  ipcMain.handle(IPC.FREE_TERMINAL_SPAWN, async (_event, cwd?: string) => {
+    await daemonClient.spawnFreeTerminal(cwd)
+  })
+
+  ipcMain.on(IPC.FREE_TERMINAL_INPUT, (_event, data: string) => {
+    daemonClient.sendFreeTerminalInput(data)
+  })
+
+  ipcMain.on(IPC.FREE_TERMINAL_RESIZE, (_event, cols: number, rows: number) => {
+    daemonClient.resizeFreeTerminal(cols, rows)
+  })
+
+  ipcMain.on(IPC.FREE_TERMINAL_KILL, () => {
+    daemonClient.killFreeTerminal()
   })
 }

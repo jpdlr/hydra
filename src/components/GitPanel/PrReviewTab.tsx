@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react'
 import type { GitPrDiff, GitPrFile, ProviderId, ModelId } from '@shared/types'
-import { PROVIDER_MODELS, PROVIDER_LABELS, getDefaultModelForProvider } from '@shared/types'
+import { PROVIDER_LABELS } from '@shared/types'
+import { useRuntimeProviderModels } from '../../hooks/useRuntimeProviderModels'
 import styles from './PrReviewTab.module.css'
 
 const Editor = lazy(() =>
@@ -78,6 +79,7 @@ export function PrReviewTab({
   const [provider, setProvider] = useState<ProviderId>(defaultProvider)
   const [model, setModel] = useState<ModelId>(defaultModel)
   const pollingRef = useRef(false)
+  const { providerModels, getDefaultModel } = useRuntimeProviderModels()
 
   // Sync provider/model defaults
   useEffect(() => {
@@ -299,7 +301,7 @@ export function PrReviewTab({
                     onChange={(e) => {
                       const p = e.target.value as ProviderId
                       setProvider(p)
-                      setModel(getDefaultModelForProvider(p))
+                      setModel(getDefaultModel(p))
                     }}
                   >
                     {(Object.keys(PROVIDER_LABELS) as ProviderId[]).map((p) => (
@@ -314,7 +316,7 @@ export function PrReviewTab({
                     value={model}
                     onChange={(e) => setModel(e.target.value)}
                   >
-                    {PROVIDER_MODELS[provider].map((m) => (
+                    {providerModels[provider].map((m) => (
                       <option key={m.id} value={m.id}>{m.label}</option>
                     ))}
                   </select>

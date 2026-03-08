@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import type { EditorId } from '@shared/types'
 import { EDITOR_REGISTRY } from '@shared/types'
+import { fallbackOpenInEditors, getEditorLabel, normalizeInstalledEditors } from '../../lib/editorUtils'
 import { EditorIcon } from '../shared/EditorIcon'
 import styles from './OpenInButton.module.css'
 
@@ -12,7 +13,27 @@ interface OpenInButtonProps {
 
 export function OpenInButton({ projectDir, defaultEditor, onSetDefaultEditor }: OpenInButtonProps) {
   const [open, setOpen] = useState(false)
+  const [installedEditors, setInstalledEditors] = useState<EditorId[]>(
+    () => fallbackOpenInEditors(defaultEditor)
+  )
   const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    let active = true
+    window.hydra
+      .getInstalledEditors()
+      .then((editors) => {
+        if (!active) return
+        setInstalledEditors(normalizeInstalledEditors(editors, defaultEditor))
+      })
+      .catch(() => {
+        if (!active) return
+        setInstalledEditors(fallbackOpenInEditors(defaultEditor))
+      })
+    return () => {
+      active = false
+    }
+  }, [defaultEditor])
 
   useEffect(() => {
     if (!open) return
@@ -37,7 +58,9 @@ export function OpenInButton({ projectDir, defaultEditor, onSetDefaultEditor }: 
     setOpen(false)
   }, [projectDir, onSetDefaultEditor])
 
-  const defaultLabel = EDITOR_REGISTRY.find((e) => e.id === defaultEditor)?.label ?? 'Open'
+  const availableEditorIds = normalizeInstalledEditors(installedEditors, defaultEditor)
+  const availableEditors = EDITOR_REGISTRY.filter((editor) => availableEditorIds.includes(editor.id))
+  const defaultLabel = getEditorLabel(defaultEditor)
 
   if (!projectDir) return null
 
@@ -62,14 +85,14 @@ export function OpenInButton({ projectDir, defaultEditor, onSetDefaultEditor }: 
       {open && (
         <div className={styles.dropdown}>
           <div className={styles.dropdownHeader}>Open in</div>
-          {EDITOR_REGISTRY.map((editor) => (
+          {availableEditors.map((editor) => (
             <button
               key={editor.id}
               className={`${styles.dropdownItem} ${editor.id === defaultEditor ? styles.dropdownItemDefault : ''}`}
               onClick={() => handleItemClick(editor.id)}
             >
               <EditorIcon editor={editor.id} size={14} />
-              <span className={styles.editorLabel}>{editor.label}</span>
+              <span className={styles.editorLabel}>{getEditorLabel(editor.id)}</span>
               {editor.id === defaultEditor && (
                 <span className={styles.defaultBadge}>default</span>
               )}

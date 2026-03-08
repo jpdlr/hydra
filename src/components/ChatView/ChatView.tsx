@@ -1,5 +1,6 @@
-import { useRef, useCallback, useState } from 'react'
+import { useRef, useCallback, useState, useEffect } from 'react'
 import { TerminalPane } from '../Terminal/TerminalPane'
+import { FreeTerminalPanel } from '../Terminal/FreeTerminalPanel'
 import { InputBar } from './InputBar'
 import type { AttachedImage } from './InputBar'
 import { EditorPanel } from '../EditorPanel'
@@ -13,6 +14,7 @@ interface ChatViewProps {
   agent: AgentState | null
   rawOutput: string
   onSendInput: (input: string, images?: AttachedImage[]) => void
+  onSwitchModel?: (model: string) => void
   onTerminalData: (data: string) => void
   onTerminalResize: (cols: number, rows: number) => void
   onRestartAgent: () => void
@@ -33,12 +35,16 @@ interface ChatViewProps {
   theme?: string
   defaultEditor?: EditorId
   onSetDefaultEditor?: (editorId: EditorId) => void
+  // Free terminal
+  freeTerminalOpen?: boolean
+  onToggleFreeTerminal?: () => void
 }
 
 export function ChatView({
   agent,
   rawOutput,
   onSendInput,
+  onSwitchModel,
   onTerminalData,
   onTerminalResize,
   onRestartAgent,
@@ -57,8 +63,29 @@ export function ChatView({
   onEditorSaveFile,
   theme = 'dark',
   defaultEditor = 'vscode',
-  onSetDefaultEditor
+  onSetDefaultEditor,
+  freeTerminalOpen = false,
+  onToggleFreeTerminal
 }: ChatViewProps) {
+  // Git branch for the current project
+  const [gitBranch, setGitBranch] = useState<string | null>(null)
+  useEffect(() => {
+    if (!agent?.projectDir) { setGitBranch(null); return }
+    let cancelled = false
+    window.hydra.getGitStatus(agent.projectDir).then((status) => {
+      if (!cancelled) setGitBranch(status.branch)
+    }).catch(() => {
+      if (!cancelled) setGitBranch(null)
+    })
+    // Poll every 15s to keep branch fresh
+    const interval = setInterval(() => {
+      window.hydra.getGitStatus(agent.projectDir).then((status) => {
+        if (!cancelled) setGitBranch(status.branch)
+      }).catch(() => {})
+    }, 15_000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [agent?.projectDir])
+
   // Prevent browser focus-scroll from moving the outer container.
   const containerRef = useRef<HTMLDivElement>(null)
   const handleContainerScroll = useCallback(() => {
@@ -68,7 +95,7 @@ export function ChatView({
     }
   }, [])
 
-  // Split panel width management
+  // Split panel width management (editor)
   const [splitRatio, setSplitRatio] = useState(0.5)
   const outerRef = useRef<HTMLDivElement>(null)
 
@@ -114,38 +141,55 @@ export function ChatView({
           </div>
         </div>
         <div className={styles.agentActions}>
-          {onToggleEditor && (
+          <div className={styles.openInSlot}>
+            <OpenInButton
+              projectDir={agent.projectDir}
+              defaultEditor={defaultEditor}
+              onSetDefaultEditor={onSetDefaultEditor ?? (() => {})}
+            />
+          </div>
+          <div className={styles.iconActions}>
+            {onToggleEditor && (
+              <button
+                className={`${styles.actionBtn} ${editorOpen ? styles.actionBtnActive : ''}`}
+                onClick={onToggleEditor}
+                title="Toggle Code Editor (Cmd+E)"
+              >
+                <CodeBracketIcon />
+              </button>
+            )}
+            {onToggleFreeTerminal && (
+              <button
+                className={`${styles.actionBtn} ${freeTerminalOpen ? styles.actionBtnActive : ''}`}
+                onClick={onToggleFreeTerminal}
+                title="Toggle Terminal (Cmd+J)"
+              >
+                <TermShellIcon />
+              </button>
+            )}
             <button
-              className={`${styles.actionBtn} ${editorOpen ? styles.actionBtnActive : ''}`}
-              onClick={onToggleEditor}
-              title="Toggle Code Editor (Cmd+E)"
+              className={styles.actionBtn}
+              onClick={onToggleYolo}
+              title={agent.yolo ? 'Disable YOLO' : 'Enable YOLO'}
             >
-              <CodeBracketIcon />
+              <LockIcon unlocked={agent.yolo} />
             </button>
-          )}
-          <OpenInButton
-            projectDir={agent.projectDir}
-            defaultEditor={defaultEditor}
-            onSetDefaultEditor={onSetDefaultEditor ?? (() => {})}
-          />
-          <button
-            className={styles.actionBtn}
-            onClick={onToggleYolo}
-            title={agent.yolo ? 'Disable YOLO' : 'Enable YOLO'}
-          >
-            <LockIcon unlocked={agent.yolo} />
-          </button>
-          <button className={styles.actionBtn} onClick={onRestartAgent} title="Restart">
-            ↻
-          </button>
-          <button className={styles.actionBtn} onClick={onKillAgent} title="Stop">
-            ■
-          </button>
-          {onRemoveAgent && (
-            <button className={styles.actionBtn} onClick={onRemoveAgent} title="Close session (Cmd+W)">
-              ✕
+            <button className={styles.actionBtn} onClick={onRestartAgent} title="Restart">
+              <RestartIcon />
             </button>
-          )}
+            <button className={styles.actionBtn} onClick={onKillAgent} title="Stop">
+              <StopIcon />
+            </button>
+            {onRemoveAgent && (
+              <button
+                className={`${styles.actionBtn} ${styles.removeBtn}`}
+                onClick={onRemoveAgent}
+                title="Close session (Cmd+W)"
+              >
+                <TrashIcon />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -168,7 +212,7 @@ export function ChatView({
         </div>
       )}
 
-      {/* Centered empty state when idle/errored with no output */}
+      {/* Agent terminal area */}
       {agent.status !== 'running' && rawOutput.length === 0 ? (
         <div className={styles.idleEmptyState}>
           <div className={styles.idleEmptyContent}>
@@ -195,7 +239,6 @@ export function ChatView({
           </div>
         </div>
       ) : (
-        /* Terminal */
         <div className={styles.terminalWrapper}>
           <TerminalPane
             key={agent.id}
@@ -206,19 +249,43 @@ export function ChatView({
         </div>
       )}
 
-      {/* Input */}
-      <InputBar
-        onSend={(input, images) => onSendInput(input, images)}
-        disabled={agent.status === 'starting'}
-        model={agent.model}
-        placeholder={
-          agent.status === 'errored'
-            ? 'Session disconnected. Send to auto-restart...'
-            : agent.status === 'idle'
-              ? 'Send to start this session...'
-              : 'Send a message...'
-        }
-      />
+      <div className={styles.bottomDock}>
+        {/* Input */}
+        <InputBar
+          onSend={(input, images) => onSendInput(input, images)}
+          onModelChange={onSwitchModel}
+          disabled={agent.status === 'starting'}
+          provider={agent.provider}
+          model={agent.model}
+          gitBranch={gitBranch}
+          projectDir={agent.projectDir}
+          onBranchChanged={setGitBranch}
+          placeholder={
+            agent.status === 'errored'
+              ? 'Session disconnected. Send to auto-restart...'
+              : agent.status === 'idle'
+                ? 'Send to start this session...'
+                : 'Send a message...'
+          }
+        />
+
+        {/* Free terminal slider (below chat input) */}
+        {onToggleFreeTerminal && (
+          <div
+            className={`${styles.freeTerminalSlider} ${freeTerminalOpen ? styles.freeTerminalSliderOpen : ''}`}
+            aria-hidden={!freeTerminalOpen}
+          >
+            <div className={styles.freeTerminalSliderInner}>
+              {freeTerminalOpen && (
+                <FreeTerminalPanel
+                  projectDir={agent.projectDir}
+                  onClose={onToggleFreeTerminal}
+                />
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 
@@ -320,6 +387,80 @@ function StatusBadge({ status }: { status: string }) {
       <span className={styles.statusDot} style={{ background: colors[status] }} />
       {status.charAt(0).toUpperCase() + status.slice(1)}
     </span>
+  )
+}
+
+function TermShellIcon() {
+  return (
+    <svg
+      className={styles.actionIcon}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 5l3 3-3 3" />
+      <path d="M8 11h5" />
+    </svg>
+  )
+}
+
+function RestartIcon() {
+  return (
+    <svg
+      className={styles.actionIcon}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M13 8a5 5 0 1 1-1.3-3.4" />
+      <path d="M13 3.5v2.9h-2.9" />
+    </svg>
+  )
+}
+
+function StopIcon() {
+  return (
+    <svg
+      className={styles.actionIcon}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="4.5" y="4.5" width="7" height="7" rx="1.4" />
+    </svg>
+  )
+}
+
+function TrashIcon() {
+  return (
+    <svg
+      className={styles.actionIcon}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3.5 4.5h9" />
+      <path d="M6 4.5v-1a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1" />
+      <path d="M5.2 6.2l.4 6a1 1 0 0 0 1 .9h2.8a1 1 0 0 0 1-.9l.4-6" />
+      <path d="M7 7.2v4.2" />
+      <path d="M9 7.2v4.2" />
+    </svg>
   )
 }
 

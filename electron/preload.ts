@@ -8,6 +8,7 @@ import type {
   AppConfig,
   PreflightResult,
   ProviderId,
+  ProviderModelOption,
   ClaudeSessionSummary,
   ListClaudeSessionsOptions,
   HeadlessRun,
@@ -63,6 +64,8 @@ const hydraApi = {
 
   renameAgent: (agentId: string, name: string): Promise<AgentState | null> =>
     ipcRenderer.invoke(IPC.AGENT_RENAME, agentId, name),
+  setAgentModel: (agentId: string, model: string): Promise<AgentState | null> =>
+    ipcRenderer.invoke(IPC.AGENT_MODEL_SET, agentId, model),
 
   getAgentBuffer: (agentId: string): Promise<string[]> =>
     ipcRenderer.invoke(IPC.AGENT_GET_BUFFER, agentId),
@@ -123,10 +126,14 @@ const hydraApi = {
     ipcRenderer.invoke(IPC.OPEN_IN_EDITOR, dir),
   openInApp: (editorId: EditorId, dir: string): Promise<boolean> =>
     ipcRenderer.invoke(IPC.OPEN_IN_APP, editorId, dir),
+  getInstalledEditors: (): Promise<EditorId[]> =>
+    ipcRenderer.invoke(IPC.GET_INSTALLED_EDITORS),
 
   // Session catalog
   listClaudeSessions: (options?: ListClaudeSessionsOptions): Promise<ClaudeSessionSummary[]> =>
     ipcRenderer.invoke(IPC.SESSIONS_LIST, options),
+  listProviderModels: (provider: ProviderId): Promise<ProviderModelOption[]> =>
+    ipcRenderer.invoke(IPC.PROVIDER_MODELS_LIST, provider),
 
   // App quit flow
   onConfirmQuit: (callback: (runningCount: number) => void): (() => void) => {
@@ -289,6 +296,26 @@ const hydraApi = {
     const handler = (_event: Electron.IpcRendererEvent, exitCode: number) => callback(exitCode)
     ipcRenderer.on(IPC.TEST_TERMINAL_EXIT, handler)
     return () => { ipcRenderer.removeListener(IPC.TEST_TERMINAL_EXIT, handler) }
+  },
+
+  // Free terminal (integrated shell)
+  spawnFreeTerminal: (cwd?: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.FREE_TERMINAL_SPAWN, cwd),
+  sendFreeTerminalInput: (data: string): void =>
+    ipcRenderer.send(IPC.FREE_TERMINAL_INPUT, data),
+  resizeFreeTerminal: (cols: number, rows: number): void =>
+    ipcRenderer.send(IPC.FREE_TERMINAL_RESIZE, cols, rows),
+  killFreeTerminal: (): void =>
+    ipcRenderer.send(IPC.FREE_TERMINAL_KILL),
+  onFreeTerminalOutput: (callback: (data: string) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: string) => callback(data)
+    ipcRenderer.on(IPC.FREE_TERMINAL_OUTPUT, handler)
+    return () => { ipcRenderer.removeListener(IPC.FREE_TERMINAL_OUTPUT, handler) }
+  },
+  onFreeTerminalExit: (callback: (exitCode: number) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, exitCode: number) => callback(exitCode)
+    ipcRenderer.on(IPC.FREE_TERMINAL_EXIT, handler)
+    return () => { ipcRenderer.removeListener(IPC.FREE_TERMINAL_EXIT, handler) }
   }
 }
 

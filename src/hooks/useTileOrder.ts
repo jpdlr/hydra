@@ -1,10 +1,26 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { arrayMove } from '@dnd-kit/sortable'
 import type { AgentState } from '@shared/types'
 
 const STORAGE_KEY = 'hydra:tile-order:v1'
 
 type TileOrderMap = Record<string, string[]>
+
+function arraysEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false
+  }
+  return true
+}
+
+function mergeOrder(baseOrder: string[], agentIds: string[]): string[] {
+  const currentSet = new Set(agentIds)
+  const filtered = baseOrder.filter((id) => currentSet.has(id))
+  const filteredSet = new Set(filtered)
+  const newIds = agentIds.filter((id) => !filteredSet.has(id))
+  return [...filtered, ...newIds]
+}
 
 function readStoredOrders(): TileOrderMap {
   try {
@@ -41,25 +57,33 @@ export function useTileOrder(
   const agentIds = useMemo(() => agents.map((a) => a.id), [agents])
 
   const [orderMap, setOrderMap] = useState<TileOrderMap>(readStoredOrders)
+  const [runtimeOrderMap, setRuntimeOrderMap] = useState<TileOrderMap>({})
+
+  useEffect(() => {
+    if (!projectDir || isRunningTab) return
+
+    setRuntimeOrderMap((prev) => {
+      const current = prev[projectDir]
+      const nextOrder = mergeOrder(current ?? agentIds, agentIds)
+      if (current && arraysEqual(current, nextOrder)) {
+        return prev
+      }
+      return { ...prev, [projectDir]: nextOrder }
+    })
+  }, [agentIds, isRunningTab, projectDir])
 
   // Reconcile stored order with current agent list
   const orderedIds = useMemo(() => {
     if (isRunningTab || !projectDir) return agentIds
 
     const storedIds = orderMap[projectDir]
-    if (!storedIds) return agentIds
+    if (storedIds) return mergeOrder(storedIds, agentIds)
 
-    const currentSet = new Set(agentIds)
+    const runtimeIds = runtimeOrderMap[projectDir]
+    if (runtimeIds) return mergeOrder(runtimeIds, agentIds)
 
-    // Remove IDs no longer present
-    const filtered = storedIds.filter((id) => currentSet.has(id))
-    const filteredSet = new Set(filtered)
-
-    // Append new agents at end
-    const newIds = agentIds.filter((id) => !filteredSet.has(id))
-
-    return [...filtered, ...newIds]
-  }, [agentIds, orderMap, projectDir, isRunningTab])
+    return agentIds
+  }, [agentIds, orderMap, projectDir, isRunningTab, runtimeOrderMap])
 
   const hasCustomOrder = !!(projectDir && orderMap[projectDir])
 

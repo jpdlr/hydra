@@ -218,6 +218,36 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Mistake**: Including a non-existent target directory (`app`) made `rg` exit non-zero and obscured whether results were complete.
 **Fix**: Scope `rg` targets to known existing roots (for this repo: `src`, `electron`, `hydra-remote`, `shared`) or run from repo root without extra path args.
 
+### Claude session indexes can be stale or polluted by meta prompts
+**Date**: 2026-03-08
+**Context**: Hydra resumed the wrong Claude sessions after restart in projects using `sessions-index.json` or raw JSONL fallback.
+**Mistake**: Trusting `sessions-index.json` entries even when `fullPath` no longer exists, and treating meta/local-command transcript records (`<local-command-caveat>`, `/clear`, IDE tags) as the real first prompt.
+**Fix**: Ignore index entries whose transcript file is missing, fall back to the live JSONL file, support structured `message.content` arrays, and skip meta/local-command prompt noise when deriving the session’s first meaningful prompt.
+
+### Grid tiles can inherit live activity sorting unless order is frozen per Grid session
+**Date**: 2026-03-08
+**Context**: Grid-mode terminal tiles kept jumping as agents produced output.
+**Mistake**: Letting Grid read project agent arrays directly from `useAgents`, where per-project agents are re-sorted by `lastActivityAt`, means the "default" tile order is not stable.
+**Fix**: Freeze the initial per-project tile order when Grid mounts or when a project tab is first opened, then only reconcile removals/additions unless the user manually drags tiles into a custom order.
+
+### Intentional PTY stops must not be treated as agent errors
+**Date**: 2026-03-08
+**Context**: Clicking Stop on a running session surfaced an `Agent Error` toast instead of returning the session to idle.
+**Mistake**: PTY exit handling treated any non-zero exit code as `errored`, even when the exit was caused by Hydra sending a deliberate stop signal.
+**Fix**: Track explicit stop intent on the managed agent and convert that exit path to `idle`; keep a regression test that simulates `kill()` followed by a non-zero PTY exit.
+
+### Codex app-server requires `initialize` before `model/list`
+**Date**: 2026-03-08
+**Context**: Added dynamic Codex model discovery for Hydra model pickers.
+**Mistake**: The app-server protocol looks like simple JSON-RPC, but `model/list` is not reliable as a first request on a fresh stdio session.
+**Fix**: Always send `initialize` first, wait for its response, then request `model/list`, and cache the result so the UI does not repeatedly spawn `codex app-server`.
+
+### Model pills should follow terminal output, not just UI intent
+**Date**: 2026-03-08
+**Context**: Codex model changes can be made through the terminal-native `/model` flow, so UI-selected values can drift from the real session model.
+**Mistake**: Treating the picker selection as the source of truth caused Hydra to display models that the terminal session had not actually switched to.
+**Fix**: Parse recent PTY output for model-change messages and use that as the authoritative model state, especially for Codex.
+
 ### Hydra Remote prompts are inbox-only and need optimistic local chat state
 **Date**: 2026-03-01
 **Context**: Mobile PWA chat stayed visually empty after sending prompts even though daemon processing started.
@@ -342,3 +372,45 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Context**: User required that nothing after `>` should ever render as assistant content; only text after `⏺` is valid.
 **Mistake**: Using mixed prompt-echo + heuristic collection paths allowed occasional prompt text leaks under irregular terminal framing.
 **Fix**: Flatten output chunks into ordered lines, find first assistant marker (`⏺/●/•`), and only collect content from that marker onward until stop boundaries.
+
+### Open In menu must have a non-empty fallback while editor detection resolves
+**Date**: 2026-03-08
+**Context**: The Header `Open in` dropdown rendered only the section header when installed-editor probing returned late/failed, leaving no clickable entries.
+**Mistake**: Initializing renderer state with an empty editor list and assuming IPC detection always succeeds quickly.
+**Fix**: Seed `Open in` with fallback entries (`defaultEditor` + system file manager, plus terminal on non-Windows), then replace with detected editors when available.
+
+### Browser platform detection should not rely on `Navigator.userAgentData` typings
+**Date**: 2026-03-08
+**Context**: Added OS-aware editor labels in renderer (`Finder` vs `Explorer`) and used `navigator.userAgentData` for platform sniffing.
+**Mistake**: Accessing `navigator.userAgentData` directly breaks `tsconfig.web` when DOM lib typings don’t include that property.
+**Fix**: Use a narrowed `Navigator` type with optional `userAgentData` and fall back to `navigator.platform` / `navigator.userAgent`.
+
+### Editor detection should not rely only on CLI commands in Electron PATH
+**Date**: 2026-03-08
+**Context**: `Open in` only showed fallback entries when app was launched from Finder, even though Windsurf/Antigravity were installed.
+**Mistake**: Detecting editors only via `which/where` on CLI binaries; GUI-launched Electron often has a reduced PATH and misses `/usr/local/bin` and user-installed toolchains.
+**Fix**: On macOS, detect editor app bundles (`/Applications` and `~/Applications`) and launch via `open -a <AppName>`, with CLI probing only as fallback.
+
+### Superpower path may differ across environments
+**Date**: 2026-03-08
+**Context**: AGENTS instructions referenced `~/.agents/skills/superpowers/superpowers`, but that directory did not exist in this workspace.
+**Mistake**: Assuming the superpower directory path is always present as written.
+**Fix**: Verify superpower files by searching for `SUPERPOWER.md`; if none exist, proceed with normal workflow and note the missing path.
+
+### Timer-based PTY submit tests must track the real submit delay constant
+**Date**: 2026-03-08
+**Context**: Local deploy failed in `AgentManager.test.ts` before packaging because the fake-timer expectation still assumed a 75ms delayed submit.
+**Mistake**: Changing `INPUT_SUBMIT_DELAY_MS` in `AgentManager` without updating timer-based tests leaves deploy blocked by a stale assertion.
+**Fix**: Keep fake-timer tests aligned with the current submit delay, or derive the expectation from a shared exported constant when that timing is intentionally part of behavior.
+
+### xterm `convertEol` breaks richer TUI redraw behavior
+**Date**: 2026-03-08
+**Context**: Codex terminal UI showed duplicated or stale prompt/status lines even though PTY output was only emitted once.
+**Mistake**: Enabling xterm's `convertEol` rewrote incoming line endings, which interfered with cursor-driven redraws from terminal UIs.
+**Fix**: Keep `convertEol` disabled for Hydra terminal panes and add a regression test that asserts the terminal option stays `false`.
+
+### Codex restart requires native `resume`, not a fresh interactive spawn
+**Date**: 2026-03-08
+**Context**: Hydra restarts for Codex agents reopened a fresh session instead of continuing the previous thread.
+**Mistake**: Treating Codex as non-resumable in `providers.ts` meant Hydra never captured a Codex session id and never invoked `codex resume <session>`.
+**Fix**: Discover Codex session ids from `~/.codex/sessions/*/*/*/*.jsonl` and restart Codex agents with the native `resume` subcommand once a session id is known.

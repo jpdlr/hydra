@@ -40,6 +40,39 @@ function normalizePathForComparison(input: string): string {
   return process.platform === 'win32' ? normalized.toLowerCase() : normalized
 }
 
+function extractTextFromContent(content: unknown): string {
+  if (typeof content === 'string') {
+    return content.trim()
+  }
+
+  if (!Array.isArray(content)) return ''
+
+  const textParts: string[] = []
+  for (const item of content) {
+    if (!item || typeof item !== 'object') continue
+    const block = item as Record<string, unknown>
+    if (block.type === 'text' && typeof block.text === 'string') {
+      const text = block.text.trim()
+      if (text) textParts.push(text)
+    }
+  }
+
+  return textParts.join('\n').trim()
+}
+
+function isIgnorablePromptText(input: string): boolean {
+  const normalized = input.trim().toLowerCase()
+  if (!normalized) return true
+
+  return (
+    normalized.startsWith('<local-command-caveat>') ||
+    normalized.startsWith('<ide_') ||
+    normalized.startsWith('<command-name>') ||
+    normalized.includes('<command-message>') ||
+    normalized.startsWith('/clear')
+  )
+}
+
 export interface ListSessionOptions {
   limit?: number
   maxAgeDays?: number
@@ -153,6 +186,14 @@ export class SessionCatalog {
       return entries
         .filter((entry) => !!entry.sessionId && !!entry.fullPath)
         .map((entry) => {
+          if (!existsSync(entry.fullPath)) {
+            return null
+          }
+
+          const header = this.readJsonlHeader(entry.fullPath)
+          const sessionId = header?.sessionId || entry.sessionId
+          if (!sessionId) return null
+
           seenSessionIds.add(entry.sessionId)
 
           const modifiedAt =
@@ -160,19 +201,25 @@ export class SessionCatalog {
             (entry.fileMtime ? new Date(entry.fileMtime).toISOString() : new Date().toISOString())
 
           const createdAt = entry.created ?? modifiedAt
+          const storedPrompt = (entry.firstPrompt ?? '').trim()
+          const firstPrompt =
+            storedPrompt && !isIgnorablePromptText(storedPrompt)
+              ? storedPrompt
+              : (header?.firstPrompt ?? '').trim()
 
           return {
-            sessionId: entry.sessionId,
-            projectPath: entry.projectPath ?? parsed.originalPath ?? '',
-            firstPrompt: (entry.firstPrompt ?? '').trim(),
+            sessionId,
+            projectPath: (entry.projectPath ?? header?.cwd ?? parsed.originalPath ?? '').trim(),
+            firstPrompt,
             messageCount: Math.max(0, entry.messageCount ?? 0),
             createdAt,
             modifiedAt,
-            gitBranch: entry.gitBranch ?? null,
-            isSidechain: !!entry.isSidechain,
+            gitBranch: entry.gitBranch ?? header?.gitBranch ?? null,
+            isSidechain: typeof entry.isSidechain === 'boolean' ? entry.isSidechain : !!header?.isSidechain,
             sourcePath: entry.fullPath
           } satisfies ClaudeSessionSummary
         })
+        .filter((entry): entry is ClaudeSessionSummary => entry !== null)
     } catch (err) {
       console.warn(`Failed to read session index: ${indexPath}`, err)
       return []
@@ -258,10 +305,13 @@ export class SessionCatalog {
         }
 
         const message = object.message
-        if (!firstPrompt && message && typeof message === 'object') {
+        if (!firstPrompt && object.isMeta !== true && message && typeof message === 'object') {
           const msgObj = message as Record<string, unknown>
-          if (msgObj.role === 'user' && typeof msgObj.content === 'string') {
-            firstPrompt = msgObj.content
+          if (msgObj.role === 'user') {
+            const promptText = extractTextFromContent(msgObj.content)
+            if (!isIgnorablePromptText(promptText)) {
+              firstPrompt = promptText
+            }
           }
         }
 

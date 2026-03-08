@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import type { AppConfig, ProviderId, ThemeId, ViewMode } from '@shared/types'
 import {
-  PROVIDER_MODELS,
   PROVIDER_LABELS,
-  MAX_CONCURRENT_AGENTS_HARD_LIMIT,
-  getDefaultModelForProvider
+  MAX_CONCURRENT_AGENTS_HARD_LIMIT
 } from '@shared/types'
+import { useRuntimeProviderModels } from '../../hooks/useRuntimeProviderModels'
 import { ShortcutsTab } from './ShortcutsTab'
 import { SkillsTab } from './SkillsTab'
 import styles from './SettingsPanel.module.css'
@@ -36,13 +35,23 @@ interface SettingsPanelProps {
   config: AppConfig
   onUpdate: (partial: Partial<AppConfig>) => void
   onClose: () => void
+  globalYolo: boolean
+  onToggleGlobalYolo: () => void
 }
 
 type SettingsTab = 'general' | 'shortcuts' | 'skills'
 
-export function SettingsPanel({ config, onUpdate, onClose }: SettingsPanelProps) {
+function matchesSearch(query: string, ...keywords: string[]): boolean {
+  if (!query) return true
+  const q = query.toLowerCase()
+  return keywords.some((kw) => kw.toLowerCase().includes(q))
+}
+
+export function SettingsPanel({ config, onUpdate, onClose, globalYolo, onToggleGlobalYolo }: SettingsPanelProps) {
   const [exportState, setExportState] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
+  const [searchQuery, setSearchQuery] = useState('')
+  const { providerModels, getDefaultModel } = useRuntimeProviderModels()
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -77,316 +86,357 @@ export function SettingsPanel({ config, onUpdate, onClose }: SettingsPanelProps)
           </div>
         </div>
 
+        {activeTab === 'general' && (
+          <div className={styles.searchBar}>
+            <input
+              className={styles.searchInput}
+              type="text"
+              placeholder="Search settings..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        )}
+
         {activeTab === 'shortcuts' && <ShortcutsTab />}
         {activeTab === 'skills' && <SkillsTab />}
 
         {activeTab === 'general' && <div className={styles.body}>
-          {/* Theme */}
-          <div className={styles.field}>
-            <label className={styles.label}>Color Theme</label>
-            <div className={styles.themePicker}>
-              {THEMES.map((theme) => (
+          {/* ── Appearance ─────────────────────────────────────── */}
+          {matchesSearch(searchQuery, 'appearance', 'theme', 'color', 'view', 'chat', 'grid', 'sound', 'dark', 'light', 'midnight', 'terracotta') && <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>Appearance</h3>
+
+            <div className={styles.field}>
+              <label className={styles.label}>Color Theme</label>
+              <div className={styles.themePicker}>
+                {THEMES.map((theme) => (
+                  <button
+                    key={theme.id}
+                    className={`${styles.themeOption} ${config.theme === theme.id ? styles.themeOptionActive : ''}`}
+                    onClick={() => onUpdate({ theme: theme.id })}
+                  >
+                    <span className={styles.themeSwatches}>
+                      <span className={styles.themeSwatch} style={{ background: theme.swatches[0] }} />
+                      <span className={styles.themeSwatch} style={{ background: theme.swatches[1] }} />
+                    </span>
+                    <span className={styles.themeMeta}>
+                      <span className={styles.themeName}>{theme.label}</span>
+                      <span className={styles.themeDescription}>{theme.description}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label}>Default View</label>
+              <div className={styles.segmented}>
                 <button
-                  key={theme.id}
-                  className={`${styles.themeOption} ${config.theme === theme.id ? styles.themeOptionActive : ''}`}
-                  onClick={() => onUpdate({ theme: theme.id })}
+                  className={`${styles.segment} ${config.defaultViewMode === 'chat' ? styles.active : ''}`}
+                  onClick={() => onUpdate({ defaultViewMode: 'chat' as ViewMode })}
                 >
-                  <span className={styles.themeSwatches}>
-                    <span className={styles.themeSwatch} style={{ background: theme.swatches[0] }} />
-                    <span className={styles.themeSwatch} style={{ background: theme.swatches[1] }} />
-                  </span>
-                  <span className={styles.themeMeta}>
-                    <span className={styles.themeName}>{theme.label}</span>
-                    <span className={styles.themeDescription}>{theme.description}</span>
-                  </span>
+                  Chat
                 </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Default view */}
-          <div className={styles.field}>
-            <label className={styles.label}>Default View</label>
-            <div className={styles.segmented}>
-              <button
-                className={`${styles.segment} ${config.defaultViewMode === 'chat' ? styles.active : ''}`}
-                onClick={() => onUpdate({ defaultViewMode: 'chat' as ViewMode })}
-              >
-                Chat
-              </button>
-              <button
-                className={`${styles.segment} ${config.defaultViewMode === 'grid' ? styles.active : ''}`}
-                onClick={() => onUpdate({ defaultViewMode: 'grid' as ViewMode })}
-              >
-                Grid
-              </button>
-            </div>
-          </div>
-
-          {/* Default provider */}
-          <div className={styles.field}>
-            <label className={styles.label}>Default Provider</label>
-            <div className={styles.segmented}>
-              {PROVIDERS.map((p) => (
                 <button
-                  key={p}
-                  className={`${styles.segment} ${config.defaultProvider === p ? styles.active : ''}`}
-                  onClick={() => onUpdate({
-                    defaultProvider: p,
-                    defaultModel: getDefaultModelForProvider(p)
-                  })}
+                  className={`${styles.segment} ${config.defaultViewMode === 'grid' ? styles.active : ''}`}
+                  onClick={() => onUpdate({ defaultViewMode: 'grid' as ViewMode })}
                 >
-                  {PROVIDER_LABELS[p]}
+                  Grid
                 </button>
-              ))}
+              </div>
             </div>
-          </div>
 
-          {/* Default model */}
-          <div className={styles.field}>
-            <label className={styles.label}>Default Model</label>
-            <select
-              className={styles.select}
-              value={
-                PROVIDER_MODELS[config.defaultProvider].some((m) => m.id === config.defaultModel)
-                  ? config.defaultModel
-                  : '__custom__'
-              }
-              onChange={(e) => {
-                if (e.target.value !== '__custom__') {
-                  onUpdate({ defaultModel: e.target.value })
+            <div className={styles.field}>
+              <label className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={config.enableSoundEffects}
+                  onChange={(e) => onUpdate({ enableSoundEffects: e.target.checked })}
+                  className={styles.checkbox}
+                />
+                <span>Play sound on agent events</span>
+              </label>
+            </div>
+          </div>}
+
+          {/* ── Agent Defaults ─────────────────────────────────── */}
+          {matchesSearch(searchQuery, 'agent', 'provider', 'model', 'claude', 'codex', 'concurrent', 'max', 'yolo', 'project', 'directory') && <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>Agent Defaults</h3>
+
+            <div className={styles.field}>
+              <label className={styles.label}>Default Provider</label>
+              <div className={styles.segmented}>
+                {PROVIDERS.map((p) => (
+                  <button
+                    key={p}
+                    className={`${styles.segment} ${config.defaultProvider === p ? styles.active : ''}`}
+                    onClick={() => onUpdate({
+                      defaultProvider: p,
+                      defaultModel: getDefaultModel(p)
+                    })}
+                  >
+                    {PROVIDER_LABELS[p]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label}>Default Model</label>
+              <select
+                className={styles.select}
+                value={
+                  providerModels[config.defaultProvider].some((m) => m.id === config.defaultModel)
+                    ? config.defaultModel
+                    : '__custom__'
                 }
-              }}
-            >
-              {PROVIDER_MODELS[config.defaultProvider].map((m) => (
-                <option key={m.id} value={m.id}>{m.label}</option>
-              ))}
-              <option value="__custom__">Custom...</option>
-            </select>
-            {!PROVIDER_MODELS[config.defaultProvider].some((m) => m.id === config.defaultModel) && (
+                onChange={(e) => {
+                  if (e.target.value !== '__custom__') {
+                    onUpdate({ defaultModel: e.target.value })
+                  }
+                }}
+              >
+                {providerModels[config.defaultProvider].map((m) => (
+                  <option key={m.id} value={m.id}>{m.label}</option>
+                ))}
+                <option value="__custom__">Custom...</option>
+              </select>
+              {!providerModels[config.defaultProvider].some((m) => m.id === config.defaultModel) && (
+                <input
+                  className={styles.dirInput}
+                  type="text"
+                  value={config.defaultModel}
+                  onChange={(e) => onUpdate({ defaultModel: e.target.value })}
+                  placeholder="Custom model identifier"
+                  style={{ marginTop: '0.375rem' }}
+                />
+              )}
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label}>Max Concurrent Agents</label>
+              <input
+                className={styles.numberInput}
+                type="number"
+                min={1}
+                max={MAX_CONCURRENT_AGENTS_HARD_LIMIT}
+                value={config.maxAgents}
+                onChange={(e) =>
+                  onUpdate({
+                    maxAgents: Math.max(
+                      1,
+                      Math.min(MAX_CONCURRENT_AGENTS_HARD_LIMIT, parseInt(e.target.value, 10) || 8)
+                    )
+                  })
+                }
+              />
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label}>Global YOLO Mode</label>
+              <div className={styles.inlineRow}>
+                <span className={styles.inlineHint}>
+                  Skip all permission prompts across agents
+                </span>
+                <button
+                  className={`${styles.yoloToggle} ${globalYolo ? styles.yoloActive : ''}`}
+                  onClick={onToggleGlobalYolo}
+                >
+                  {globalYolo ? 'ON' : 'OFF'}
+                </button>
+              </div>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label}>Default Project Directory</label>
+              <div className={styles.dirField}>
+                <input
+                  className={styles.dirInput}
+                  type="text"
+                  value={config.defaultProjectDir}
+                  onChange={(e) => onUpdate({ defaultProjectDir: e.target.value })}
+                  placeholder="/path/to/projects"
+                />
+                <button
+                  className={styles.browseBtn}
+                  onClick={async () => {
+                    const dir = await window.hydra.selectDirectory()
+                    if (dir) onUpdate({ defaultProjectDir: dir })
+                  }}
+                >
+                  Browse
+                </button>
+              </div>
+            </div>
+          </div>}
+
+          {/* ── Session Import ─────────────────────────────────── */}
+          {matchesSearch(searchQuery, 'session', 'import', 'limit', 'age', 'prefix', 'hidden') && <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>Session Import</h3>
+
+            <div className={styles.field}>
+              <label className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={config.importSessionsOnStartup}
+                  onChange={(e) => onUpdate({ importSessionsOnStartup: e.target.checked })}
+                  className={styles.checkbox}
+                />
+                <span>Import Claude sessions on startup</span>
+              </label>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label}>Import Limit (0 = unlimited)</label>
+              <input
+                className={styles.numberInput}
+                type="number"
+                min={0}
+                max={20000}
+                value={config.sessionImportLimit}
+                onChange={(e) =>
+                  onUpdate({ sessionImportLimit: Math.max(0, parseInt(e.target.value, 10) || 0) })
+                }
+              />
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label}>Max Age (days, 0 = no limit)</label>
+              <input
+                className={styles.numberInput}
+                type="number"
+                min={0}
+                max={365}
+                value={config.sessionMaxAgeDays}
+                onChange={(e) =>
+                  onUpdate({ sessionMaxAgeDays: Math.max(0, parseInt(e.target.value, 10) || 0) })
+                }
+              />
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label}>Project Prefix Filter</label>
               <input
                 className={styles.dirInput}
                 type="text"
-                value={config.defaultModel}
-                onChange={(e) => onUpdate({ defaultModel: e.target.value })}
-                placeholder="Custom model identifier"
-                style={{ marginTop: '0.375rem' }}
+                value={config.sessionImportProjectPrefix}
+                onChange={(e) => onUpdate({ sessionImportProjectPrefix: e.target.value })}
+                placeholder="Optional absolute path prefix"
               />
-            )}
-          </div>
+            </div>
 
-          {/* Max agents */}
-          <div className={styles.field}>
-            <label className={styles.label}>Max Concurrent Agents</label>
-            <input
-              className={styles.numberInput}
-              type="number"
-              min={1}
-              max={MAX_CONCURRENT_AGENTS_HARD_LIMIT}
-              value={config.maxAgents}
-              onChange={(e) =>
-                onUpdate({
-                  maxAgents: Math.max(
-                    1,
-                    Math.min(MAX_CONCURRENT_AGENTS_HARD_LIMIT, parseInt(e.target.value, 10) || 8)
-                  )
-                })
-              }
-            />
-          </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Hidden Imported Sessions</label>
+              <div className={styles.inlineRow}>
+                <span className={styles.inlineHint}>{config.hiddenSessionIds.length} hidden</span>
+                <button
+                  className={styles.clearBtn}
+                  onClick={() => onUpdate({ hiddenSessionIds: [] })}
+                  disabled={config.hiddenSessionIds.length === 0}
+                >
+                  Reset Hidden
+                </button>
+              </div>
+            </div>
+          </div>}
 
-          {/* Default project directory */}
-          <div className={styles.field}>
-            <label className={styles.label}>Default Project Directory</label>
-            <div className={styles.dirField}>
+          {/* ── Remote Control ─────────────────────────────────── */}
+          {matchesSearch(searchQuery, 'remote', 'control', 'timeout') && <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>Remote Control</h3>
+
+            <div className={styles.field}>
+              <label className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={config.remoteControlEnabled}
+                  onChange={(e) => onUpdate({ remoteControlEnabled: e.target.checked })}
+                  className={styles.checkbox}
+                />
+                <span>Auto-enable remote control on startup</span>
+              </label>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label}>Session Timeout (minutes)</label>
+              <input
+                className={styles.numberInput}
+                type="number"
+                min={30}
+                max={1440}
+                value={config.remoteSessionTimeoutMinutes}
+                onChange={(e) =>
+                  onUpdate({
+                    remoteSessionTimeoutMinutes: Math.max(30, Math.min(1440, parseInt(e.target.value, 10) || 480))
+                  })
+                }
+              />
+            </div>
+          </div>}
+
+          {/* ── Observability ──────────────────────────────────── */}
+          {matchesSearch(searchQuery, 'observability', 'error', 'reporting', 'diagnostics', 'sensitive', 'endpoint') && <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>Observability</h3>
+
+            <div className={styles.field}>
+              <label className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={config.enableRemoteErrorReporting}
+                  onChange={(e) => onUpdate({ enableRemoteErrorReporting: e.target.checked })}
+                  className={styles.checkbox}
+                />
+                <span>Enable remote error reporting (opt-in)</span>
+              </label>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label}>Reporting Endpoint</label>
               <input
                 className={styles.dirInput}
                 type="text"
-                value={config.defaultProjectDir}
-                onChange={(e) => onUpdate({ defaultProjectDir: e.target.value })}
-                placeholder="/path/to/projects"
+                value={config.errorReportingEndpoint}
+                onChange={(e) => onUpdate({ errorReportingEndpoint: e.target.value })}
+                placeholder="https://your-endpoint.example.com/hydra-errors"
               />
-              <button
-                className={styles.browseBtn}
-                onClick={async () => {
-                  const dir = await window.hydra.selectDirectory()
-                  if (dir) onUpdate({ defaultProjectDir: dir })
-                }}
-              >
-                Browse
-              </button>
             </div>
-          </div>
 
-          {/* Session import */}
-          <div className={styles.field}>
-            <label className={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={config.importSessionsOnStartup}
-                onChange={(e) => onUpdate({ importSessionsOnStartup: e.target.checked })}
-                className={styles.checkbox}
-              />
-              <span>Import Claude sessions on startup</span>
-            </label>
-          </div>
-
-          <div className={styles.field}>
-            <label className={styles.label}>Session Import Limit (0 = unlimited)</label>
-            <input
-              className={styles.numberInput}
-              type="number"
-              min={0}
-              max={20000}
-              value={config.sessionImportLimit}
-              onChange={(e) =>
-                onUpdate({ sessionImportLimit: Math.max(0, parseInt(e.target.value, 10) || 0) })
-              }
-            />
-          </div>
-
-          <div className={styles.field}>
-            <label className={styles.label}>Session Max Age (days, 0 = no limit)</label>
-            <input
-              className={styles.numberInput}
-              type="number"
-              min={0}
-              max={365}
-              value={config.sessionMaxAgeDays}
-              onChange={(e) =>
-                onUpdate({ sessionMaxAgeDays: Math.max(0, parseInt(e.target.value, 10) || 0) })
-              }
-            />
-          </div>
-
-          <div className={styles.field}>
-            <label className={styles.label}>Session Project Prefix Filter</label>
-            <input
-              className={styles.dirInput}
-              type="text"
-              value={config.sessionImportProjectPrefix}
-              onChange={(e) => onUpdate({ sessionImportProjectPrefix: e.target.value })}
-              placeholder="Optional absolute path prefix"
-            />
-          </div>
-
-          <div className={styles.field}>
-            <label className={styles.label}>Hidden Imported Sessions</label>
-            <div className={styles.inlineRow}>
-              <span className={styles.inlineHint}>{config.hiddenSessionIds.length} hidden</span>
-              <button
-                className={styles.clearBtn}
-                onClick={() => onUpdate({ hiddenSessionIds: [] })}
-                disabled={config.hiddenSessionIds.length === 0}
-              >
-                Reset Hidden
-              </button>
+            <div className={styles.field}>
+              <label className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={config.includeSensitiveDiagnostics}
+                  onChange={(e) => onUpdate({ includeSensitiveDiagnostics: e.target.checked })}
+                  className={styles.checkbox}
+                />
+                <span>Include sensitive paths/prompts in exports</span>
+              </label>
             </div>
-          </div>
 
-          {/* Sound effects */}
-          <div className={styles.field}>
-            <label className={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={config.enableSoundEffects}
-                onChange={(e) => onUpdate({ enableSoundEffects: e.target.checked })}
-                className={styles.checkbox}
-              />
-              <span>Play sound on agent events</span>
-            </label>
-          </div>
-
-          {/* Remote Control */}
-          <div className={styles.field}>
-            <label className={styles.sectionLabel}>Remote Control</label>
-            <label className={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={config.remoteControlEnabled}
-                onChange={(e) => onUpdate({ remoteControlEnabled: e.target.checked })}
-                className={styles.checkbox}
-              />
-              <span>Auto-enable remote control on startup</span>
-            </label>
-          </div>
-
-          <div className={styles.field}>
-            <label className={styles.label}>Session Timeout (minutes)</label>
-            <input
-              className={styles.numberInput}
-              type="number"
-              min={30}
-              max={1440}
-              value={config.remoteSessionTimeoutMinutes}
-              onChange={(e) =>
-                onUpdate({
-                  remoteSessionTimeoutMinutes: Math.max(30, Math.min(1440, parseInt(e.target.value, 10) || 480))
-                })
-              }
-            />
-          </div>
-
-          <div className={styles.field}>
-            <label className={styles.sectionLabel}>Observability</label>
-            <label className={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={config.enableRemoteErrorReporting}
-                onChange={(e) => onUpdate({ enableRemoteErrorReporting: e.target.checked })}
-                className={styles.checkbox}
-              />
-              <span>Enable remote error reporting (opt-in)</span>
-            </label>
-          </div>
-
-          <div className={styles.field}>
-            <label className={styles.label}>Remote Error Reporting Endpoint</label>
-            <input
-              className={styles.dirInput}
-              type="text"
-              value={config.errorReportingEndpoint}
-              onChange={(e) => onUpdate({ errorReportingEndpoint: e.target.value })}
-              placeholder="https://your-endpoint.example.com/hydra-errors"
-            />
-          </div>
-
-          <div className={styles.field}>
-            <label className={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={config.includeSensitiveDiagnostics}
-                onChange={(e) => onUpdate({ includeSensitiveDiagnostics: e.target.checked })}
-                className={styles.checkbox}
-              />
-              <span>Include sensitive paths/prompts in exports and reports</span>
-            </label>
-          </div>
-
-          <div className={styles.field}>
-            <div className={styles.inlineRow}>
-              <label className={styles.label}>Diagnostics</label>
-              <button
-                className={styles.clearBtn}
-                onClick={async () => {
-                  setExportState('Exporting...')
-                  const result = await window.hydra.exportDiagnostics()
-                  if (result.error) {
-                    setExportState(`Export failed: ${result.error}`)
-                    return
-                  }
-                  if (!result.path) {
-                    setExportState('Export canceled.')
-                    return
-                  }
-                  setExportState(`Saved to ${result.path}`)
-                }}
-              >
-                Export Diagnostics
-              </button>
+            <div className={styles.field}>
+              <div className={styles.inlineRow}>
+                <label className={styles.label}>Diagnostics</label>
+                <button
+                  className={styles.clearBtn}
+                  onClick={async () => {
+                    setExportState('Exporting...')
+                    const result = await window.hydra.exportDiagnostics()
+                    if (result.error) {
+                      setExportState(`Export failed: ${result.error}`)
+                      return
+                    }
+                    if (!result.path) {
+                      setExportState('Export canceled.')
+                      return
+                    }
+                    setExportState(`Saved to ${result.path}`)
+                  }}
+                >
+                  Export Diagnostics
+                </button>
+              </div>
+              {exportState && <span className={styles.inlineHint}>{exportState}</span>}
             </div>
-            {exportState && <span className={styles.inlineHint}>{exportState}</span>}
-          </div>
+          </div>}
         </div>}
       </div>
     </div>

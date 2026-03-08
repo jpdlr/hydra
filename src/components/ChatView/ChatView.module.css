@@ -130,6 +130,19 @@
 
 .agentActions {
   display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.openInSlot {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.iconActions {
+  display: flex;
+  align-items: center;
   gap: var(--space-1);
 }
 
@@ -170,21 +183,38 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
   color: var(--color-text-secondary);
+  cursor: pointer;
   transition: all var(--transition-fast);
 }
 
 .actionBtn:hover {
-  background: var(--color-surface-hover);
+  border-color: var(--color-text-muted);
+  background: color-mix(in srgb, var(--color-surface-hover) 80%, var(--color-text-muted) 20%);
   color: var(--color-text-primary);
 }
 
 .actionBtnActive {
   color: var(--color-accent);
+  border-color: var(--color-accent);
+  background: var(--color-accent-subtle);
+}
+
+.removeBtn {
+  color: var(--color-status-error);
+  border-color: color-mix(in srgb, var(--color-status-error) 55%, var(--color-border));
+  background: color-mix(in srgb, var(--color-status-error) 10%, var(--color-surface-hover));
+}
+
+.removeBtn:hover {
+  color: var(--color-status-error);
+  border-color: var(--color-status-error);
+  background: color-mix(in srgb, var(--color-status-error) 18%, var(--color-surface-hover));
 }
 
 .actionIcon {
@@ -262,4 +292,35 @@
   min-height: 0;
   overflow: hidden;
   background: var(--color-terminal-bg);
+}
+
+/* Bottom dock: input + terminal slider */
+.bottomDock {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+}
+
+.freeTerminalSlider {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(100%);
+  overflow: hidden;
+  transition:
+    max-height 220ms ease,
+    transform 220ms ease,
+    opacity 180ms ease;
+}
+
+.freeTerminalSliderOpen {
+  max-height: min(42vh, 360px);
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.freeTerminalSliderInner {
+  height: min(42vh, 360px);
+  min-height: 180px;
+  overflow: hidden;
 }

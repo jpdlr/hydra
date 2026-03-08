@@ -115,6 +115,12 @@ export class DaemonClient extends EventEmitter {
           case 'test-terminal:exit':
             this.emit('test-terminal:exit', msg.payload.exitCode)
             break
+          case 'free-terminal:output':
+            this.emit('free-terminal:output', msg.payload.data)
+            break
+          case 'free-terminal:exit':
+            this.emit('free-terminal:exit', msg.payload.exitCode)
+            break
         }
       } catch {
         // Ignore malformed messages
@@ -188,6 +194,10 @@ export class DaemonClient extends EventEmitter {
 
   async renameAgent(agentId: string, name: string): Promise<AgentState | null> {
     return this.post(`/agents/${encodeURIComponent(agentId)}/rename`, { name })
+  }
+
+  async setAgentModel(agentId: string, model: string): Promise<AgentState | null> {
+    return this.post(`/agents/${encodeURIComponent(agentId)}/model`, { model })
   }
 
   sendInput(agentId: string, input: string): void {
@@ -316,6 +326,24 @@ export class DaemonClient extends EventEmitter {
 
   killTestTerminal(): void {
     this.post('/test-terminal/kill').catch(() => {})
+  }
+
+  // ── Free Terminal ─────────────────────────────────────────────────────
+
+  async spawnFreeTerminal(cwd?: string): Promise<void> {
+    await this.post('/free-terminal/spawn', { cwd })
+  }
+
+  sendFreeTerminalInput(data: string): void {
+    this.post('/free-terminal/input', { data }).catch(() => {})
+  }
+
+  resizeFreeTerminal(cols: number, rows: number): void {
+    this.post('/free-terminal/resize', { cols, rows }).catch(() => {})
+  }
+
+  killFreeTerminal(): void {
+    this.post('/free-terminal/kill').catch(() => {})
   }
 
   // ── Shutdown ────────────────────────────────────────────────────────────

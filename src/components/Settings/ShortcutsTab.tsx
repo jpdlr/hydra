@@ -35,6 +35,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
     label: 'Editor',
     shortcuts: [
       { keys: [MOD, 'E'], description: 'Toggle code editor' },
+      { keys: [MOD, 'J'], description: 'Toggle terminal' },
       { keys: [MOD, 'P'], description: 'Search files' },
       { keys: [MOD, 'S'], description: 'Save file' },
     ],

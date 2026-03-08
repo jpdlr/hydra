@@ -34,6 +34,14 @@ export function EditorIcon({ editor, size = 14, className }: EditorIconProps) {
           <path d="M2 6C4 4 6 3 9 3" />
         </svg>
       )
+    case 'antigravity':
+      return (
+        <svg {...props} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M8 13V3" />
+          <path d="M5 6l3-3 3 3" />
+          <path d="M3 13h10" />
+        </svg>
+      )
     case 'zed':
       return (
         <svg {...props} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">

@@ -106,6 +106,7 @@ export default function App() {
     restartAgent,
     toggleYolo,
     renameAgent,
+    setAgentModel,
     sendInput,
     sendTerminalInput,
     resizeTerminal,
@@ -133,6 +134,7 @@ export default function App() {
   const [showFileSearch, setShowFileSearch] = useState(false)
   const [showCommandPalette, setShowCommandPalette] = useState(false)
   const [showGitPanel, setShowGitPanel] = useState(false)
+  const [freeTerminalOpen, setFreeTerminalOpen] = useState(false)
   const [selectedProject, setSelectedProject] = useState<string | null>(persistedUi.selectedProject)
   const [expandedTilesByProject, setExpandedTilesByProject] = useState<Record<string, string | null>>(
     persistedUi.expandedTilesByProject
@@ -249,8 +251,8 @@ export default function App() {
           // Wait for Claude CLI to process the image
           await new Promise((r) => setTimeout(r, 600))
         }
-        // Extra delay after all images so CLI fully ingests them before text
-        await new Promise((r) => setTimeout(r, 2000))
+        // Brief pause before sending prompt text after image paste completes
+        await new Promise((r) => setTimeout(r, 100))
       }
 
       if (input) {
@@ -306,6 +308,11 @@ export default function App() {
     }
   }, [viewMode, selectedAgent, selectedProject])
 
+  // Collapse the free terminal drawer when switching sessions.
+  useEffect(() => {
+    setFreeTerminalOpen(false)
+  }, [selectedAgentId])
+
   // Keep selected chat agent synced to the active grid project.
   useEffect(() => {
     if (viewMode !== 'grid' || !selectedProject) return
@@ -349,6 +356,13 @@ export default function App() {
       if (meta && e.key === 'e' && viewMode === 'chat') {
         e.preventDefault()
         editorPanel.toggle()
+        return
+      }
+
+      // Cmd+J — toggle free terminal (chat mode only)
+      if (meta && e.key === 'j' && viewMode === 'chat') {
+        e.preventDefault()
+        setFreeTerminalOpen((prev) => !prev)
         return
       }
 
@@ -638,6 +652,17 @@ export default function App() {
               theme={config.theme}
               defaultEditor={config.defaultEditor}
               onSetDefaultEditor={handleSetDefaultEditor}
+              freeTerminalOpen={freeTerminalOpen}
+              onToggleFreeTerminal={() => setFreeTerminalOpen((prev) => !prev)}
+              onSwitchModel={(nextModel) => {
+                if (!selectedAgentId || !selectedAgent) return
+                if (selectedAgent.state.provider === 'codex') {
+                  sendInput(selectedAgentId, '/model')
+                  return
+                }
+                void setAgentModel(selectedAgentId, nextModel)
+                sendTerminalInput(selectedAgentId, `/model ${nextModel}\r`)
+              }}
             />
           ) : (
             <GridView
@@ -681,6 +706,8 @@ export default function App() {
           config={config}
           onUpdate={updateConfig}
           onClose={() => setShowSettings(false)}
+          globalYolo={config.globalYolo}
+          onToggleGlobalYolo={handleGlobalYoloToggle}
         />
       )}
 
