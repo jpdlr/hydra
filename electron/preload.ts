@@ -20,8 +20,8 @@ import type {
   ExportDiagnosticsResult,
   McpServerStatus,
   HydraNotification,
-  UsageDashboardOptions,
-  UsageDashboardSnapshot,
+  CcusageOptions,
+  CcusageSnapshot,
   AppUpdateState,
   FsDirEntry,
   FsReadFileResult,
@@ -167,15 +167,9 @@ const hydraApi = {
   exportDiagnostics: (): Promise<ExportDiagnosticsResult> =>
     ipcRenderer.invoke(IPC.OBS_EXPORT_DIAGNOSTICS),
 
-  // Usage dashboard
-  getUsageDashboard: (options?: UsageDashboardOptions): Promise<UsageDashboardSnapshot> =>
+  // Usage dashboard (ccusage)
+  getUsageDashboard: (options?: CcusageOptions): Promise<CcusageSnapshot> =>
     ipcRenderer.invoke(IPC.USAGE_DASHBOARD_GET, options),
-  onUsageUpdated: (callback: (snapshot: UsageDashboardSnapshot) => void): (() => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, snapshot: UsageDashboardSnapshot) =>
-      callback(snapshot)
-    ipcRenderer.on(IPC.USAGE_UPDATED, handler)
-    return () => { ipcRenderer.removeListener(IPC.USAGE_UPDATED, handler) }
-  },
 
   // App updates
   getUpdateState: (): Promise<AppUpdateState> =>

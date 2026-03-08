@@ -15,8 +15,6 @@ function getVariant(type: NotificationType): 'success' | 'error' | 'info' | 'war
     case 'agent_errored':
     case 'headless_errored':
       return 'error'
-    case 'usage_budget_warning':
-      return 'warning'
     case 'agent_started':
       return 'info'
   }

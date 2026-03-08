@@ -724,8 +724,6 @@ export default function App() {
 
       {showUsageDashboard && (
         <UsageDashboard
-          config={config}
-          onUpdateConfig={updateConfig}
           onClose={() => setShowUsageDashboard(false)}
         />
       )}

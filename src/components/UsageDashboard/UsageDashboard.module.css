@@ -59,11 +59,73 @@
   color: var(--color-text-primary);
 }
 
+/* ── Not installed state ─────────────────────────────────────────────────── */
+
+.notInstalled {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-8) var(--space-6);
+  gap: var(--space-3);
+}
+
+.notInstalledIcon {
+  color: var(--color-text-muted);
+  opacity: 0.5;
+}
+
+.notInstalled h3 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  color: var(--color-text-primary);
+}
+
+.notInstalled p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  max-width: 420px;
+  line-height: 1.5;
+}
+
+.installBlock {
+  margin: var(--space-2) 0;
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.installBlock code {
+  font-size: var(--font-size-sm);
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+}
+
+.installNote {
+  font-size: var(--font-size-xs) !important;
+  color: var(--color-text-muted) !important;
+}
+
+.learnMore {
+  font-size: var(--font-size-sm);
+  color: var(--color-accent);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.learnMore:hover {
+  text-decoration: underline;
+}
+
+/* ── Controls ────────────────────────────────────────────────────────────── */
+
 .controls {
   padding: var(--space-4) var(--space-5);
   border-bottom: 1px solid var(--color-border);
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
+  align-items: flex-end;
   gap: var(--space-3);
 }
 
@@ -95,16 +157,12 @@
   gap: var(--space-2);
 }
 
-.refreshBtn,
-.saveBtn {
+.refreshBtn {
   height: 32px;
   padding: 0 var(--space-3);
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
-}
-
-.refreshBtn {
   border: 1px solid var(--color-border);
   color: var(--color-text-secondary);
   background: var(--color-surface);
@@ -115,22 +173,33 @@
   color: var(--color-text-primary);
 }
 
-.saveBtn {
-  border: 1px solid transparent;
-  color: var(--color-accent-text);
-  background: var(--color-accent);
+/* ── Summary cards ───────────────────────────────────────────────────────── */
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-10) var(--space-5);
+  min-height: 320px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
 }
 
-.saveBtn:hover:not(:disabled) {
-  background: var(--color-accent-hover);
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
-.saveBtn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-.loading,
 .empty {
   padding: var(--space-6) var(--space-5);
   color: var(--color-text-muted);
@@ -140,7 +209,7 @@
 .summaryGrid {
   padding: var(--space-4) var(--space-5);
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: var(--space-3);
 }
 
@@ -165,13 +234,7 @@
   overflow-wrap: anywhere;
 }
 
-.summaryWarn {
-  border-color: color-mix(in srgb, var(--color-status-starting) 55%, var(--color-border));
-}
-
-.summaryDanger {
-  border-color: color-mix(in srgb, var(--color-status-error) 55%, var(--color-border));
-}
+/* ── Trend section ───────────────────────────────────────────────────────── */
 
 .trendSection {
   margin: 0 var(--space-5) var(--space-4);
@@ -306,6 +369,8 @@
   overflow-wrap: anywhere;
 }
 
+/* ── Tables ──────────────────────────────────────────────────────────────── */
+
 .tables {
   padding: 0 var(--space-5) var(--space-5);
   display: grid;
@@ -381,13 +446,11 @@
   background: var(--color-surface-hover);
 }
 
-@media (max-width: 1180px) {
-  .controls {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+/* ── Responsive ──────────────────────────────────────────────────────────── */
 
+@media (max-width: 1180px) {
   .summaryGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .trendBody {
@@ -405,11 +468,12 @@
 
 @media (max-width: 760px) {
   .controls {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .summaryGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .trendHeader {

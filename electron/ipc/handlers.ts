@@ -3,7 +3,6 @@ import { execFile } from 'child_process'
 import { DaemonClient } from '../daemon/DaemonClient'
 import { ConfigStore } from '../config/ConfigStore'
 import { NotificationService } from '../notifications/NotificationService'
-import { UsageTracker } from '../usage/UsageTracker'
 import { UpdateService } from '../updates/UpdateService'
 import { FileSystemService } from '../fs/FileSystemService'
 import { GitService } from '../git/GitService'
@@ -14,7 +13,9 @@ import type {
   AppConfig,
   ObservabilityLogEventPayload,
   ExportDiagnosticsResult,
-  UsageDashboardOptions
+  CcusageOptions,
+  CcusageSnapshot,
+  CcusageDailyEntry
 } from '@shared/types'
 import { z } from 'zod'
 
@@ -68,9 +69,6 @@ const appConfigPatchSchema = z
     sessionMaxAgeDays: z.number().int().min(0).max(365).optional(),
     sessionImportProjectPrefix: z.string().max(4096).optional(),
     hiddenSessionIds: z.array(z.string().trim().min(1).max(128)).max(10000).optional(),
-    usageDailyTokenBudget: z.number().int().min(0).max(10_000_000).optional(),
-    usageDailyCostBudgetUsd: z.number().min(0).max(100_000).optional(),
-    usageBudgetWarningThresholdPct: z.number().int().min(1).max(99).optional(),
     enableSoundEffects: z.boolean().optional(),
     enableRemoteErrorReporting: z.boolean().optional(),
     errorReportingEndpoint: z.string().max(1024).optional(),
@@ -100,7 +98,7 @@ const headlessLogOptionsSchema = z
     maxChars: z.number().int().min(200).max(500000).optional()
   })
   .optional()
-const usageDashboardOptionsSchema = z
+const ccusageOptionsSchema = z
   .object({
     days: z.number().int().min(1).max(90).optional()
   })
@@ -143,7 +141,6 @@ interface ObservabilityHandlers {
 export function registerIpcHandlers(
   daemonClient: DaemonClient,
   configStore: ConfigStore,
-  usageTracker: UsageTracker,
   updateService: UpdateService,
   observability: ObservabilityHandlers,
   notificationService?: NotificationService | null,
@@ -323,7 +320,6 @@ export function registerIpcHandlers(
     // Notify all windows
     BrowserWindow.getAllWindows().forEach((win) => {
       win.webContents.send(IPC.CONFIG_ON_CHANGE, updated)
-      win.webContents.send(IPC.USAGE_UPDATED, usageTracker.getDashboard(updated, { days: 14 }))
     })
     return updated
   })
@@ -421,11 +417,95 @@ export function registerIpcHandlers(
     return observability.exportDiagnostics()
   })
 
-  // ── Usage dashboard ───────────────────────────────────────────────────────
+  // ── Usage dashboard (ccusage) ──────────────────────────────────────────────
 
-  ipcMain.handle(IPC.USAGE_DASHBOARD_GET, (_event, options?: UsageDashboardOptions) => {
-    const parsed = usageDashboardOptionsSchema.parse(options)
-    return usageTracker.getDashboard(configStore.get(), parsed)
+  ipcMain.handle(IPC.USAGE_DASHBOARD_GET, async (_event, options?: CcusageOptions): Promise<CcusageSnapshot> => {
+    const parsed = ccusageOptionsSchema.parse(options)
+    const days = parsed?.days ?? 30
+    const since = new Date()
+    since.setDate(since.getDate() - days)
+    const sinceStr = since.toISOString().slice(0, 10).replace(/-/g, '')
+
+    const notInstalled: CcusageSnapshot = {
+      available: false,
+      installHint: 'Install ccusage to view usage data:\n  npm install -g ccusage',
+      generatedAt: new Date().toISOString(),
+      daily: [],
+      projects: {}
+    }
+
+    return new Promise<CcusageSnapshot>((resolve) => {
+      // First run: daily with instances (projects)
+      execFile(
+        'ccusage',
+        ['daily', '--json', '--instances', '--since', sinceStr],
+        { timeout: 15_000, env: { ...process.env, FORCE_COLOR: '0' } },
+        (error, stdout) => {
+          if (error) {
+            // Check if ccusage is simply not installed
+            if ((error as NodeJS.ErrnoException).code === 'ENOENT' || error.message?.includes('ENOENT')) {
+              resolve(notInstalled)
+              return
+            }
+            // Other error — ccusage exists but failed
+            resolve({
+              available: true,
+              generatedAt: new Date().toISOString(),
+              daily: [],
+              projects: {}
+            })
+            return
+          }
+          try {
+            const data = JSON.parse(stdout)
+            // ccusage --instances returns { projects: { ... } }
+            // ccusage without --instances returns { daily: [...] }
+            // With --instances, the daily array is not present — we need both
+            const projects: Record<string, CcusageDailyEntry[]> = {}
+            if (data.projects && typeof data.projects === 'object') {
+              for (const [key, entries] of Object.entries(data.projects)) {
+                if (Array.isArray(entries)) {
+                  projects[key] = entries as CcusageDailyEntry[]
+                }
+              }
+            }
+
+            // Now run again without --instances to get the aggregate daily
+            execFile(
+              'ccusage',
+              ['daily', '--json', '--since', sinceStr],
+              { timeout: 15_000, env: { ...process.env, FORCE_COLOR: '0' } },
+              (error2, stdout2) => {
+                let daily: CcusageDailyEntry[] = []
+                if (!error2) {
+                  try {
+                    const data2 = JSON.parse(stdout2)
+                    if (Array.isArray(data2.daily)) {
+                      daily = data2.daily
+                    }
+                  } catch {
+                    // best effort
+                  }
+                }
+                resolve({
+                  available: true,
+                  generatedAt: new Date().toISOString(),
+                  daily,
+                  projects
+                })
+              }
+            )
+          } catch {
+            resolve({
+              available: true,
+              generatedAt: new Date().toISOString(),
+              daily: [],
+              projects: {}
+            })
+          }
+        }
+      )
+    })
   })
 
   // ── App updates ────────────────────────────────────────────────────────────

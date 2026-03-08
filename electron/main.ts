@@ -14,7 +14,6 @@ import { ConfigStore } from './config/ConfigStore'
 import { registerIpcHandlers } from './ipc/handlers'
 import { ObservabilityService } from './observability/ObservabilityService'
 import { NotificationService } from './notifications/NotificationService'
-import { UsageTracker } from './usage/UsageTracker'
 import { UpdateService } from './updates/UpdateService'
 import { FileSystemService } from './fs/FileSystemService'
 import { GitService } from './git/GitService'
@@ -30,7 +29,6 @@ let daemonClient: DaemonClient | null = null
 const userDataPath = app.getPath('userData')
 const daemonPaths = getDaemonPaths(userDataPath)
 const configStore = new ConfigStore(userDataPath)
-const usageTracker = new UsageTracker(userDataPath)
 const updateService = new UpdateService()
 const fileSystemService = new FileSystemService()
 const gitService = new GitService()
@@ -247,7 +245,6 @@ app.whenReady().then(async () => {
   registerIpcHandlers(
     daemonClient!,
     configStore,
-    usageTracker,
     updateService,
     {
       logRendererEvent: (payload) => {

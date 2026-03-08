@@ -103,9 +103,12 @@ export interface AppConfig {
   sessionMaxAgeDays: number
   sessionImportProjectPrefix: string
   hiddenSessionIds: string[]
-  usageDailyTokenBudget: number
-  usageDailyCostBudgetUsd: number
-  usageBudgetWarningThresholdPct: number
+  /** @deprecated Kept for backward compat with old config files */
+  usageDailyTokenBudget?: number
+  /** @deprecated */
+  usageDailyCostBudgetUsd?: number
+  /** @deprecated */
+  usageBudgetWarningThresholdPct?: number
   enableSoundEffects: boolean
   enableRemoteErrorReporting: boolean
   errorReportingEndpoint: string
@@ -131,9 +134,6 @@ export const DEFAULT_CONFIG: AppConfig = {
   sessionMaxAgeDays: 7,
   sessionImportProjectPrefix: '',
   hiddenSessionIds: [],
-  usageDailyTokenBudget: 0,
-  usageDailyCostBudgetUsd: 0,
-  usageBudgetWarningThresholdPct: 80,
   enableSoundEffects: true,
   enableRemoteErrorReporting: false,
   errorReportingEndpoint: '',
@@ -204,9 +204,8 @@ export const IPC = {
   OBS_LOG_EVENT: 'obs:log-event',
   OBS_EXPORT_DIAGNOSTICS: 'obs:export-diagnostics',
 
-  // Usage dashboard
+  // Usage dashboard (ccusage)
   USAGE_DASHBOARD_GET: 'usage:dashboard-get',
-  USAGE_UPDATED: 'usage:updated',
 
   // App updates
   UPDATE_GET_STATE: 'update:get-state',
@@ -372,57 +371,39 @@ export interface HeadlessRunLogPayload {
   truncated: boolean
 }
 
-// ── Usage dashboard ──────────────────────────────────────────────────────────
+// ── Usage dashboard (ccusage) ────────────────────────────────────────────────
 
-export interface UsageAgentDailyStat {
-  agentId: string
-  agentName: string
-  projectDir: string
-  projectName: string
-  provider: ProviderId
-  model: ModelId
-  tokens: number
-  costUsd: number
-  updatedAt: string
+export interface CcusageModelBreakdown {
+  modelName: string
+  inputTokens: number
+  outputTokens: number
+  cacheCreationTokens: number
+  cacheReadTokens: number
+  cost: number
 }
 
-export interface UsageProjectDailyStat {
-  projectDir: string
-  projectName: string
-  agentCount: number
-  tokens: number
-  costUsd: number
-}
-
-export interface UsageDailySummary {
+export interface CcusageDailyEntry {
   date: string
-  tokens: number
-  costUsd: number
-  updatedAt: string
-  agents: UsageAgentDailyStat[]
-  projects: UsageProjectDailyStat[]
+  inputTokens: number
+  outputTokens: number
+  cacheCreationTokens: number
+  cacheReadTokens: number
+  totalTokens: number
+  totalCost: number
+  modelsUsed: string[]
+  modelBreakdowns: CcusageModelBreakdown[]
 }
 
-export interface UsageBudgetStatus {
-  dailyTokenBudget: number | null
-  dailyCostBudgetUsd: number | null
-  warningThresholdPct: number
-  tokenUsagePct: number | null
-  costUsagePct: number | null
-  tokenWarningReached: boolean
-  costWarningReached: boolean
-  tokenBudgetExceeded: boolean
-  costBudgetExceeded: boolean
-}
-
-export interface UsageDashboardSnapshot {
+export interface CcusageSnapshot {
+  available: boolean
+  installHint?: string
   generatedAt: string
-  today: UsageDailySummary | null
-  days: UsageDailySummary[]
-  budget: UsageBudgetStatus
+  daily: CcusageDailyEntry[]
+  /** project key → daily entries */
+  projects: Record<string, CcusageDailyEntry[]>
 }
 
-export interface UsageDashboardOptions {
+export interface CcusageOptions {
   days?: number
 }
 
@@ -483,7 +464,6 @@ export type NotificationType =
   | 'agent_started'
   | 'headless_completed'
   | 'headless_errored'
-  | 'usage_budget_warning'
 
 export interface HydraNotification {
   id: string

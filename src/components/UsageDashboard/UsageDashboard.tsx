@@ -1,48 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { AppConfig, UsageDailySummary, UsageDashboardSnapshot } from '@shared/types'
+import type { CcusageDailyEntry, CcusageSnapshot } from '@shared/types'
 import styles from './UsageDashboard.module.css'
 
 interface UsageDashboardProps {
-  config: AppConfig
-  onUpdateConfig: (partial: Partial<AppConfig>) => Promise<AppConfig>
   onClose: () => void
 }
 
 const DAY_LIMIT = 30
 const TREND_WINDOWS = [7, 30] as const
 type TrendWindow = (typeof TREND_WINDOWS)[number]
-type TrendMetric = 'tokens' | 'cost'
 
 interface TrendPoint {
   date: string
   label: string
+  cost: number
   tokens: number
-  costUsd: number
-  value: number
 }
 
-export function UsageDashboard({ config, onUpdateConfig, onClose }: UsageDashboardProps) {
-  const [snapshot, setSnapshot] = useState<UsageDashboardSnapshot | null>(null)
+export function UsageDashboard({ onClose }: UsageDashboardProps) {
+  const [snapshot, setSnapshot] = useState<CcusageSnapshot | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isSaving, setIsSaving] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  const [tokenBudgetInput, setTokenBudgetInput] = useState('')
-  const [costBudgetInput, setCostBudgetInput] = useState('')
-  const [warningThresholdInput, setWarningThresholdInput] = useState('80')
   const [trendWindow, setTrendWindow] = useState<TrendWindow>(7)
-  const [trendMetric, setTrendMetric] = useState<TrendMetric>('tokens')
-
-  useEffect(() => {
-    setTokenBudgetInput(config.usageDailyTokenBudget > 0 ? String(config.usageDailyTokenBudget) : '')
-    setCostBudgetInput(
-      config.usageDailyCostBudgetUsd > 0 ? String(config.usageDailyCostBudgetUsd) : ''
-    )
-    setWarningThresholdInput(String(config.usageBudgetWarningThresholdPct))
-  }, [
-    config.usageDailyTokenBudget,
-    config.usageDailyCostBudgetUsd,
-    config.usageBudgetWarningThresholdPct
-  ])
 
   const refresh = useCallback(async () => {
     setIsLoading(true)
@@ -50,8 +29,8 @@ export function UsageDashboard({ config, onUpdateConfig, onClose }: UsageDashboa
       const next = await window.hydra.getUsageDashboard({ days: DAY_LIMIT })
       setSnapshot(next)
       setSelectedDate((prev) => {
-        if (prev && next.days.some((day) => day.date === prev)) return prev
-        return next.today?.date ?? next.days[0]?.date ?? null
+        if (prev && next.daily.some((d) => d.date === prev)) return prev
+        return next.daily[next.daily.length - 1]?.date ?? null
       })
     } finally {
       setIsLoading(false)
@@ -60,74 +39,91 @@ export function UsageDashboard({ config, onUpdateConfig, onClose }: UsageDashboa
 
   useEffect(() => {
     void refresh()
-
-    const unsubscribe = window.hydra.onUsageUpdated((next) => {
-      setSnapshot(next)
-      setSelectedDate((prev) => {
-        if (prev && next.days.some((day) => day.date === prev)) return prev
-        return next.today?.date ?? next.days[0]?.date ?? null
-      })
-    })
-
-    const interval = setInterval(() => {
-      void refresh()
-    }, 8000)
-
-    return () => {
-      unsubscribe()
-      clearInterval(interval)
-    }
   }, [refresh])
 
-  const selectedSummary = useMemo<UsageDailySummary | null>(() => {
+  const selectedDay = useMemo<CcusageDailyEntry | null>(() => {
     if (!snapshot) return null
-    if (selectedDate) {
-      return snapshot.days.find((day) => day.date === selectedDate) ?? null
-    }
-    return snapshot.today ?? snapshot.days[0] ?? null
+    if (selectedDate) return snapshot.daily.find((d) => d.date === selectedDate) ?? null
+    return snapshot.daily[snapshot.daily.length - 1] ?? null
   }, [snapshot, selectedDate])
 
   const trendSeries = useMemo<TrendPoint[]>(() => {
-    return buildTrendSeries(snapshot?.days ?? [], trendWindow, trendMetric)
-  }, [snapshot, trendWindow, trendMetric])
+    return buildTrendSeries(snapshot?.daily ?? [], trendWindow)
+  }, [snapshot, trendWindow])
 
-  const trendTotal = useMemo(
-    () => trendSeries.reduce((sum, point) => sum + point.value, 0),
+  const trendTotalCost = useMemo(
+    () => trendSeries.reduce((sum, p) => sum + p.cost, 0),
     [trendSeries]
   )
   const trendActiveDays = useMemo(
-    () => trendSeries.filter((point) => point.value > 0).length,
+    () => trendSeries.filter((p) => p.cost > 0).length,
     [trendSeries]
   )
-  const trendAvgPerDay = trendTotal / trendWindow
+  const trendAvgPerDay = trendTotalCost / trendWindow
   const trendProjected30 = trendAvgPerDay * 30
 
-  const handleSaveBudgets = useCallback(async () => {
-    const parsedTokens = Number.parseInt(tokenBudgetInput.trim(), 10)
-    const parsedCost = Number.parseFloat(costBudgetInput.trim())
-    const parsedThreshold = Number.parseInt(warningThresholdInput.trim(), 10)
-
-    const usageDailyTokenBudget =
-      Number.isFinite(parsedTokens) && parsedTokens > 0 ? parsedTokens : 0
-    const usageDailyCostBudgetUsd =
-      Number.isFinite(parsedCost) && parsedCost > 0 ? parsedCost : 0
-    const usageBudgetWarningThresholdPct = Number.isFinite(parsedThreshold)
-      ? Math.min(99, Math.max(1, parsedThreshold))
-      : 80
-
-    setIsSaving(true)
-    try {
-      await onUpdateConfig({
-        usageDailyTokenBudget,
-        usageDailyCostBudgetUsd,
-        usageBudgetWarningThresholdPct
+  // Derive project display names from keys
+  const projectEntries = useMemo(() => {
+    if (!snapshot || !selectedDate) return []
+    return Object.entries(snapshot.projects)
+      .map(([key, entries]) => {
+        const dayEntry = entries.find((e) => e.date === selectedDate)
+        if (!dayEntry || dayEntry.totalCost === 0) return null
+        const name = prettifyProjectKey(key)
+        return { key, name, ...dayEntry }
       })
-    } finally {
-      setIsSaving(false)
-    }
-  }, [tokenBudgetInput, costBudgetInput, warningThresholdInput, onUpdateConfig])
+      .filter(Boolean)
+      .sort((a, b) => b!.totalCost - a!.totalCost) as Array<
+      CcusageDailyEntry & { key: string; name: string }
+    >
+  }, [snapshot, selectedDate])
 
-  const budget = snapshot?.budget
+  // Not installed state
+  if (!isLoading && snapshot && !snapshot.available) {
+    return (
+      <div className={styles.overlay} onClick={onClose}>
+        <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.header}>
+            <div>
+              <h2>Usage Dashboard</h2>
+              <p className={styles.subtitle}>Powered by ccusage</p>
+            </div>
+            <button className={styles.closeBtn} type="button" onClick={onClose}>
+              &#x2715;
+            </button>
+          </div>
+          <div className={styles.notInstalled}>
+            <div className={styles.notInstalledIcon}>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
+            <h3>ccusage is not installed</h3>
+            <p>
+              Hydra uses <strong>ccusage</strong> to analyze your Claude Code usage from local log files.
+              No API keys required.
+            </p>
+            <div className={styles.installBlock}>
+              <code>npm install -g ccusage</code>
+            </div>
+            <p className={styles.installNote}>
+              After installing, reopen this dashboard to see your usage data.
+            </p>
+            <a
+              className={styles.learnMore}
+              href="https://github.com/ryoppippi/ccusage"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Learn more about ccusage
+            </a>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -136,155 +132,61 @@ export function UsageDashboard({ config, onUpdateConfig, onClose }: UsageDashboa
           <div>
             <h2>Usage Dashboard</h2>
             <p className={styles.subtitle}>
-              Usage aggregated by day, project, and agent from CLI output.
+              Token usage and costs from local Claude Code logs via ccusage
             </p>
           </div>
           <button className={styles.closeBtn} type="button" onClick={onClose}>
-            ✕
+            &#x2715;
           </button>
         </div>
 
         <div className={styles.content}>
-          <div className={styles.controls}>
-            <div className={styles.controlGroup}>
-              <label className={styles.label}>Day</label>
-              <select
-                className={styles.select}
-                value={selectedSummary?.date ?? ''}
-                onChange={(e) => setSelectedDate(e.target.value || null)}
-              >
-                {snapshot?.days.map((day) => (
-                  <option key={day.date} value={day.date}>
-                    {formatDay(day.date)}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className={styles.controlGroup}>
-              <label className={styles.label}>Daily Token Budget (0 disables)</label>
-              <input
-                className={styles.input}
-                type="number"
-                min={0}
-                step={1}
-                value={tokenBudgetInput}
-                onChange={(e) => setTokenBudgetInput(e.target.value)}
-                placeholder="e.g. 250000"
-              />
-            </div>
-
-            <div className={styles.controlGroup}>
-              <label className={styles.label}>Daily Cost Budget USD (0 disables)</label>
-              <input
-                className={styles.input}
-                type="number"
-                min={0}
-                step={0.01}
-                value={costBudgetInput}
-                onChange={(e) => setCostBudgetInput(e.target.value)}
-                placeholder="e.g. 25"
-              />
-            </div>
-
-            <div className={styles.controlGroup}>
-              <label className={styles.label}>Warning Threshold (%)</label>
-              <input
-                className={styles.input}
-                type="number"
-                min={1}
-                max={99}
-                step={1}
-                value={warningThresholdInput}
-                onChange={(e) => setWarningThresholdInput(e.target.value)}
-              />
-            </div>
-
-            <div className={styles.actionRow}>
-              <button className={styles.refreshBtn} type="button" onClick={() => void refresh()}>
-                Refresh
-              </button>
-              <button
-                className={styles.saveBtn}
-                type="button"
-                onClick={() => void handleSaveBudgets()}
-                disabled={isSaving}
-              >
-                {isSaving ? 'Saving...' : 'Save Budgets'}
-              </button>
-            </div>
-          </div>
-
           {isLoading ? (
-            <div className={styles.loading}>Loading usage data...</div>
-          ) : selectedSummary ? (
+            <div className={styles.loading}>
+              <div className={styles.spinner} />
+              <span>Loading usage data...</span>
+            </div>
+          ) : selectedDay ? (
             <>
+            <div className={styles.controls}>
+              <div className={styles.controlGroup}>
+                <label className={styles.label}>Day</label>
+                <select
+                  className={styles.select}
+                  value={selectedDate ?? ''}
+                  onChange={(e) => setSelectedDate(e.target.value || null)}
+                >
+                  {snapshot?.daily.map((day) => (
+                    <option key={day.date} value={day.date}>
+                      {formatDay(day.date)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className={styles.actionRow}>
+                <button className={styles.refreshBtn} type="button" onClick={() => void refresh()}>
+                  Refresh
+                </button>
+              </div>
+            </div>
               <div className={styles.summaryGrid}>
-                <SummaryCard
-                  label="Selected Day Tokens"
-                  value={formatTokens(selectedSummary.tokens)}
-                />
-                <SummaryCard label="Selected Day Cost" value={formatUsd(selectedSummary.costUsd)} />
-                <SummaryCard
-                  label="Token Budget"
-                  value={
-                    budget?.dailyTokenBudget
-                      ? `${Math.round(budget.tokenUsagePct ?? 0)}%`
-                      : 'Disabled'
-                  }
-                  tone={
-                    budget?.tokenBudgetExceeded
-                      ? 'danger'
-                      : budget?.tokenWarningReached
-                        ? 'warn'
-                        : 'default'
-                  }
-                />
-                <SummaryCard
-                  label="Cost Budget"
-                  value={
-                    budget?.dailyCostBudgetUsd
-                      ? `${Math.round(budget.costUsagePct ?? 0)}%`
-                      : 'Disabled'
-                  }
-                  tone={
-                    budget?.costBudgetExceeded
-                      ? 'danger'
-                      : budget?.costWarningReached
-                        ? 'warn'
-                        : 'default'
-                  }
-                />
+                <SummaryCard label="Total Cost" value={formatUsd(selectedDay.totalCost)} />
+                <SummaryCard label="Total Tokens" value={formatTokens(selectedDay.totalTokens)} />
+                <SummaryCard label="Input" value={formatTokens(selectedDay.inputTokens)} />
+                <SummaryCard label="Output" value={formatTokens(selectedDay.outputTokens)} />
+                <SummaryCard label="Cache Created" value={formatTokens(selectedDay.cacheCreationTokens)} />
+                <SummaryCard label="Cache Read" value={formatTokens(selectedDay.cacheReadTokens)} />
               </div>
 
               <section className={styles.trendSection}>
                 <div className={styles.trendHeader}>
                   <div>
-                    <h3>Burn Rate Trend</h3>
-                    <p>
-                      {trendMetric === 'tokens' ? 'Tokens' : 'Cost'} over the last {trendWindow}{' '}
-                      days
-                    </p>
+                    <h3>Cost Trend</h3>
+                    <p>Daily cost over the last {trendWindow} days</p>
                   </div>
 
                   <div className={styles.trendControls}>
-                    <div className={styles.segmented}>
-                      <button
-                        className={`${styles.segmentBtn} ${trendMetric === 'tokens' ? styles.segmentBtnActive : ''}`}
-                        type="button"
-                        onClick={() => setTrendMetric('tokens')}
-                      >
-                        Tokens
-                      </button>
-                      <button
-                        className={`${styles.segmentBtn} ${trendMetric === 'cost' ? styles.segmentBtnActive : ''}`}
-                        type="button"
-                        onClick={() => setTrendMetric('cost')}
-                      >
-                        Cost
-                      </button>
-                    </div>
-
                     <div className={styles.segmented}>
                       {TREND_WINDOWS.map((windowSize) => (
                         <button
@@ -302,8 +204,7 @@ export function UsageDashboard({ config, onUpdateConfig, onClose }: UsageDashboa
 
                 <TrendChart
                   series={trendSeries}
-                  metric={trendMetric}
-                  total={trendTotal}
+                  total={trendTotalCost}
                   avgPerDay={trendAvgPerDay}
                   projected30={trendProjected30}
                   activeDays={trendActiveDays}
@@ -314,26 +215,30 @@ export function UsageDashboard({ config, onUpdateConfig, onClose }: UsageDashboa
               <div className={styles.tables}>
                 <section className={styles.tableSection}>
                   <div className={styles.tableHeader}>
-                    <h3>Projects</h3>
-                    <span>{selectedSummary.projects.length}</span>
+                    <h3>Model Breakdown</h3>
+                    <span>{selectedDay.modelBreakdowns.length} models</span>
                   </div>
                   <div className={styles.tableWrap}>
                     <table className={styles.table}>
                       <thead>
                         <tr>
-                          <th>Project</th>
-                          <th>Agents</th>
-                          <th>Tokens</th>
+                          <th>Model</th>
+                          <th>Input</th>
+                          <th>Output</th>
+                          <th>Cache Write</th>
+                          <th>Cache Read</th>
                           <th>Cost</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {selectedSummary.projects.map((project) => (
-                          <tr key={project.projectDir}>
-                            <td>{project.projectName}</td>
-                            <td>{project.agentCount}</td>
-                            <td>{formatTokens(project.tokens)}</td>
-                            <td>{formatUsd(project.costUsd)}</td>
+                        {selectedDay.modelBreakdowns.map((model) => (
+                          <tr key={model.modelName}>
+                            <td>{prettifyModelName(model.modelName)}</td>
+                            <td>{formatTokens(model.inputTokens)}</td>
+                            <td>{formatTokens(model.outputTokens)}</td>
+                            <td>{formatTokens(model.cacheCreationTokens)}</td>
+                            <td>{formatTokens(model.cacheReadTokens)}</td>
+                            <td>{formatUsd(model.cost)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -341,39 +246,39 @@ export function UsageDashboard({ config, onUpdateConfig, onClose }: UsageDashboa
                   </div>
                 </section>
 
-                <section className={styles.tableSection}>
-                  <div className={styles.tableHeader}>
-                    <h3>Agents</h3>
-                    <span>{selectedSummary.agents.length}</span>
-                  </div>
-                  <div className={styles.tableWrap}>
-                    <table className={styles.table}>
-                      <thead>
-                        <tr>
-                          <th>Agent</th>
-                          <th>Provider</th>
-                          <th>Tokens</th>
-                          <th>Cost</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedSummary.agents.map((agent) => (
-                          <tr key={`${agent.agentId}-${agent.updatedAt}`}>
-                            <td>{agent.agentName}</td>
-                            <td>{agent.provider === 'codex' ? 'Codex' : 'Claude'}</td>
-                            <td>{formatTokens(agent.tokens)}</td>
-                            <td>{formatUsd(agent.costUsd)}</td>
+                {projectEntries.length > 0 && (
+                  <section className={styles.tableSection}>
+                    <div className={styles.tableHeader}>
+                      <h3>Projects</h3>
+                      <span>{projectEntries.length} projects</span>
+                    </div>
+                    <div className={styles.tableWrap}>
+                      <table className={styles.table}>
+                        <thead>
+                          <tr>
+                            <th>Project</th>
+                            <th>Tokens</th>
+                            <th>Cost</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
+                        </thead>
+                        <tbody>
+                          {projectEntries.map((project) => (
+                            <tr key={project.key}>
+                              <td>{project.name}</td>
+                              <td>{formatTokens(project.totalTokens)}</td>
+                              <td>{formatUsd(project.totalCost)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+                )}
               </div>
             </>
           ) : (
             <div className={styles.empty}>
-              No usage data yet. Start an agent and run prompts to populate the dashboard.
+              No usage data found. Start using Claude Code to generate usage logs.
             </div>
           )}
         </div>
@@ -382,17 +287,9 @@ export function UsageDashboard({ config, onUpdateConfig, onClose }: UsageDashboa
   )
 }
 
-function SummaryCard({
-  label,
-  value,
-  tone = 'default'
-}: {
-  label: string
-  value: string
-  tone?: 'default' | 'warn' | 'danger'
-}) {
+function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className={`${styles.summaryCard} ${tone === 'warn' ? styles.summaryWarn : ''} ${tone === 'danger' ? styles.summaryDanger : ''}`}>
+    <div className={styles.summaryCard}>
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
@@ -401,7 +298,6 @@ function SummaryCard({
 
 function TrendChart({
   series,
-  metric,
   total,
   avgPerDay,
   projected30,
@@ -409,7 +305,6 @@ function TrendChart({
   windowDays
 }: {
   series: TrendPoint[]
-  metric: TrendMetric
   total: number
   avgPerDay: number
   projected30: number
@@ -424,19 +319,19 @@ function TrendChart({
   const plotWidth = width - paddingX * 2
   const plotHeight = height - paddingTop - paddingBottom
   const baselineY = paddingTop + plotHeight
-  const maxValue = Math.max(...series.map((point) => point.value), 0)
+  const maxValue = Math.max(...series.map((p) => p.cost), 0)
   const safeMax = maxValue > 0 ? maxValue : 1
   const tickStep = series.length > 14 ? 4 : series.length > 8 ? 2 : 1
 
   const points = series.map((point, index) => {
-    const ratio = point.value / safeMax
+    const ratio = point.cost / safeMax
     const x = paddingX + (series.length <= 1 ? 0 : (index * plotWidth) / (series.length - 1))
     const y = baselineY - ratio * plotHeight
     return { x, y, ...point }
   })
 
   const linePath = points
-    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
     .join(' ')
   const areaPath = points.length
     ? `${linePath} L ${points[points.length - 1].x.toFixed(2)} ${baselineY.toFixed(2)} L ${points[0].x.toFixed(2)} ${baselineY.toFixed(2)} Z`
@@ -445,7 +340,12 @@ function TrendChart({
   return (
     <div className={styles.trendBody}>
       <div className={styles.chartWrap}>
-        <svg className={styles.chartSvg} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Usage trend chart">
+        <svg
+          className={styles.chartSvg}
+          viewBox={`0 0 ${width} ${height}`}
+          role="img"
+          aria-label="Usage cost trend chart"
+        >
           {[0.25, 0.5, 0.75, 1].map((ratio) => {
             const y = baselineY - plotHeight * ratio
             return (
@@ -465,13 +365,24 @@ function TrendChart({
 
           {points.length <= 14 &&
             points.map((point) => (
-              <circle key={point.date} cx={point.x} cy={point.y} r={2.8} className={styles.chartPoint} />
+              <circle
+                key={point.date}
+                cx={point.x}
+                cy={point.y}
+                r={2.8}
+                className={styles.chartPoint}
+              />
             ))}
 
           {points.map((point, index) => {
             if (index !== 0 && index !== points.length - 1 && index % tickStep !== 0) return null
             return (
-              <text key={`${point.date}-label`} x={point.x} y={height - 8} className={styles.chartLabel}>
+              <text
+                key={`${point.date}-label`}
+                x={point.x}
+                y={height - 8}
+                className={styles.chartLabel}
+              >
                 {point.label}
               </text>
             )
@@ -482,15 +393,15 @@ function TrendChart({
       <div className={styles.trendStats}>
         <div className={styles.trendStatCard}>
           <span>Total ({windowDays}d)</span>
-          <strong>{formatMetricValue(metric, total)}</strong>
+          <strong>{formatUsd(total)}</strong>
         </div>
         <div className={styles.trendStatCard}>
           <span>Avg / day</span>
-          <strong>{formatMetricValue(metric, avgPerDay)}</strong>
+          <strong>{formatUsd(avgPerDay)}</strong>
         </div>
         <div className={styles.trendStatCard}>
           <span>Projected 30d</span>
-          <strong>{formatMetricValue(metric, projected30)}</strong>
+          <strong>{formatUsd(projected30)}</strong>
         </div>
         <div className={styles.trendStatCard}>
           <span>Active days</span>
@@ -545,35 +456,23 @@ function formatDay(date: string): string {
   })
 }
 
-function formatMetricValue(metric: TrendMetric, value: number): string {
-  if (metric === 'tokens') {
-    return `${formatTokens(value)}`
-  }
-  return formatUsd(value)
-}
-
 function buildTrendSeries(
-  days: UsageDailySummary[],
-  windowDays: TrendWindow,
-  metric: TrendMetric
+  daily: CcusageDailyEntry[],
+  windowDays: TrendWindow
 ): TrendPoint[] {
-  const byDate = new Map(days.map((day) => [day.date, day]))
+  const byDate = new Map(daily.map((d) => [d.date, d]))
   const result: TrendPoint[] = []
   const endDate = new Date()
 
-  for (let index = windowDays - 1; index >= 0; index -= 1) {
-    const date = addDays(endDate, -index)
+  for (let i = windowDays - 1; i >= 0; i -= 1) {
+    const date = addDays(endDate, -i)
     const key = toDateKey(date)
-    const summary = byDate.get(key)
-    const tokens = summary?.tokens ?? 0
-    const costUsd = summary?.costUsd ?? 0
-    const value = metric === 'tokens' ? tokens : costUsd
+    const entry = byDate.get(key)
     result.push({
       date: key,
       label: formatDayShort(key),
-      tokens,
-      costUsd,
-      value
+      cost: entry?.totalCost ?? 0,
+      tokens: entry?.totalTokens ?? 0
     })
   }
 
@@ -599,4 +498,25 @@ function formatDayShort(dateKey: string): string {
     month: 'short',
     day: 'numeric'
   })
+}
+
+function prettifyProjectKey(key: string): string {
+  // ccusage keys look like "-Users-jp-Documents-Personal-GitHub-Projects-hydra"
+  const parts = key.split('-').filter(Boolean)
+  // Return last 2 segments for brevity
+  return parts.slice(-2).join('/') || key
+}
+
+function prettifyModelName(name: string): string {
+  // e.g. "claude-opus-4-6" → "Opus 4.6", "claude-haiku-4-5-20251001" → "Haiku 4.5"
+  if (name.startsWith('claude-')) {
+    const rest = name.slice(7) // remove "claude-"
+    // Extract family and version
+    const match = rest.match(/^(opus|sonnet|haiku)-(\d+)-(\d+)/)
+    if (match) {
+      const family = match[1].charAt(0).toUpperCase() + match[1].slice(1)
+      return `${family} ${match[2]}.${match[3]}`
+    }
+  }
+  return name
 }
