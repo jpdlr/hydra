@@ -30,6 +30,7 @@ const projectDirSchema = z.string().trim().min(1).max(4096)
 const providerSchema = z.enum(['claude', 'codex'])
 const modelSchema = z.string().trim().min(1).max(128)
 const reasoningEffortSchema = z.string().trim().max(32).optional()
+const workModeSchema = z.enum(['local', 'worktree']).optional()
 const createAgentPayloadSchema = z.object({
   name: z.string().trim().max(120),
   projectDir: projectDirSchema,
@@ -39,7 +40,8 @@ const createAgentPayloadSchema = z.object({
   yolo: z.boolean(),
   initialPrompt: z.string().max(20000),
   resumeSessionId: z.string().trim().min(1).max(128).nullable().optional(),
-  isManager: z.boolean().optional()
+  isManager: z.boolean().optional(),
+  workMode: workModeSchema
 })
 const resizeSchema = z.object({
   agentId: agentIdSchema,
@@ -741,6 +743,31 @@ export function registerIpcHandlers(
           .parse(branchName)
         const sp = startPoint ? z.string().trim().max(256).parse(startPoint) : undefined
         return gitService.createBranch(dir, branch, sp)
+      }
+    )
+
+    ipcMain.handle(
+      IPC.GIT_WORKTREE_CREATE,
+      async (_event, projectDir: string, branchName: string) => {
+        const dir = projectDirSchema.parse(projectDir)
+        const branch = z
+          .string()
+          .trim()
+          .min(1)
+          .max(256)
+          .regex(/^[a-zA-Z0-9._\-/]+$/, 'Invalid branch name characters')
+          .parse(branchName)
+        return gitService.createWorktree(dir, branch)
+      }
+    )
+
+    ipcMain.handle(
+      IPC.GIT_WORKTREE_REMOVE,
+      async (_event, projectDir: string, worktreePath: string, deleteBranch?: string) => {
+        const dir = projectDirSchema.parse(projectDir)
+        const wt = z.string().trim().min(1).max(4096).parse(worktreePath)
+        const branch = deleteBranch ? z.string().trim().max(256).parse(deleteBranch) : undefined
+        return gitService.removeWorktree(dir, wt, branch)
       }
     )
 

@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
-import type { ModelId, ProviderId } from '@shared/types'
+import type { ModelId, ProviderId, WorkMode } from '@shared/types'
 
 export interface PersistedWorkspaceAgent {
   id: string
@@ -13,6 +13,9 @@ export interface PersistedWorkspaceAgent {
   sessionId: string | null
   createdAt: string
   lastActivityAt?: string
+  workMode?: WorkMode
+  worktreePath?: string | null
+  worktreeBranch?: string | null
 }
 
 interface WorkspaceData {

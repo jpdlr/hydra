@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { ModelId, ProviderId, CreateAgentPayload, ClaudeSessionSummary, McpServerStatus } from '@shared/types'
+import type { ModelId, ProviderId, CreateAgentPayload, ClaudeSessionSummary, McpServerStatus, WorkMode } from '@shared/types'
 import { PROVIDER_LABELS, CODEX_REASONING_LEVELS } from '@shared/types'
 import { useRuntimeProviderModels } from '../../hooks/useRuntimeProviderModels'
 import styles from './NewAgentDialog.module.css'
@@ -33,6 +33,7 @@ export function NewAgentDialog({
   const [yolo, setYolo] = useState(globalYolo)
   const [initialPrompt, setInitialPrompt] = useState('')
   const [isManager, setIsManager] = useState(false)
+  const [workMode, setWorkMode] = useState<WorkMode>('local')
   const [mcpStatus, setMcpStatus] = useState<McpServerStatus | null>(null)
   const [resumeExisting, setResumeExisting] = useState(false)
   const [sessions, setSessions] = useState<ClaudeSessionSummary[]>([])
@@ -139,7 +140,8 @@ export function NewAgentDialog({
       yolo,
       initialPrompt: initialPrompt.trim(),
       resumeSessionId: resumeExisting ? selectedSessionId : null,
-      isManager
+      isManager,
+      workMode
     })
   }
 
@@ -197,6 +199,34 @@ export function NewAgentDialog({
                   Browse
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Work Mode */}
+          {!isManager && (
+            <div className={styles.field}>
+              <label className={styles.label}>Work Mode</label>
+              <div className={styles.segmented}>
+                <button
+                  type="button"
+                  className={`${styles.segment} ${workMode === 'local' ? styles.active : ''}`}
+                  onClick={() => setWorkMode('local')}
+                >
+                  Local
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.segment} ${workMode === 'worktree' ? styles.active : ''}`}
+                  onClick={() => setWorkMode('worktree')}
+                >
+                  New Worktree
+                </button>
+              </div>
+              <span className={styles.hint}>
+                {workMode === 'worktree'
+                  ? 'Creates an isolated git worktree with a new branch'
+                  : 'Works directly on the current branch'}
+              </span>
             </div>
           )}
 

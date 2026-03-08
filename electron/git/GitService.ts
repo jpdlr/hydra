@@ -263,4 +263,49 @@ export class GitService {
     const fullDiff = await runGh(projectDir, ['pr', 'diff', String(prNumber)])
     return extractFileDiff(fullDiff, filePath)
   }
+
+  // ── Worktrees ──────────────────────────────────────────────────────────
+
+  /**
+   * Create a new git worktree with a new branch based on the current HEAD.
+   * Returns { worktreePath, branch }.
+   */
+  async createWorktree(
+    projectDir: string,
+    branchName: string
+  ): Promise<{ worktreePath: string; branch: string }> {
+    await assertGitRepo(projectDir)
+
+    // Get repo root (works from main repo or any worktree)
+    const rootOut = await run(projectDir, ['rev-parse', '--show-toplevel'])
+    const repoRoot = rootOut.trim()
+
+    // Place worktrees in a sibling `.worktrees/` directory next to repo root
+    const worktreesDir = join(repoRoot, '.worktrees')
+    const worktreePath = join(worktreesDir, branchName.replace(/\//g, '-'))
+
+    // Create worktree with new branch from current HEAD
+    await run(projectDir, ['worktree', 'add', '-b', branchName, worktreePath])
+
+    return { worktreePath, branch: branchName }
+  }
+
+  /**
+   * Remove a git worktree and optionally delete its branch.
+   */
+  async removeWorktree(
+    projectDir: string,
+    worktreePath: string,
+    deleteBranch?: string
+  ): Promise<void> {
+    await assertGitRepo(projectDir)
+    await run(projectDir, ['worktree', 'remove', worktreePath, '--force'])
+    if (deleteBranch) {
+      try {
+        await run(projectDir, ['branch', '-D', deleteBranch])
+      } catch {
+        // Branch may already be deleted or merged
+      }
+    }
+  }
 }

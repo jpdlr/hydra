@@ -248,6 +248,12 @@ const hydraApi = {
   gitCreateBranch: (projectDir: string, branchName: string, startPoint?: string): Promise<void> =>
     ipcRenderer.invoke(IPC.GIT_CREATE_BRANCH, projectDir, branchName, startPoint),
 
+  // Git — worktrees
+  gitWorktreeCreate: (projectDir: string, branchName: string): Promise<{ worktreePath: string; branch: string }> =>
+    ipcRenderer.invoke(IPC.GIT_WORKTREE_CREATE, projectDir, branchName),
+  gitWorktreeRemove: (projectDir: string, worktreePath: string, deleteBranch?: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.GIT_WORKTREE_REMOVE, projectDir, worktreePath, deleteBranch),
+
   // Git — file contents for diff viewer
   gitFileContents: (projectDir: string, filePath: string): Promise<GitFileContents> =>
     ipcRenderer.invoke(IPC.GIT_FILE_CONTENTS, projectDir, filePath),

@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import type { ModelId, ProviderId, GitBranch } from '@shared/types'
+import type { ModelId, ProviderId, GitBranch, WorkMode } from '@shared/types'
 import claudeIcon from '@/assets/claude-icon.png'
 import codexIcon from '@/assets/codex-icon.png'
 import { useRuntimeProviderModels } from '../../hooks/useRuntimeProviderModels'
@@ -21,6 +21,8 @@ interface InputBarProps {
   projectDir?: string
   onBranchChanged?: (branch: string) => void
   placeholder?: string
+  workMode?: WorkMode
+  worktreeBranch?: string | null
 }
 
 let imageIdCounter = 0
@@ -34,7 +36,9 @@ export function InputBar({
   gitBranch,
   projectDir,
   onBranchChanged,
-  placeholder = 'Send a message...'
+  placeholder = 'Send a message...',
+  workMode = 'local',
+  worktreeBranch
 }: InputBarProps) {
   const [value, setValue] = useState('')
   const [images, setImages] = useState<AttachedImage[]>([])
@@ -344,6 +348,12 @@ export function InputBar({
           )}
           <span className={styles.statusSpacer} />
           {gitBranch && (
+            <WorkModePill
+              workMode={workMode}
+              worktreeBranch={worktreeBranch}
+            />
+          )}
+          {gitBranch && (
             <div className={styles.branchPickerAnchor} ref={branchPickerRef}>
               <button
                 className={`${styles.branchPill} ${projectDir ? styles.branchPillClickable : ''}`}
@@ -520,6 +530,49 @@ function BranchPickerDropdown({
           ))}
       </div>
     </div>
+  )
+}
+
+function WorkModePill({
+  workMode,
+  worktreeBranch
+}: {
+  workMode: WorkMode
+  worktreeBranch?: string | null
+}) {
+  const isWorktree = workMode === 'worktree'
+
+  return (
+    <span
+      className={`${styles.workModePill} ${isWorktree ? styles.workModeWorktree : ''}`}
+      title={isWorktree ? `Worktree: ${worktreeBranch || 'active'}` : 'Local project'}
+    >
+      {isWorktree ? <WorktreeIcon /> : <LocalIcon />}
+      {isWorktree ? 'Worktree' : 'Local'}
+    </span>
+  )
+}
+
+function LocalIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="3" width="20" height="14" rx="2" />
+      <line x1="8" y1="21" x2="16" y2="21" />
+      <line x1="12" y1="17" x2="12" y2="21" />
+    </svg>
+  )
+}
+
+function WorktreeIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="18" r="3" />
+      <circle cx="6" cy="6" r="3" />
+      <circle cx="18" cy="6" r="3" />
+      <path d="M12 15V9" />
+      <path d="M8.5 7.5L11 10" />
+      <path d="M15.5 7.5L13 10" />
+    </svg>
   )
 }
 

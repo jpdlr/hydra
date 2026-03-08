@@ -149,6 +149,9 @@ function createAgent(id: string, overrides: Partial<AgentState> = {}): AgentStat
     restartCount: 0,
     startedAt: null,
     lastActivityAt: '2026-01-01T00:00:00.000Z',
+    workMode: 'local',
+    worktreePath: null,
+    worktreeBranch: null,
     ...overrides
   }
 }

@@ -260,6 +260,8 @@ export function ChatView({
           gitBranch={gitBranch}
           projectDir={agent.projectDir}
           onBranchChanged={setGitBranch}
+          workMode={agent.workMode}
+          worktreeBranch={agent.worktreeBranch}
           placeholder={
             agent.status === 'errored'
               ? 'Session disconnected. Send to auto-restart...'

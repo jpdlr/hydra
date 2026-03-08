@@ -2,6 +2,8 @@
 
 export type AgentStatus = 'running' | 'idle' | 'errored' | 'starting'
 
+export type WorkMode = 'local' | 'worktree'
+
 export interface AgentConfig {
   id: string
   name: string
@@ -14,6 +16,9 @@ export interface AgentConfig {
   sessionId: string | null
   initialPrompt: string
   createdAt: string
+  workMode: WorkMode
+  worktreePath: string | null
+  worktreeBranch: string | null
 }
 
 export interface AgentState extends AgentConfig {
@@ -260,6 +265,10 @@ export const IPC = {
   // Git — file contents for diff viewer
   GIT_FILE_CONTENTS: 'git:file-contents',
 
+  // Git — worktrees
+  GIT_WORKTREE_CREATE: 'git:worktree-create',
+  GIT_WORKTREE_REMOVE: 'git:worktree-remove',
+
   // Git — PR review
   GIT_PR_FETCH: 'git:pr-fetch',
   GIT_PR_FILE_DIFF: 'git:pr-file-diff',
@@ -303,6 +312,7 @@ export interface CreateAgentPayload {
   initialPrompt: string
   resumeSessionId?: string | null
   isManager?: boolean
+  workMode?: WorkMode
 }
 
 export interface AgentOutputPayload {

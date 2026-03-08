@@ -217,7 +217,7 @@ export class DaemonServer {
         if (this.agentManager.activeCount() >= maxAgents) {
           return this.json(res, 400, { error: `Maximum concurrent agents (${maxAgents}) reached` })
         }
-        const created = this.agentManager.create(body)
+        const created = await this.agentManager.create(body)
         this.persistWorkspace()
         return this.json(res, 201, created)
       }
@@ -234,7 +234,7 @@ export class DaemonServer {
         }
 
         if (method === 'DELETE') {
-          const removed = this.agentManager.remove(agentId)
+          const removed = await this.agentManager.remove(agentId)
           this.persistWorkspace()
           return this.json(res, 200, { removed })
         }

@@ -77,7 +77,7 @@ describe('AgentManager', () => {
 
   it('splits submitted input into text and delayed carriage return', async () => {
     const manager = new AgentManager()
-    const agent = manager.create(basePayload)
+    const agent = await manager.create(basePayload)
 
     expect(manager.sendInput(agent.id, 'Hi Claude')).toBe(true)
     await vi.advanceTimersByTimeAsync(0)
@@ -142,7 +142,7 @@ describe('AgentManager', () => {
     } satisfies Partial<SessionCatalog>
 
     const manager = new AgentManager(fakeCatalog as unknown as SessionCatalog)
-    const created = manager.create({
+    const created = await manager.create({
       ...basePayload,
       initialPrompt: 'Hi Claude'
     })
@@ -159,9 +159,9 @@ describe('AgentManager', () => {
     })
   })
 
-  it('updates codex model from terminal output', () => {
+  it('updates codex model from terminal output', async () => {
     const manager = new AgentManager()
-    const created = manager.create({
+    const created = await manager.create({
       ...basePayload,
       provider: 'codex',
       model: 'gpt-5.3-codex'
@@ -202,7 +202,7 @@ describe('AgentManager', () => {
       fakeClaudeCatalog as unknown as SessionCatalog,
       fakeCodexCatalog as unknown as CodexSessionCatalog
     )
-    const created = manager.create({
+    const created = await manager.create({
       ...basePayload,
       provider: 'codex',
       model: 'gpt-5.3-codex',
@@ -220,7 +220,7 @@ describe('AgentManager', () => {
 
   it('ignores stale exit callbacks from replaced PTYs during restart', async () => {
     const manager = new AgentManager()
-    const created = manager.create({ ...basePayload, name: 'race-check' })
+    const created = await manager.create({ ...basePayload, name: 'race-check' })
 
     expect(createdPtys).toHaveLength(1)
     const firstPty = createdPtys[0]
@@ -241,7 +241,7 @@ describe('AgentManager', () => {
 
   it('does not let force-kill timeout terminate a newly restarted PTY', async () => {
     const manager = new AgentManager()
-    const created = manager.create({ ...basePayload, name: 'timeout-check' })
+    const created = await manager.create({ ...basePayload, name: 'timeout-check' })
 
     expect(createdPtys).toHaveLength(1)
     const firstPty = createdPtys[0]
@@ -259,9 +259,9 @@ describe('AgentManager', () => {
     expect(secondPty.kill).not.toHaveBeenCalled()
   })
 
-  it('treats an explicit stop as idle even when the PTY exits non-zero', () => {
+  it('treats an explicit stop as idle even when the PTY exits non-zero', async () => {
     const manager = new AgentManager()
-    const created = manager.create({ ...basePayload, name: 'stop-check' })
+    const created = await manager.create({ ...basePayload, name: 'stop-check' })
     const statuses: string[] = []
 
     manager.on('status', (payload: { status: string }) => {
@@ -276,30 +276,30 @@ describe('AgentManager', () => {
     expect(statuses).not.toContain('errored')
   })
 
-  it('enforces hard cap for concurrently active agents', () => {
+  it('enforces hard cap for concurrently active agents', async () => {
     const manager = new AgentManager()
 
     for (let i = 0; i < MAX_CONCURRENT_AGENTS_HARD_LIMIT; i++) {
-      const created = manager.create({
+      const created = await manager.create({
         ...basePayload,
         name: `agent-${i + 1}`
       })
       expect(created.status).toBe('running')
     }
 
-    expect(() =>
+    await expect(
       manager.create({
         ...basePayload,
         name: 'agent-over-limit'
       })
-    ).toThrow(`Maximum concurrent agents (${MAX_CONCURRENT_AGENTS_HARD_LIMIT}) reached`)
+    ).rejects.toThrow(`Maximum concurrent agents (${MAX_CONCURRENT_AGENTS_HARD_LIMIT}) reached`)
   })
 
-  it('does not auto-start an idle session when active cap is reached', () => {
+  it('does not auto-start an idle session when active cap is reached', async () => {
     const manager = new AgentManager()
 
     for (let i = 0; i < MAX_CONCURRENT_AGENTS_HARD_LIMIT; i++) {
-      manager.create({
+      await manager.create({
         ...basePayload,
         name: `agent-${i + 1}`
       })
@@ -326,11 +326,11 @@ describe('AgentManager', () => {
     expect(manager.get(idleImported!.id)?.status).toBe('idle')
   })
 
-  it('allows restart of an existing running agent even when at active cap', () => {
+  it('allows restart of an existing running agent even when at active cap', async () => {
     const manager = new AgentManager()
     const ids: string[] = []
     for (let i = 0; i < MAX_CONCURRENT_AGENTS_HARD_LIMIT; i++) {
-      const created = manager.create({
+      const created = await manager.create({
         ...basePayload,
         name: `agent-${i + 1}`
       })
@@ -342,10 +342,10 @@ describe('AgentManager', () => {
     expect(spawnMock).toHaveBeenCalledTimes(MAX_CONCURRENT_AGENTS_HARD_LIMIT + 1)
   })
 
-  it('does not transition idle agent to starting when restart is blocked by cap', () => {
+  it('does not transition idle agent to starting when restart is blocked by cap', async () => {
     const manager = new AgentManager()
     for (let i = 0; i < MAX_CONCURRENT_AGENTS_HARD_LIMIT; i++) {
-      manager.create({
+      await manager.create({
         ...basePayload,
         name: `agent-${i + 1}`
       })
@@ -398,12 +398,12 @@ describe('AgentManager', () => {
     expect(writes).toContain('\r')
   })
 
-  it('never exceeds hard cap under repeated spawn attempts', () => {
+  it('never exceeds hard cap under repeated spawn attempts', async () => {
     const manager = new AgentManager()
 
     const createdIds: string[] = []
     for (let i = 0; i < MAX_CONCURRENT_AGENTS_HARD_LIMIT; i++) {
-      const created = manager.create({
+      const created = await manager.create({
         ...basePayload,
         name: `agent-${i + 1}`
       })
@@ -411,21 +411,21 @@ describe('AgentManager', () => {
     }
 
     for (let i = 0; i < 50; i++) {
-      expect(() =>
+      await expect(
         manager.create({
           ...basePayload,
           name: `blocked-${i + 1}`
         })
-      ).toThrow(`Maximum concurrent agents (${MAX_CONCURRENT_AGENTS_HARD_LIMIT}) reached`)
+      ).rejects.toThrow(`Maximum concurrent agents (${MAX_CONCURRENT_AGENTS_HARD_LIMIT}) reached`)
       expect(manager.activeCount()).toBe(MAX_CONCURRENT_AGENTS_HARD_LIMIT)
     }
 
     // Free one slot, then verify exactly one new agent can be created.
-    const removed = manager.remove(createdIds[0])
+    const removed = await manager.remove(createdIds[0])
     expect(removed).toBe(true)
     expect(manager.activeCount()).toBe(MAX_CONCURRENT_AGENTS_HARD_LIMIT - 1)
 
-    const extra = manager.create({
+    const extra = await manager.create({
       ...basePayload,
       name: 'one-more'
     })

@@ -21,7 +21,10 @@ function makeAgent(id: string): AgentState {
     pid: null,
     restartCount: 0,
     startedAt: null,
-    lastActivityAt: '2026-01-01T00:00:00Z'
+    lastActivityAt: '2026-01-01T00:00:00Z',
+    workMode: 'local',
+    worktreePath: null,
+    worktreeBranch: null
   }
 }
 

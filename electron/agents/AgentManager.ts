@@ -2,6 +2,7 @@ import { spawn as ptySpawn, IPty } from 'node-pty'
 import { EventEmitter } from 'events'
 import { randomUUID } from 'crypto'
 import { basename } from 'path'
+import { GitService } from '../git/GitService'
 import { SessionCatalog } from '../sessions/SessionCatalog'
 import { CodexSessionCatalog } from '../sessions/CodexSessionCatalog'
 import { getProvider } from './providers'
@@ -108,18 +109,33 @@ export class AgentManager extends EventEmitter {
     }
   }
 
-  create(payload: CreateAgentPayload): AgentState {
+  async create(payload: CreateAgentPayload): Promise<AgentState> {
     if (this.countActiveAgents() >= MAX_CONCURRENT_AGENTS_HARD_LIMIT) {
       throw new Error(`Maximum concurrent agents (${MAX_CONCURRENT_AGENTS_HARD_LIMIT}) reached`)
     }
 
     const id = randomUUID().slice(0, 8)
     const now = new Date().toISOString()
+    const workMode = payload.workMode ?? 'local'
+
+    // If worktree mode, create git worktree before spawning
+    let worktreePath: string | null = null
+    let worktreeBranch: string | null = null
+    let effectiveProjectDir = payload.projectDir
+
+    if (workMode === 'worktree' && payload.projectDir) {
+      const git = new GitService()
+      const branchName = `hydra/${(payload.name || 'agent').replace(/\s+/g, '-').toLowerCase()}-${id}`
+      const result = await git.createWorktree(payload.projectDir, branchName)
+      worktreePath = result.worktreePath
+      worktreeBranch = result.branch
+      effectiveProjectDir = result.worktreePath
+    }
 
     const state: AgentState = {
       id,
       name: payload.name,
-      projectDir: payload.projectDir,
+      projectDir: effectiveProjectDir,
       provider: payload.provider,
       model: payload.model,
       reasoningEffort: payload.reasoningEffort,
@@ -132,7 +148,10 @@ export class AgentManager extends EventEmitter {
       pid: null,
       restartCount: 0,
       startedAt: null,
-      lastActivityAt: now
+      lastActivityAt: now,
+      workMode,
+      worktreePath,
+      worktreeBranch
     }
 
     const managed: ManagedAgent = {
@@ -189,7 +208,10 @@ export class AgentManager extends EventEmitter {
         pid: null,
         restartCount: 0,
         startedAt: null,
-        lastActivityAt: session.createdAt || new Date().toISOString()
+        lastActivityAt: session.createdAt || new Date().toISOString(),
+        workMode: 'local',
+        worktreePath: null,
+        worktreeBranch: null
       }
 
       this.agents.set(state.id, {
@@ -241,7 +263,10 @@ export class AgentManager extends EventEmitter {
         pid: null,
         restartCount: 0,
         startedAt: null,
-        lastActivityAt: persisted.lastActivityAt || persisted.createdAt || new Date().toISOString()
+        lastActivityAt: persisted.lastActivityAt || persisted.createdAt || new Date().toISOString(),
+        workMode: persisted.workMode ?? 'local',
+        worktreePath: persisted.worktreePath ?? null,
+        worktreeBranch: persisted.worktreeBranch ?? null
       }
 
       this.agents.set(id, {
@@ -279,7 +304,10 @@ export class AgentManager extends EventEmitter {
         isManager: managed.state.isManager,
         sessionId: managed.state.sessionId,
         createdAt: managed.state.createdAt,
-        lastActivityAt: managed.state.lastActivityAt
+        lastActivityAt: managed.state.lastActivityAt,
+        workMode: managed.state.workMode,
+        worktreePath: managed.state.worktreePath,
+        worktreeBranch: managed.state.worktreeBranch
       }))
   }
 
@@ -633,7 +661,7 @@ export class AgentManager extends EventEmitter {
     return true
   }
 
-  remove(agentId: string): boolean {
+  async remove(agentId: string): Promise<boolean> {
     const managed = this.agents.get(agentId)
     if (!managed) return false
     this.stopSessionDiscovery(managed)
@@ -642,6 +670,22 @@ export class AgentManager extends EventEmitter {
       clearTimeout(managed.killTimeout)
       managed.killTimeout = null
     }
+
+    // Clean up worktree if this agent created one
+    if (managed.state.worktreePath && managed.state.worktreeBranch) {
+      try {
+        const git = new GitService()
+        // Use the worktree's own parent repo to run the remove
+        await git.removeWorktree(
+          managed.state.worktreePath,
+          managed.state.worktreePath,
+          managed.state.worktreeBranch
+        )
+      } catch (err) {
+        console.error(`Failed to clean up worktree for agent ${agentId}:`, err)
+      }
+    }
+
     return this.agents.delete(agentId)
   }
 

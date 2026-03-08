@@ -220,7 +220,7 @@ export class HydraMcpServer {
       },
       async ({ name, projectDir, provider, model, reasoningEffort, initialPrompt, yolo }) => {
         try {
-          const state = this.agentManager.create({
+          const state = await this.agentManager.create({
             name,
             projectDir,
             provider,
