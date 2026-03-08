@@ -265,7 +265,7 @@ describe('App flow behavior', () => {
     render(<App />)
     fireEvent.click(screen.getByText('new-agent'))
 
-    expect(await screen.findByText('Claude CLI Required')).toBeTruthy()
+    expect(await screen.findByText('CLI Not Found')).toBeTruthy()
     expect(screen.queryByText('new-agent-dialog')).toBeNull()
   })
 

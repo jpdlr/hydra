@@ -109,6 +109,12 @@ export class DaemonClient extends EventEmitter {
           case 'workspace:changed':
             this.emit('workspace:changed')
             break
+          case 'test-terminal:output':
+            this.emit('test-terminal:output', msg.payload.data)
+            break
+          case 'test-terminal:exit':
+            this.emit('test-terminal:exit', msg.payload.exitCode)
+            break
         }
       } catch {
         // Ignore malformed messages
@@ -292,6 +298,24 @@ export class DaemonClient extends EventEmitter {
 
   async toggleSkill(payload: SkillTogglePayload): Promise<{ success: boolean }> {
     return this.post('/skills/toggle', payload)
+  }
+
+  // ── Test Terminal ──────────────────────────────────────────────────────
+
+  async spawnTestTerminal(): Promise<void> {
+    await this.post('/test-terminal/spawn')
+  }
+
+  sendTestTerminalInput(data: string): void {
+    this.post('/test-terminal/input', { data }).catch(() => {})
+  }
+
+  resizeTestTerminal(cols: number, rows: number): void {
+    this.post('/test-terminal/resize', { cols, rows }).catch(() => {})
+  }
+
+  killTestTerminal(): void {
+    this.post('/test-terminal/kill').catch(() => {})
   }
 
   // ── Shutdown ────────────────────────────────────────────────────────────

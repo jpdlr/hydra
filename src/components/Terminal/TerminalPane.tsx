@@ -112,9 +112,10 @@ export function TerminalPane({
       }
     }
 
-    // Fit after a microtask to allow layout
+    // Fit after a microtask to allow layout, then auto-focus
     requestAnimationFrame(() => {
       fitAndNotify()
+      terminal.focus()
     })
     const fitTimers = [80, 180].map((delay) => setTimeout(fitAndNotify, delay))
 

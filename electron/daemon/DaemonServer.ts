@@ -1,6 +1,8 @@
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from 'http'
 import { WebSocketServer, WebSocket } from 'ws'
 import { unlinkSync, existsSync } from 'fs'
+import { homedir } from 'os'
+import { spawn as ptySpawn, type IPty } from 'node-pty'
 import { AgentManager } from '../agents/AgentManager'
 import { MAX_CONCURRENT_AGENTS_HARD_LIMIT } from '@shared/types'
 import type { ConfigStore } from '../config/ConfigStore'
@@ -48,6 +50,7 @@ export class DaemonServer {
   private readonly skillScanner: SkillScanner
   private readonly onShutdown: () => void
   private readonly startedAt = Date.now()
+  private testPty: IPty | null = null
 
   constructor(options: DaemonServerOptions) {
     this.socketPath = options.socketPath
@@ -115,7 +118,15 @@ export class DaemonServer {
     })
   }
 
+  private killTestPty(): void {
+    if (this.testPty) {
+      try { this.testPty.kill() } catch { /* already dead */ }
+      this.testPty = null
+    }
+  }
+
   stop(): void {
+    this.killTestPty()
     if (this.wss) {
       for (const client of this.wss.clients) {
         client.close()
@@ -406,6 +417,46 @@ export class DaemonServer {
           enabled: body.enabled
         })
         return this.json(res, 200, { success })
+      }
+
+      // ── Test Terminal ──────────────────────────────────────────────────
+      if (method === 'POST' && path === '/test-terminal/spawn') {
+        this.killTestPty()
+        const shellPath = process.env.SHELL || (process.platform === 'win32' ? 'powershell.exe' : '/bin/bash')
+        const env: Record<string, string> = { ...process.env as Record<string, string>, TERM: 'xterm-256color', FORCE_COLOR: '1' }
+        delete env.ELECTRON_RUN_AS_NODE
+        this.testPty = ptySpawn(shellPath, ['-l', '-i'], {
+          name: 'xterm-256color',
+          cols: 80,
+          rows: 24,
+          cwd: homedir(),
+          env
+        })
+        this.testPty.onData((data: string) => {
+          this.broadcast({ type: 'test-terminal:output', payload: { data } })
+        })
+        this.testPty.onExit(({ exitCode }) => {
+          this.testPty = null
+          this.broadcast({ type: 'test-terminal:exit', payload: { exitCode } })
+        })
+        return this.json(res, 200, { ok: true })
+      }
+
+      if (method === 'POST' && path === '/test-terminal/input') {
+        const body = await this.readBody<{ data: string }>(req)
+        this.testPty?.write(body.data)
+        return this.json(res, 200, { ok: true })
+      }
+
+      if (method === 'POST' && path === '/test-terminal/resize') {
+        const body = await this.readBody<{ cols: number; rows: number }>(req)
+        try { this.testPty?.resize(body.cols, body.rows) } catch { /* ignore */ }
+        return this.json(res, 200, { ok: true })
+      }
+
+      if (method === 'POST' && path === '/test-terminal/kill') {
+        this.killTestPty()
+        return this.json(res, 200, { ok: true })
       }
 
       // 404

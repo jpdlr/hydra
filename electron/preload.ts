@@ -275,7 +275,27 @@ const hydraApi = {
   scanSkills: (): Promise<SkillScanResult> =>
     ipcRenderer.invoke(IPC.SKILLS_SCAN),
   toggleSkill: (payload: SkillTogglePayload): Promise<{ success: boolean }> =>
-    ipcRenderer.invoke(IPC.SKILLS_TOGGLE, payload)
+    ipcRenderer.invoke(IPC.SKILLS_TOGGLE, payload),
+
+  // Test terminal (preflight)
+  spawnTestTerminal: (): Promise<void> =>
+    ipcRenderer.invoke(IPC.TEST_TERMINAL_SPAWN),
+  sendTestTerminalInput: (data: string): void =>
+    ipcRenderer.send(IPC.TEST_TERMINAL_INPUT, data),
+  resizeTestTerminal: (cols: number, rows: number): void =>
+    ipcRenderer.send(IPC.TEST_TERMINAL_RESIZE, cols, rows),
+  killTestTerminal: (): void =>
+    ipcRenderer.send(IPC.TEST_TERMINAL_KILL),
+  onTestTerminalOutput: (callback: (data: string) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: string) => callback(data)
+    ipcRenderer.on(IPC.TEST_TERMINAL_OUTPUT, handler)
+    return () => { ipcRenderer.removeListener(IPC.TEST_TERMINAL_OUTPUT, handler) }
+  },
+  onTestTerminalExit: (callback: (exitCode: number) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, exitCode: number) => callback(exitCode)
+    ipcRenderer.on(IPC.TEST_TERMINAL_EXIT, handler)
+    return () => { ipcRenderer.removeListener(IPC.TEST_TERMINAL_EXIT, handler) }
+  }
 }
 
 contextBridge.exposeInMainWorld('hydra', hydraApi)

@@ -29,6 +29,7 @@ vi.mock('@xterm/xterm', () => ({
     open = vi.fn()
     attachCustomKeyEventHandler = vi.fn()
     scrollToBottom = vi.fn()
+    focus = vi.fn()
     buffer = { active: { baseY: 0, viewportY: 0, length: 24 } }
     onDataHandler: ((data: string) => void) | null = null
 
@@ -50,6 +51,10 @@ vi.mock('@xterm/addon-fit', () => ({
   FitAddon: class MockFitAddon {
     fit = vi.fn()
   }
+}))
+
+vi.mock('@xterm/addon-image', () => ({
+  ImageAddon: class MockImageAddon {}
 }))
 
 vi.mock('@xterm/addon-web-links', () => ({

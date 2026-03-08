@@ -192,6 +192,70 @@
   height: 14px;
 }
 
+/* Idle empty state — centered vertically and horizontally */
+.idleEmptyState {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-terminal-bg);
+}
+
+.idleEmptyContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  text-align: center;
+  padding: var(--space-6);
+}
+
+.idleTitle {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.idleSubtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.idleStartBtn {
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-6);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.idleStartBtn:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.idleSpinner {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: idleSpin 0.8s linear infinite;
+}
+
+@keyframes idleSpin {
+  to { transform: rotate(360deg); }
+}
+
 /* Terminal */
 .terminalWrapper {
   flex: 1;

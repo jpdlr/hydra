@@ -7,6 +7,7 @@ interface AgentItemProps {
   isSelected: boolean
   onSelect: () => void
   onRename: (newName: string) => void
+  onRemove: () => void
 }
 
 function relativeTime(iso: string): string {
@@ -31,7 +32,7 @@ const STATUS_COLORS: Record<string, string> = {
   starting: 'var(--color-status-starting)'
 }
 
-export function AgentItem({ agent, isSelected, onSelect, onRename }: AgentItemProps) {
+export function AgentItem({ agent, isSelected, onSelect, onRename, onRemove }: AgentItemProps) {
   const age = useMemo(() => relativeTime(agent.lastActivityAt), [agent.lastActivityAt])
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   const [editing, setEditing] = useState(false)
@@ -139,10 +140,32 @@ export function AgentItem({ agent, isSelected, onSelect, onRename }: AgentItemPr
           style={{ top: contextMenu.y, left: contextMenu.x }}
         >
           <button className={styles.contextMenuItem} onClick={startRename}>
-            Rename
+            <PencilIcon /> Rename
+          </button>
+          <button className={`${styles.contextMenuItem} ${styles.contextMenuItemDanger}`} onClick={() => { setContextMenu(null); onRemove() }}>
+            <TrashIcon /> Remove Session
           </button>
         </div>
       )}
     </>
+  )
+}
+
+function PencilIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+      <path d="m15 5 4 4" />
+    </svg>
+  )
+}
+
+function TrashIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 6h18" />
+      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+    </svg>
   )
 }

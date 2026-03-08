@@ -650,4 +650,34 @@ export function registerIpcHandlers(
   ipcMain.handle(IPC.SKILLS_TOGGLE, async (_event, payload: unknown) => {
     return daemonClient.toggleSkill(skillToggleSchema.parse(payload))
   })
+
+  // ── Test Terminal (preflight) ───────────────────────────────────────────
+
+  daemonClient.on('test-terminal:output', (data: string) => {
+    BrowserWindow.getAllWindows().forEach((win) => {
+      win.webContents.send(IPC.TEST_TERMINAL_OUTPUT, data)
+    })
+  })
+
+  daemonClient.on('test-terminal:exit', (exitCode: number) => {
+    BrowserWindow.getAllWindows().forEach((win) => {
+      win.webContents.send(IPC.TEST_TERMINAL_EXIT, exitCode)
+    })
+  })
+
+  ipcMain.handle(IPC.TEST_TERMINAL_SPAWN, async () => {
+    await daemonClient.spawnTestTerminal()
+  })
+
+  ipcMain.on(IPC.TEST_TERMINAL_INPUT, (_event, data: string) => {
+    daemonClient.sendTestTerminalInput(data)
+  })
+
+  ipcMain.on(IPC.TEST_TERMINAL_RESIZE, (_event, cols: number, rows: number) => {
+    daemonClient.resizeTestTerminal(cols, rows)
+  })
+
+  ipcMain.on(IPC.TEST_TERMINAL_KILL, () => {
+    daemonClient.killTestTerminal()
+  })
 }

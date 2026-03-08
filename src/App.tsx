@@ -14,6 +14,7 @@ import { FileSearchPopup } from './components/FileSearchPopup/FileSearchPopup'
 import { CommandPalette } from './components/CommandPalette/CommandPalette'
 import { GitPanel } from './components/GitPanel/GitPanel'
 import { RemoteControlModal } from './components/RemoteControl/RemoteControlModal'
+import { PreflightTestModal } from './components/PreflightTestModal/PreflightTestModal'
 import { useAgents } from './hooks/useAgents'
 import { useConfig } from './hooks/useConfig'
 import { useViewMode } from './hooks/useViewMode'
@@ -128,6 +129,7 @@ export default function App() {
   const [showUpdatePanel, setShowUpdatePanel] = useState(false)
   const [showYoloConfirm, setShowYoloConfirm] = useState(false)
   const [showPreflightGate, setShowPreflightGate] = useState(false)
+  const [showTestTerminal, setShowTestTerminal] = useState(false)
   const [showFileSearch, setShowFileSearch] = useState(false)
   const [showCommandPalette, setShowCommandPalette] = useState(false)
   const [showGitPanel, setShowGitPanel] = useState(false)
@@ -247,6 +249,8 @@ export default function App() {
           // Wait for Claude CLI to process the image
           await new Promise((r) => setTimeout(r, 600))
         }
+        // Extra delay after all images so CLI fully ingests them before text
+        await new Promise((r) => setTimeout(r, 2000))
       }
 
       if (input) {
@@ -579,6 +583,9 @@ export default function App() {
               onRenameAgent={(agentId, newName) => {
                 void renameAgent(agentId, newName)
               }}
+              onRemoveAgent={(agentId) => {
+                void handleRemoveAgent(agentId)
+              }}
               width={sidebarWidth}
               onWidthChange={setSidebarWidth}
               sessionMaxAgeDays={config.sessionMaxAgeDays}
@@ -764,14 +771,14 @@ export default function App() {
         </div>
       )}
 
-      {showPreflightGate && (
+      {showPreflightGate && !showTestTerminal && (
         <div className={styles.confirmOverlay} onClick={() => setShowPreflightGate(false)}>
           <div className={styles.confirmDialog} onClick={(e) => e.stopPropagation()}>
             <div className={styles.confirmIcon}>⚙️</div>
-            <h3>Claude CLI Required</h3>
+            <h3>CLI Not Found</h3>
             <p>
-              Hydra could not run Claude Code from your shell environment. Install Claude Code
-              and verify the <code>claude</code> command works in your terminal before starting agents.
+              Hydra could not find the CLI in your shell environment. Make sure it is installed
+              and added to your <code>PATH</code> so the command is available from any terminal.
             </p>
             <p className={styles.preflightMeta}>
               {preflight?.error || 'Preflight check has not completed yet.'}
@@ -785,6 +792,12 @@ export default function App() {
               </button>
               <button
                 className={styles.primaryBtn}
+                onClick={() => setShowTestTerminal(true)}
+              >
+                Test it out
+              </button>
+              <button
+                className={styles.primaryBtn}
                 onClick={() => {
                   void runPreflightCheck()
                 }}
@@ -795,6 +808,13 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {showTestTerminal && (
+        <PreflightTestModal
+          onClose={() => setShowTestTerminal(false)}
+          onRetryPreflight={() => { void runPreflightCheck() }}
+        />
       )}
 
       {quitConfirmRunningCount !== null && (

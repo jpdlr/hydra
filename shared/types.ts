@@ -258,7 +258,15 @@ export const IPC = {
 
   // Skills
   SKILLS_SCAN: 'skills:scan',
-  SKILLS_TOGGLE: 'skills:toggle'
+  SKILLS_TOGGLE: 'skills:toggle',
+
+  // Test terminal (preflight)
+  TEST_TERMINAL_SPAWN: 'test-terminal:spawn',
+  TEST_TERMINAL_INPUT: 'test-terminal:input',
+  TEST_TERMINAL_RESIZE: 'test-terminal:resize',
+  TEST_TERMINAL_OUTPUT: 'test-terminal:output',
+  TEST_TERMINAL_EXIT: 'test-terminal:exit',
+  TEST_TERMINAL_KILL: 'test-terminal:kill'
 } as const
 
 // ── IPC Payloads ─────────────────────────────────────────────────────────────

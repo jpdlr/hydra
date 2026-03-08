@@ -149,7 +149,7 @@ export function ChatView({
         </div>
       </div>
 
-      {agent.status !== 'running' && (
+      {agent.status !== 'running' && rawOutput.length > 0 && (
         <div
           className={`${styles.statusBanner} ${
             agent.status === 'errored' ? styles.statusBannerError : styles.statusBannerNeutral
@@ -168,15 +168,43 @@ export function ChatView({
         </div>
       )}
 
-      {/* Terminal */}
-      <div className={styles.terminalWrapper}>
-        <TerminalPane
-          key={agent.id}
-          rawOutput={rawOutput}
-          onData={onTerminalData}
-          onResize={onTerminalResize}
-        />
-      </div>
+      {/* Centered empty state when idle/errored with no output */}
+      {agent.status !== 'running' && rawOutput.length === 0 ? (
+        <div className={styles.idleEmptyState}>
+          <div className={styles.idleEmptyContent}>
+            {agent.status === 'starting' ? (
+              <div className={styles.idleSpinner} />
+            ) : (
+              <HydraIcon size={56} />
+            )}
+            <h3 className={styles.idleTitle}>
+              {agent.status === 'starting' && 'Starting session...'}
+              {agent.status === 'idle' && 'Session is idle'}
+              {agent.status === 'errored' && 'Session disconnected'}
+            </h3>
+            <p className={styles.idleSubtitle}>
+              {agent.status === 'starting' && 'Launching the agent process.'}
+              {agent.status === 'idle' && 'Send a message or start to resume.'}
+              {agent.status === 'errored' && 'Restart to reconnect.'}
+            </p>
+            {agent.status !== 'starting' && (
+              <button className={styles.idleStartBtn} onClick={onRestartAgent}>
+                {agent.status === 'errored' ? 'Reconnect' : 'Start'}
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* Terminal */
+        <div className={styles.terminalWrapper}>
+          <TerminalPane
+            key={agent.id}
+            rawOutput={rawOutput}
+            onData={onTerminalData}
+            onResize={onTerminalResize}
+          />
+        </div>
+      )}
 
       {/* Input */}
       <InputBar
@@ -295,9 +323,9 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-function HydraIcon() {
+function HydraIcon({ size = 48 }: { size?: number }) {
   return (
-    <svg width="48" height="48" viewBox="0 0 28 28" fill="none" opacity="0.25">
+    <svg width={size} height={size} viewBox="0 0 28 28" fill="none" opacity="0.25">
       <g transform="translate(3, 2)">
         <path d="M7.5 20 Q5.5 14 4 10" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"/>
         <circle cx="3.5" cy="8" r="3.2" fill="currentColor"/>

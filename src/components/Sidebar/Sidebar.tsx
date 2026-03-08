@@ -15,6 +15,7 @@ interface SidebarProps {
   onNewAgent: () => void
   onNewAgentForProject: (projectDir: string) => void
   onRenameAgent: (agentId: string, newName: string) => void
+  onRemoveAgent: (agentId: string) => void
   width: number
   onWidthChange: (width: number) => void
   sessionMaxAgeDays: number
@@ -31,6 +32,7 @@ export function Sidebar({
   onNewAgent,
   onNewAgentForProject,
   onRenameAgent,
+  onRemoveAgent,
   width,
   onWidthChange,
   sessionMaxAgeDays,
@@ -127,6 +129,7 @@ export function Sidebar({
               onSelectAgent={onSelectAgent}
               onNewAgentForProject={onNewAgentForProject}
               onRenameAgent={onRenameAgent}
+              onRemoveAgent={onRemoveAgent}
               defaultEditor={defaultEditor}
             />
           ))

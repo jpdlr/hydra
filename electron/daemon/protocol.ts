@@ -41,6 +41,8 @@ export type WsServerMessage =
   | { type: 'config:changed'; payload: AppConfig }
   | { type: 'headless:event'; payload: { runId: string; data: string } }
   | { type: 'workspace:changed' }
+  | { type: 'test-terminal:output'; payload: { data: string } }
+  | { type: 'test-terminal:exit'; payload: { exitCode: number } }
 
 export type WsClientMessage =
   | { type: 'ping' }
