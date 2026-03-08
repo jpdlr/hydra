@@ -110,6 +110,7 @@ const ccusageOptionsSchema = z
   .optional()
 const sessionListOptionsSchema = z
   .object({
+    provider: providerSchema.optional(),
     limit: z.number().int().min(1).max(20000).optional(),
     maxAgeDays: z.number().int().min(1).max(365).optional(),
     projectPathPrefix: z.string().trim().min(1).max(4096).optional(),

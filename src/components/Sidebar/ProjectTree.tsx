@@ -77,17 +77,14 @@ function ChevronIcon() {
 function FolderIcon({ open }: { open: boolean }) {
   if (open) {
     return (
-      <svg className={styles.folderIcon} width="14" height="14" viewBox="0 0 24 24" fill="none">
-        <path d="M2 6a2 2 0 0 1 2-2h4.5l2 2H20a2 2 0 0 1 2 2v1H2V6Z" fill="currentColor" opacity="0.3" />
-        <path d="M2 9h20v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9Z" fill="currentColor" opacity="0.5" />
-        <path d="M4 10h16l-1.5 8H5.5L4 10Z" fill="currentColor" opacity="0.25" />
+      <svg className={styles.folderIcon} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 14l1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" />
       </svg>
     )
   }
   return (
-    <svg className={styles.folderIcon} width="14" height="14" viewBox="0 0 24 24" fill="none">
-      <path d="M2 6a2 2 0 0 1 2-2h4.5l2 2H20a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6Z" fill="currentColor" opacity="0.4" />
-      <path d="M2 8h20v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8Z" fill="currentColor" opacity="0.55" />
+    <svg className={styles.folderIcon} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h16Z" />
     </svg>
   )
 }

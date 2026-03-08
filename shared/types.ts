@@ -337,6 +337,7 @@ export interface ClaudeSessionSummary {
 }
 
 export interface ListClaudeSessionsOptions {
+  provider?: ProviderId
   limit?: number
   maxAgeDays?: number
   projectPathPrefix?: string

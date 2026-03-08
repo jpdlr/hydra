@@ -14,6 +14,7 @@ import { homedir } from 'os'
 import { AgentManager } from '../agents/AgentManager'
 import { ConfigStore } from '../config/ConfigStore'
 import { SessionCatalog } from '../sessions/SessionCatalog'
+import { CodexSessionCatalog } from '../sessions/CodexSessionCatalog'
 import { HeadlessOrchestrator } from '../headless/HeadlessOrchestrator'
 import { WorkspaceStore } from '../workspace/WorkspaceStore'
 import { DaemonNotificationService } from './DaemonNotificationService'
@@ -66,7 +67,8 @@ async function main(): Promise<void> {
   const configStore = new ConfigStore(userDataPath)
   const workspaceStore = new WorkspaceStore(userDataPath)
   const sessionCatalog = new SessionCatalog()
-  const agentManager = new AgentManager(sessionCatalog)
+  const codexSessionCatalog = new CodexSessionCatalog()
+  const agentManager = new AgentManager(sessionCatalog, codexSessionCatalog)
   const headlessOrchestrator = new HeadlessOrchestrator(join(userDataPath, 'headless-runs'))
   const notificationService = new DaemonNotificationService()
 
@@ -131,6 +133,7 @@ async function main(): Promise<void> {
     agentManager,
     configStore,
     sessionCatalog,
+    codexSessionCatalog,
     headlessOrchestrator,
     workspaceStore,
     notificationService,

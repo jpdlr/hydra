@@ -249,7 +249,7 @@ export default function App() {
           // Send Ctrl+V (0x16) to trigger Claude CLI image paste
           sendTerminalInput(agentId, '\x16')
           // Wait for Claude CLI to process the image
-          await new Promise((r) => setTimeout(r, 600))
+          await new Promise((r) => setTimeout(r, 200))
         }
         // Brief pause before sending prompt text after image paste completes
         await new Promise((r) => setTimeout(r, 100))

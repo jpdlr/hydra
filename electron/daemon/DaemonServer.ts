@@ -7,6 +7,7 @@ import { AgentManager } from '../agents/AgentManager'
 import { MAX_CONCURRENT_AGENTS_HARD_LIMIT } from '@shared/types'
 import type { ConfigStore } from '../config/ConfigStore'
 import type { SessionCatalog } from '../sessions/SessionCatalog'
+import type { CodexSessionCatalog } from '../sessions/CodexSessionCatalog'
 import type { HeadlessOrchestrator } from '../headless/HeadlessOrchestrator'
 import type { WorkspaceStore } from '../workspace/WorkspaceStore'
 import type { DaemonNotificationService } from './DaemonNotificationService'
@@ -28,6 +29,7 @@ interface DaemonServerOptions {
   agentManager: AgentManager
   configStore: ConfigStore
   sessionCatalog: SessionCatalog
+  codexSessionCatalog: CodexSessionCatalog
   headlessOrchestrator: HeadlessOrchestrator
   workspaceStore: WorkspaceStore
   notificationService: DaemonNotificationService
@@ -43,6 +45,7 @@ export class DaemonServer {
   private readonly agentManager: AgentManager
   private readonly configStore: ConfigStore
   private readonly sessionCatalog: SessionCatalog
+  private readonly codexSessionCatalog: CodexSessionCatalog
   private readonly headlessOrchestrator: HeadlessOrchestrator
   private readonly workspaceStore: WorkspaceStore
   private readonly notificationService: DaemonNotificationService
@@ -58,6 +61,7 @@ export class DaemonServer {
     this.agentManager = options.agentManager
     this.configStore = options.configStore
     this.sessionCatalog = options.sessionCatalog
+    this.codexSessionCatalog = options.codexSessionCatalog
     this.headlessOrchestrator = options.headlessOrchestrator
     this.workspaceStore = options.workspaceStore
     this.notificationService = options.notificationService
@@ -360,10 +364,12 @@ export class DaemonServer {
       // ── Sessions ────────────────────────────────────────────────────────
       if (method === 'GET' && path === '/sessions') {
         const config = this.configStore.get()
+        const provider = url.searchParams.get('provider') === 'codex' ? 'codex' : 'claude'
         const limit = parseInt(url.searchParams.get('limit') || '0') || (config.sessionImportLimit > 0 ? config.sessionImportLimit : undefined)
         const maxAgeDays = parseInt(url.searchParams.get('maxAgeDays') || '0') || (config.sessionMaxAgeDays > 0 ? config.sessionMaxAgeDays : undefined)
         const projectPathPrefix = url.searchParams.get('projectPathPrefix') || config.sessionImportProjectPrefix || undefined
-        const sessions = this.sessionCatalog.listSessions({
+        const catalog = provider === 'codex' ? this.codexSessionCatalog : this.sessionCatalog
+        const sessions = catalog.listSessions({
           limit,
           maxAgeDays,
           projectPathPrefix,

@@ -218,6 +218,12 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Mistake**: Including a non-existent target directory (`app`) made `rg` exit non-zero and obscured whether results were complete.
 **Fix**: Scope `rg` targets to known existing roots (for this repo: `src`, `electron`, `hydra-remote`, `shared`) or run from repo root without extra path args.
 
+### Hydra session picker is provider-specific even though the IPC name is generic
+**Date**: 2026-03-08
+**Context**: Codex resume looked broken from the New Agent dialog.
+**Mistake**: Assuming `sessions:list` already covered both providers because the frontend API was generic. The route still returned only the Claude catalog, and the dialog hid resume for Codex entirely.
+**Fix**: Treat session listing as provider-aware end to end. Pass `provider` through the session list options, route `/sessions?provider=codex` to `CodexSessionCatalog`, and keep the dialog copy/selection logic aligned with the active provider.
+
 ### Claude session indexes can be stale or polluted by meta prompts
 **Date**: 2026-03-08
 **Context**: Hydra resumed the wrong Claude sessions after restart in projects using `sessions-index.json` or raw JSONL fallback.

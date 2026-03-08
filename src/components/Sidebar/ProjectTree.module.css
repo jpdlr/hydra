@@ -62,7 +62,7 @@
 .folderIcon {
   flex-shrink: 0;
   color: var(--color-text-muted);
-  opacity: 0.8;
+  margin-right: var(--space-1);
 }
 
 .projectName {

@@ -37,7 +37,7 @@ interface ManagedAgent {
 
 const MAX_BUFFER_CHARS = 2_000_000 // ~2 MB raw output cap
 const GRACEFUL_KILL_TIMEOUT = 5000
-const INPUT_SUBMIT_DELAY_MS = 500
+const INPUT_SUBMIT_DELAY_MS = 100
 const DEFAULT_PTY_COLS = 120
 const DEFAULT_PTY_ROWS = 30
 const SESSION_DISCOVERY_INITIAL_INTERVAL_MS = 2500
@@ -777,7 +777,7 @@ export class AgentManager extends EventEmitter {
         // for Claude agents so it submits automatically.
         if (managed.state.provider === 'claude') {
           await new Promise<void>((resolve) => {
-            setTimeout(resolve, 300)
+            setTimeout(resolve, 100)
           })
           if (managed.pty !== pty) return
           pty.write('\r')

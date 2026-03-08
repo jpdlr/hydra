@@ -85,7 +85,7 @@ describe('AgentManager', () => {
     const writes = createdPtys[0].write.mock.calls.map((call) => call[0])
     expect(writes).toEqual(['Hi Claude'])
 
-    await vi.advanceTimersByTimeAsync(499)
+    await vi.advanceTimersByTimeAsync(99)
     const beforeSubmit = createdPtys[0].write.mock.calls.map((call) => call[0])
     expect(beforeSubmit).toEqual(['Hi Claude'])
 

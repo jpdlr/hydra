@@ -247,6 +247,7 @@ export class DaemonClient extends EventEmitter {
 
   async listSessions(options?: ListClaudeSessionsOptions): Promise<ClaudeSessionSummary[]> {
     const params = new URLSearchParams()
+    if (options?.provider) params.set('provider', options.provider)
     if (options?.limit) params.set('limit', String(options.limit))
     if (options?.maxAgeDays) params.set('maxAgeDays', String(options.maxAgeDays))
     if (options?.projectPathPrefix) params.set('projectPathPrefix', options.projectPathPrefix)

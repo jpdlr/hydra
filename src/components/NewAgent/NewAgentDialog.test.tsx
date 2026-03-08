@@ -1,11 +1,15 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ClaudeSessionSummary } from '@shared/types'
 import { NewAgentDialog } from './NewAgentDialog'
 
 describe('NewAgentDialog', () => {
+  afterEach(() => {
+    cleanup()
+  })
+
   beforeEach(() => {
     const sessions: ClaudeSessionSummary[] = [
       {
@@ -70,6 +74,7 @@ describe('NewAgentDialog', () => {
     await waitFor(
       () => {
         expect(window.hydra.listClaudeSessions).toHaveBeenCalledWith({
+          provider: 'claude',
           includeHidden: true,
           limit: 2000
         })
@@ -97,4 +102,40 @@ describe('NewAgentDialog', () => {
       })
     )
   }, 15000)
+
+  it('loads Codex sessions and submits a Codex resume payload', async () => {
+    const onSubmit = vi.fn()
+
+    render(
+      <NewAgentDialog
+        defaultProvider="codex"
+        defaultModel="gpt-5.3-codex"
+        defaultProjectDir=""
+        globalYolo={false}
+        onSubmit={onSubmit}
+        onClose={() => undefined}
+      />
+    )
+
+    const resumeCheckbox = await screen.findByRole('checkbox', { name: /resume existing codex session/i })
+    fireEvent.click(resumeCheckbox)
+
+    await waitFor(() => {
+      expect(window.hydra.listClaudeSessions).toHaveBeenCalledWith({
+        provider: 'codex',
+        includeHidden: true,
+        limit: 2000
+      })
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create Agent' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'codex',
+        model: 'gpt-5.3-codex',
+        resumeSessionId: 'abc12345'
+      })
+    )
+  })
 })

@@ -49,13 +49,17 @@ export function NewAgentDialog({
     let cancelled = false
     setIsLoadingSessions(true)
     window.hydra
-      .listClaudeSessions({ includeHidden: true, limit: 2000 })
+      .listClaudeSessions({ provider, includeHidden: true, limit: 2000 })
       .then((found) => {
         if (cancelled) return
         setSessions(found)
+        setSelectedSessionId((current) => {
+          if (!current) return current
+          return found.some((session) => session.sessionId === current) ? current : ''
+        })
       })
       .catch((err) => {
-        console.error('Failed to load Claude sessions:', err)
+        console.error(`Failed to load ${provider} sessions:`, err)
       })
       .finally(() => {
         if (!cancelled) setIsLoadingSessions(false)
@@ -64,7 +68,7 @@ export function NewAgentDialog({
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [provider])
 
   const filteredSessions = useMemo(() => {
     const query = sessionSearch.trim().toLowerCase()
@@ -211,7 +215,7 @@ export function NewAgentDialog({
                     setUseCustomModel(false)
                     setCustomModel('')
                     setReasoningEffort('')
-                    if (p !== 'claude') setResumeExisting(false)
+                    setSelectedSessionId('')
                   }}
                 >
                   {PROVIDER_LABELS[p]}
@@ -323,7 +327,7 @@ export function NewAgentDialog({
           </div>
 
           {/* Resume existing session (hidden for manager agents and non-resumable providers) */}
-          {!isManager && provider === 'claude' && (
+          {!isManager && (
             <div className={styles.field}>
               <label className={styles.checkboxLabel}>
                 <input
@@ -332,9 +336,11 @@ export function NewAgentDialog({
                   onChange={(e) => setResumeExisting(e.target.checked)}
                   className={styles.checkbox}
                 />
-                <span>Resume existing Claude session</span>
+                <span>Resume existing {PROVIDER_LABELS[provider]} session</span>
                 <span className={styles.hint}>
-                  Import from your Claude sessions directory
+                  {provider === 'codex'
+                    ? 'Import from your Codex sessions directory'
+                    : 'Import from your Claude sessions directory'}
                 </span>
               </label>
             </div>

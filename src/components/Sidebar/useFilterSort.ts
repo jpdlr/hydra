@@ -110,7 +110,7 @@ export function useFilterSort(projectGroups: ProjectGroup[], defaultAgeDays: num
   const [filter, setFilter] = useState<FilterState>(EMPTY_FILTER)
 
   const processed = useMemo(() => {
-    return projectGroups
+    const mapped = projectGroups
       .map((group) => ({
         ...group,
         agents: sortAgents(
@@ -119,6 +119,13 @@ export function useFilterSort(projectGroups: ProjectGroup[], defaultAgeDays: num
         ),
       }))
       .filter((group) => group.agents.length > 0)
+
+    // Sort groups themselves when sorting by name or provider
+    if (sortKey === 'name' || sortKey === 'provider') {
+      mapped.sort((a, b) => a.projectName.localeCompare(b.projectName))
+    }
+
+    return mapped
   }, [projectGroups, sortKey, filter, defaultAgeDays])
 
   const chips = useMemo(() => getActiveChips(filter), [filter])
