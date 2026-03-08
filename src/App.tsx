@@ -248,8 +248,9 @@ export default function App() {
           await new Promise((r) => setTimeout(r, 100))
           // Send Ctrl+V (0x16) to trigger Claude CLI image paste
           sendTerminalInput(agentId, '\x16')
-          // Wait for Claude CLI to process the image
-          await new Promise((r) => setTimeout(r, 200))
+          // Wait for CLI to process the image (Claude needs more time)
+          const imageDelay = state.provider === 'claude' ? 400 : 200
+          await new Promise((r) => setTimeout(r, imageDelay))
         }
         // Brief pause before sending prompt text after image paste completes
         await new Promise((r) => setTimeout(r, 100))
@@ -654,6 +655,12 @@ export default function App() {
               onSetDefaultEditor={handleSetDefaultEditor}
               freeTerminalOpen={freeTerminalOpen}
               onToggleFreeTerminal={() => setFreeTerminalOpen((prev) => !prev)}
+              onToggleWorkMode={(mode) => {
+                if (!selectedAgentId || !selectedAgent) return
+                // Work mode can only be set at agent creation time for now.
+                // Switching mid-session would require restarting in a new directory.
+                console.info(`Work mode toggle requested: ${mode} (agent: ${selectedAgentId})`)
+              }}
               onSwitchModel={(nextModel) => {
                 if (!selectedAgentId || !selectedAgent) return
                 if (selectedAgent.state.provider === 'codex') {

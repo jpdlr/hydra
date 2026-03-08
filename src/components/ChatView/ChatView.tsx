@@ -6,7 +6,7 @@ import type { AttachedImage } from './InputBar'
 import { EditorPanel } from '../EditorPanel'
 import { SplitHandle } from '../EditorPanel/SplitHandle'
 import { OpenInButton } from '../Header/OpenInButton'
-import type { AgentState, EditorId } from '@shared/types'
+import type { AgentState, EditorId, WorkMode } from '@shared/types'
 import type { EditorTab } from '../EditorPanel/TabBar'
 import styles from './ChatView.module.css'
 
@@ -38,6 +38,8 @@ interface ChatViewProps {
   // Free terminal
   freeTerminalOpen?: boolean
   onToggleFreeTerminal?: () => void
+  // Work mode
+  onToggleWorkMode?: (mode: WorkMode) => void
 }
 
 export function ChatView({
@@ -65,7 +67,8 @@ export function ChatView({
   defaultEditor = 'vscode',
   onSetDefaultEditor,
   freeTerminalOpen = false,
-  onToggleFreeTerminal
+  onToggleFreeTerminal,
+  onToggleWorkMode
 }: ChatViewProps) {
   // Git branch for the current project
   const [gitBranch, setGitBranch] = useState<string | null>(null)
@@ -262,6 +265,7 @@ export function ChatView({
           onBranchChanged={setGitBranch}
           workMode={agent.workMode}
           worktreeBranch={agent.worktreeBranch}
+          onToggleWorkMode={onToggleWorkMode}
           placeholder={
             agent.status === 'errored'
               ? 'Session disconnected. Send to auto-restart...'
