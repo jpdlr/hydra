@@ -683,6 +683,9 @@ export default function App() {
               onStartAgent={(agentId) => {
                 void handleRestartAgent(agentId)
               }}
+              onStopAgent={(agentId) => {
+                void killAgent(agentId)
+              }}
               onRemoveAgent={(agentId) => {
                 void handleRemoveAgent(agentId)
               }}

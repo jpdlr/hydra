@@ -24,8 +24,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-1) var(--space-3);
-  height: var(--tile-header-height);
+  padding: var(--space-2) var(--space-3);
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
   cursor: pointer;
@@ -76,23 +75,37 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+}
+
+.badges {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
 }
 
 .projectBadge {
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
   background: var(--color-accent-subtle);
-  padding: 0 5px;
-  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 120px;
+  max-width: 100px;
+  border: 1px solid transparent;
 }
 
-.model {
+.modelBadge {
   font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
 }
 
 .yoloBadge {
@@ -101,37 +114,54 @@
   color: var(--color-yolo);
   background: var(--color-yolo-bg);
   border: 1px solid var(--color-yolo-border);
-  padding: 0 3px;
-  border-radius: var(--radius-sm);
+  padding: 1px 5px;
+  border-radius: var(--radius-full);
 }
 
+/* Action buttons — pill-shaped circles matching ChatView */
 .actions {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
+  flex-shrink: 0;
 }
 
 .actionBtn {
-  width: 20px;
-  height: 20px;
-  border-radius: var(--radius-sm);
-  color: var(--color-text-muted);
-  font-size: 11px;
-  line-height: 1;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
 }
 
 .actionBtn:hover {
-  background: var(--color-surface-hover);
+  border-color: var(--color-text-muted);
+  background: color-mix(in srgb, var(--color-surface-hover) 80%, var(--color-text-muted) 20%);
   color: var(--color-text-primary);
 }
 
-.expandIcon {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+.removeBtn {
+  color: var(--color-status-error);
+  border-color: color-mix(in srgb, var(--color-status-error) 55%, var(--color-border));
+  background: color-mix(in srgb, var(--color-status-error) 10%, var(--color-surface-hover));
+}
+
+.removeBtn:hover {
+  color: var(--color-status-error);
+  border-color: var(--color-status-error);
+  background: color-mix(in srgb, var(--color-status-error) 18%, var(--color-surface-hover));
+}
+
+.actionIcon {
+  width: 13px;
+  height: 13px;
 }
 
 /* Terminal area */

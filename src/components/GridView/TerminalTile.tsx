@@ -11,6 +11,7 @@ interface TerminalTileProps {
   onTerminalData: (data: string) => void
   onTerminalResize: (cols: number, rows: number) => void
   onStartOrRestart: () => void
+  onStopAgent: () => void
   onRemove: () => void
   hidden: boolean
   dragListeners?: Record<string, unknown>
@@ -23,6 +24,38 @@ const STATUS_COLORS: Record<string, string> = {
   starting: 'var(--color-status-starting)'
 }
 
+function RestartIcon() {
+  return (
+    <svg className={styles.actionIcon} viewBox="0 0 16 16" fill="none" stroke="currentColor"
+      strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M13 8a5 5 0 1 1-1.3-3.4" />
+      <path d="M13 3.5v2.9h-2.9" />
+    </svg>
+  )
+}
+
+function StopIcon() {
+  return (
+    <svg className={styles.actionIcon} viewBox="0 0 16 16" fill="none" stroke="currentColor"
+      strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="4.5" y="4.5" width="7" height="7" rx="1.4" />
+    </svg>
+  )
+}
+
+function TrashIcon() {
+  return (
+    <svg className={styles.actionIcon} viewBox="0 0 16 16" fill="none" stroke="currentColor"
+      strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3.5 4.5h9" />
+      <path d="M6 4.5v-1a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1" />
+      <path d="M5.2 6.2l.4 6a1 1 0 0 0 1 .9h2.8a1 1 0 0 0 1-.9l.4-6" />
+      <path d="M7 7.2v4.2" />
+      <path d="M9 7.2v4.2" />
+    </svg>
+  )
+}
+
 export function TerminalTile({
   agent,
   projectName,
@@ -32,11 +65,14 @@ export function TerminalTile({
   onTerminalData,
   onTerminalResize,
   onStartOrRestart,
+  onStopAgent,
   onRemove,
   hidden,
   dragListeners
 }: TerminalTileProps) {
   if (hidden) return null
+
+  const modelLabel = agent.provider === 'codex' ? `Codex / ${agent.model}` : agent.model
 
   return (
     <div
@@ -60,34 +96,41 @@ export function TerminalTile({
           {agent.status === 'running' ? '●' : agent.status === 'errored' ? '✖' : '○'}
         </span>
         <span className={styles.name}>{agent.name}</span>
-        {projectName && <span className={styles.projectBadge}>{projectName}</span>}
-        <span className={styles.model}>{agent.model}</span>
-        {agent.yolo && <span className={styles.yoloBadge}>YOLO</span>}
+
+        <div className={styles.badges}>
+          {projectName && <span className={styles.projectBadge}>{projectName}</span>}
+          <span className={styles.modelBadge}>{modelLabel}</span>
+          {agent.yolo && <span className={styles.yoloBadge}>YOLO</span>}
+        </div>
+
         <div className={styles.actions}>
           <button
             type="button"
             className={styles.actionBtn}
-            onClick={(e) => {
-              e.stopPropagation()
-              onStartOrRestart()
-            }}
+            onClick={(e) => { e.stopPropagation(); onStartOrRestart() }}
             title={agent.status === 'running' ? 'Restart' : 'Start / Resume'}
           >
-            {agent.status === 'running' ? '↻' : '▶'}
+            <RestartIcon />
           </button>
+          {agent.status === 'running' && (
+            <button
+              type="button"
+              className={styles.actionBtn}
+              onClick={(e) => { e.stopPropagation(); onStopAgent() }}
+              title="Stop"
+            >
+              <StopIcon />
+            </button>
+          )}
           <button
             type="button"
-            className={styles.actionBtn}
-            onClick={(e) => {
-              e.stopPropagation()
-              onRemove()
-            }}
-            title="Remove from grid"
+            className={`${styles.actionBtn} ${styles.removeBtn}`}
+            onClick={(e) => { e.stopPropagation(); onRemove() }}
+            title="Remove"
           >
-            ✕
+            <TrashIcon />
           </button>
         </div>
-        <span className={styles.expandIcon}>{isExpanded ? '⊖' : '⊕'}</span>
       </div>
 
       {/* Terminal */}

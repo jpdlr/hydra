@@ -29,6 +29,7 @@ interface GridViewProps {
   onTerminalData: (agentId: string, data: string) => void
   onTerminalResize: (agentId: string, cols: number, rows: number) => void
   onStartAgent: (agentId: string) => void
+  onStopAgent: (agentId: string) => void
   onRemoveAgent: (agentId: string) => void
   onBroadcast: (input: string) => void
   onNewAgent: () => void
@@ -128,6 +129,7 @@ export function GridView({
   onTerminalData,
   onTerminalResize,
   onStartAgent,
+  onStopAgent,
   onRemoveAgent,
   onBroadcast,
   onNewAgent,
@@ -323,6 +325,7 @@ export function GridView({
                     onTerminalData={(data) => onTerminalData(agent.id, data)}
                     onTerminalResize={(cols, rows) => onTerminalResize(agent.id, cols, rows)}
                     onStartOrRestart={() => onStartAgent(agent.id)}
+                    onStopAgent={() => onStopAgent(agent.id)}
                     onRemove={() => onRemoveAgent(agent.id)}
                     hidden={expandedTileId !== null && expandedTileId !== agent.id}
                     dragListeners={dragListeners}
