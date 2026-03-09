@@ -254,27 +254,29 @@ export function GridView({
 
   return (
     <div className={styles.container}>
-      {/* Project selector */}
-      <div className={styles.projectSelector}>
-        <button
-          className={`${styles.projectTab} ${isRunning ? styles.activeTab : ''}`}
-          onClick={() => onSelectProject(RUNNING_PROJECT_ID)}
-        >
-          Running
-          <span className={styles.tabCount}>{runningCount}</span>
-        </button>
-        {recentGroups.map((g) => (
+      {/* Project selector bar */}
+      <div className={styles.projectSelectorBar}>
+        <div className={styles.projectSelector}>
           <button
-            key={g.projectDir}
-            className={`${styles.projectTab} ${g.projectDir === selectedProject ? styles.activeTab : ''}`}
-            onClick={() => onSelectProject(g.projectDir)}
+            className={`${styles.projectTab} ${isRunning ? styles.activeTab : ''}`}
+            onClick={() => onSelectProject(RUNNING_PROJECT_ID)}
           >
-            {g.projectName}
-            <span className={styles.tabCount}>{g.agents.length}</span>
+            Running
+            <span className={styles.tabCount}>{runningCount}</span>
           </button>
-        ))}
+          {recentGroups.map((g) => (
+            <button
+              key={g.projectDir}
+              className={`${styles.projectTab} ${g.projectDir === selectedProject ? styles.activeTab : ''}`}
+              onClick={() => onSelectProject(g.projectDir)}
+            >
+              {g.projectName}
+              <span className={styles.tabCount}>{g.agents.length}</span>
+            </button>
+          ))}
+        </div>
 
-        {/* Column layout picker */}
+        {/* Column layout picker — pinned outside scroll */}
         <div className={styles.columnPicker}>
           {COLUMN_OPTIONS.map((opt) => (
             <button
