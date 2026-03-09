@@ -105,6 +105,7 @@ export const EDITOR_REGISTRY: EditorDefinition[] = [
 // ── Config ───────────────────────────────────────────────────────────────────
 export type ThemeId = 'light' | 'dark' | 'midnight'
 export type ViewMode = 'grid' | 'chat'
+export type GridColumns = 'auto' | 2 | 3
 export interface AppConfig {
   schemaVersion: number
   defaultProvider: ProviderId
@@ -113,6 +114,7 @@ export interface AppConfig {
   maxAgents: number
   theme: ThemeId
   defaultViewMode: ViewMode
+  gridColumns: GridColumns
   defaultProjectDir: string
   defaultEditor: EditorId
   importSessionsOnStartup: boolean
@@ -144,6 +146,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   maxAgents: 8,
   theme: 'midnight',
   defaultViewMode: 'chat',
+  gridColumns: 'auto',
   defaultProjectDir: '',
   defaultEditor: 'vscode',
   importSessionsOnStartup: true,

@@ -32,6 +32,7 @@
 /* Project selector tabs */
 .projectSelector {
   display: flex;
+  align-items: center;
   gap: var(--space-1);
   padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--color-border);
@@ -67,9 +68,44 @@
   color: var(--color-text-muted);
 }
 
+/* Column picker — sits at the right end of the project selector bar */
+.columnPicker {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--color-surface-hover);
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.columnBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 24px;
+  border-radius: var(--radius-xs);
+  font-size: 11px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  transition: all var(--transition-fast);
+}
+
+.columnBtn:hover {
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+}
+
+.columnBtnActive {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
 /* Grid layouts */
-.grid,
-.gridExpanded {
+.gridBase {
   flex: 1;
   display: grid;
   gap: var(--space-3);
@@ -78,36 +114,52 @@
   align-content: stretch;
 }
 
-.grid {
+.gridBase > * {
+  min-width: 0;
+}
+
+/* Auto columns (default) */
+.gridAuto {
   grid-template-columns: repeat(auto-fit, minmax(min(480px, 100%), 1fr));
   grid-auto-rows: minmax(300px, 1fr);
 }
 
+/* Fixed 2-column */
+.grid2 {
+  grid-template-columns: repeat(2, 1fr);
+  grid-auto-rows: minmax(300px, 1fr);
+}
+
+/* Fixed 3-column */
+.grid3 {
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: minmax(300px, 1fr);
+}
+
+/* Expanded (single tile) */
 .gridExpanded {
   grid-template-columns: 1fr;
   grid-template-rows: minmax(0, 1fr);
 }
 
-.grid > * {
-  min-width: 0;
-}
-
-/* When only 2 columns fit, stretch a lone last tile to fill the row. */
+/* When only 2 columns fit (auto mode), stretch a lone last tile to fill the row. */
 @media (max-width: 1320px) and (min-width: 961px) {
-  .grid > :last-child:nth-child(odd):nth-child(n + 3) {
+  .gridAuto > :last-child:nth-child(odd):nth-child(n + 3) {
     grid-column: 1 / -1;
   }
 }
 
 @media (max-width: 1320px) {
-  .grid {
+  .gridAuto {
     grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
     grid-auto-rows: minmax(280px, 1fr);
   }
 }
 
 @media (max-width: 960px) {
-  .grid {
+  .gridAuto,
+  .grid2,
+  .grid3 {
     grid-template-columns: 1fr;
   }
 }

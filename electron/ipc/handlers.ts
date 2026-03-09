@@ -69,6 +69,7 @@ const appConfigPatchSchema = z
     maxAgents: z.number().int().min(1).max(MAX_CONCURRENT_AGENTS_HARD_LIMIT).optional(),
     theme: z.enum(['light', 'dark', 'midnight']).optional(),
     defaultViewMode: z.enum(['grid', 'chat']).optional(),
+    gridColumns: z.union([z.literal('auto'), z.literal(2), z.literal(3)]).optional(),
     defaultProjectDir: z.string().max(4096).optional(),
     defaultEditor: editorIdSchema.optional(),
     importSessionsOnStartup: z.boolean().optional(),

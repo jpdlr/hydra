@@ -702,6 +702,8 @@ export default function App() {
               expandedTileId={expandedTileId}
               onExpandedTileChange={handleExpandedTileChange}
               sessionMaxAgeDays={config.sessionMaxAgeDays}
+              gridColumns={config.gridColumns}
+              onGridColumnsChange={(cols) => updateConfig({ gridColumns: cols })}
             />
           )}
         </main>

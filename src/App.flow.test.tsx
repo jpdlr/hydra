@@ -126,7 +126,8 @@ const baseConfig: AppConfig = {
   includeSensitiveDiagnostics: false,
   sessionMaxAgeDays: 7,
   remoteControlEnabled: false,
-  remoteSessionTimeoutMinutes: 480
+  remoteSessionTimeoutMinutes: 480,
+  gridColumns: 'auto'
 }
 
 let currentConfig: AppConfig = { ...baseConfig }

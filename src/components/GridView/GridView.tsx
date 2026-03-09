@@ -17,7 +17,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { TerminalTile } from './TerminalTile'
 import { BroadcastBar } from './BroadcastBar'
 import { RUNNING_PROJECT_ID } from '@shared/types'
-import type { ProjectGroup } from '@shared/types'
+import type { GridColumns, ProjectGroup } from '@shared/types'
 import { basename } from '@/lib/pathUtils'
 import { useTileOrder } from '@/hooks/useTileOrder'
 import styles from './GridView.module.css'
@@ -36,9 +36,58 @@ interface GridViewProps {
   expandedTileId: string | null
   onExpandedTileChange: (agentId: string | null) => void
   sessionMaxAgeDays: number
+  gridColumns: GridColumns
+  onGridColumnsChange: (cols: GridColumns) => void
 }
 
 const ACTIVE_STATUSES = ['running', 'starting']
+
+const COLUMN_OPTIONS: { value: GridColumns; label: string; icon: React.ReactNode }[] = [
+  {
+    value: 'auto',
+    label: 'Auto',
+    icon: (
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.2">
+        <rect x="1" y="1" width="5" height="5" rx="1" />
+        <rect x="8" y="1" width="5" height="5" rx="1" />
+        <rect x="1" y="8" width="5" height="5" rx="1" />
+      </svg>
+    )
+  },
+  {
+    value: 2,
+    label: '2 col',
+    icon: (
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.2">
+        <rect x="1" y="1" width="5" height="12" rx="1" />
+        <rect x="8" y="1" width="5" height="12" rx="1" />
+      </svg>
+    )
+  },
+  {
+    value: 3,
+    label: '3 col',
+    icon: (
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.2">
+        <rect x="0.5" y="1" width="3.5" height="12" rx="1" />
+        <rect x="5.25" y="1" width="3.5" height="12" rx="1" />
+        <rect x="10" y="1" width="3.5" height="12" rx="1" />
+      </svg>
+    )
+  }
+]
+
+function getGridClass(columns: GridColumns, expanded: boolean): string {
+  if (expanded) return `${styles.gridBase} ${styles.gridExpanded}`
+  switch (columns) {
+    case 2:
+      return `${styles.gridBase} ${styles.grid2}`
+    case 3:
+      return `${styles.gridBase} ${styles.grid3}`
+    default:
+      return `${styles.gridBase} ${styles.gridAuto}`
+  }
+}
 
 function SortableTileWrapper({
   id,
@@ -85,7 +134,9 @@ export function GridView({
   rawOutputs,
   expandedTileId,
   onExpandedTileChange,
-  sessionMaxAgeDays
+  sessionMaxAgeDays,
+  gridColumns,
+  onGridColumnsChange
 }: GridViewProps) {
   const isRunning = selectedProject === RUNNING_PROJECT_ID
   const [recentCutoffTs, setRecentCutoffTs] = useState<number | null>(null)
@@ -199,7 +250,7 @@ export function GridView({
     )
   }
 
-  const gridClass = expandedTileId ? styles.gridExpanded : styles.grid
+  const gridClass = getGridClass(gridColumns, !!expandedTileId)
 
   return (
     <div className={styles.container}>
@@ -222,6 +273,20 @@ export function GridView({
             <span className={styles.tabCount}>{g.agents.length}</span>
           </button>
         ))}
+
+        {/* Column layout picker */}
+        <div className={styles.columnPicker}>
+          {COLUMN_OPTIONS.map((opt) => (
+            <button
+              key={String(opt.value)}
+              className={`${styles.columnBtn} ${gridColumns === opt.value ? styles.columnBtnActive : ''}`}
+              onClick={() => onGridColumnsChange(opt.value)}
+              title={opt.label}
+            >
+              {opt.icon}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Grid */}
