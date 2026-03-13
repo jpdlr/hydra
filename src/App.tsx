@@ -97,6 +97,7 @@ export default function App() {
     agents,
     agentList,
     projectGroups,
+    rawOutputs,
     selectedAgentId,
     selectedAgent,
     setSelectedAgentId,
@@ -117,7 +118,7 @@ export default function App() {
     persistedUi.viewMode ?? config.defaultViewMode
   )
 
-  const editorPanel = useEditorPanel(selectedAgentId, selectedAgent?.state.projectDir)
+  const editorPanel = useEditorPanel(selectedAgentId, selectedAgent?.projectDir)
 
   const [sidebarWidth, setSidebarWidth] = useState(persistedUi.sidebarWidth ?? 260)
 
@@ -211,7 +212,7 @@ export default function App() {
 
   const handleRemoveAgent = useCallback(
     async (agentId: string) => {
-      const removed = agents.get(agentId)?.state
+      const removed = agents.get(agentId)
       await removeAgent(agentId)
 
       if (!removed?.sessionId || !removed.id.startsWith('sess-')) {
@@ -236,9 +237,9 @@ export default function App() {
 
   const handleSendInput = useCallback(
     async (agentId: string, input: string, images?: AttachedImage[]) => {
-      const state = agents.get(agentId)?.state
-      if (!state) return
-      if (state.status !== 'running' && !(await ensurePreflightReady())) return
+      const agentState = agents.get(agentId)
+      if (!agentState) return
+      if (agentState.status !== 'running' && !(await ensurePreflightReady())) return
 
       if (images && images.length > 0) {
         // Write each image to system clipboard and send Ctrl+V to PTY
@@ -249,7 +250,7 @@ export default function App() {
           // Send Ctrl+V (0x16) to trigger Claude CLI image paste
           sendTerminalInput(agentId, '\x16')
           // Wait for CLI to process the image (Claude needs more time)
-          const imageDelay = state.provider === 'claude' ? 400 : 200
+          const imageDelay = agentState.provider === 'claude' ? 400 : 200
           await new Promise((r) => setTimeout(r, imageDelay))
         }
         // Brief pause before sending prompt text after image paste completes
@@ -302,7 +303,7 @@ export default function App() {
   // Keep selected project synced while navigating agents in chat mode.
   useEffect(() => {
     if (viewMode !== 'chat') return
-    const agentProject = selectedAgent?.state.projectDir
+    const agentProject = selectedAgent?.projectDir
     if (!agentProject) return
     if (selectedProject !== agentProject) {
       setSelectedProject(agentProject)
@@ -322,7 +323,7 @@ export default function App() {
     if (!group || group.agents.length === 0) return
 
     const selectedAgentProject = selectedAgentId
-      ? agents.get(selectedAgentId)?.state.projectDir
+      ? agents.get(selectedAgentId)?.projectDir
       : null
 
     if (selectedAgentProject !== selectedProject) {
@@ -436,7 +437,7 @@ export default function App() {
       if (meta && e.key === 'y' && !e.shiftKey && selectedAgentId) {
         e.preventDefault()
         const agent = agents.get(selectedAgentId)
-        if (agent) toggleYolo(selectedAgentId, !agent.state.yolo)
+        if (agent) toggleYolo(selectedAgentId, !agent.yolo)
         return
       }
 
@@ -523,21 +524,12 @@ export default function App() {
     await killAgent(selectedAgentId)
   }, [selectedAgentId, killAgent])
 
-  // Build raw outputs map for grid view
-  const rawOutputs = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const [id, data] of agents) {
-      map.set(id, data.rawOutput)
-    }
-    return map
-  }, [agents])
-
   // Selected project name for header
   const selectedProjectName = selectedProject === RUNNING_PROJECT_ID
     ? 'Running'
     : projectGroups.find((g) => g.projectDir === selectedProject)?.projectName
 
-  const headerProjectDir = selectedAgent?.state.projectDir
+  const headerProjectDir = selectedAgent?.projectDir
     ?? (selectedProject && selectedProject !== RUNNING_PROJECT_ID ? selectedProject : null)
 
   const handleSetDefaultEditor = useCallback(
@@ -611,8 +603,8 @@ export default function App() {
         <main className={styles.main}>
           {viewMode === 'chat' ? (
             <ChatView
-              agent={selectedAgent?.state || null}
-              rawOutput={selectedAgent?.rawOutput || ''}
+              agent={selectedAgent || null}
+              rawOutput={selectedAgentId ? (rawOutputs.get(selectedAgentId) ?? '') : ''}
               onSendInput={(input, images) => {
                 if (selectedAgentId) {
                   void handleSendInput(selectedAgentId, input, images)
@@ -631,7 +623,7 @@ export default function App() {
               }}
               onToggleYolo={() => {
                 if (selectedAgentId && selectedAgent) {
-                  toggleYolo(selectedAgentId, !selectedAgent.state.yolo)
+                  toggleYolo(selectedAgentId, !selectedAgent.yolo)
                 }
               }}
               onKillAgent={() => {
@@ -663,7 +655,7 @@ export default function App() {
               }}
               onSwitchModel={(nextModel) => {
                 if (!selectedAgentId || !selectedAgent) return
-                if (selectedAgent.state.provider === 'codex') {
+                if (selectedAgent.provider === 'codex') {
                   sendInput(selectedAgentId, '/model')
                   return
                 }
@@ -910,7 +902,7 @@ export default function App() {
               case 'toggle-yolo': {
                 if (selectedAgentId) {
                   const agent = agents.get(selectedAgentId)
-                  if (agent) toggleYolo(selectedAgentId, !agent.state.yolo)
+                  if (agent) toggleYolo(selectedAgentId, !agent.yolo)
                 }
                 break
               }
@@ -930,9 +922,9 @@ export default function App() {
         />
       )}
 
-      {showGitPanel && selectedAgent?.state.projectDir && (
+      {showGitPanel && selectedAgent?.projectDir && (
         <GitPanel
-          projectDir={selectedAgent.state.projectDir}
+          projectDir={selectedAgent.projectDir}
           theme={config.theme}
           defaultProvider={config.defaultProvider}
           defaultModel={config.defaultModel}

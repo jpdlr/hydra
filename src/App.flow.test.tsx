@@ -163,18 +163,11 @@ function buildAgentsState(importedSessionId: string | null = null) {
     projectDir: '/tmp/project'
   })
 
-  const map = new Map([
-    [
-      imported.id,
-      {
-        state: imported,
-        rawOutput: ''
-      }
-    ]
-  ])
+  const agentMap = new Map([[imported.id, imported]])
+  const outputMap = new Map([[imported.id, '']])
 
   return {
-    agents: map,
+    agents: agentMap,
     agentList: [imported],
     projectGroups: [
       {
@@ -183,8 +176,9 @@ function buildAgentsState(importedSessionId: string | null = null) {
         agents: [imported]
       }
     ],
+    rawOutputs: outputMap,
     selectedAgentId: imported.id,
-    selectedAgent: map.get(imported.id),
+    selectedAgent: imported,
     setSelectedAgentId: vi.fn(),
     createAgent: vi.fn(),
     killAgent: vi.fn().mockResolvedValue(true),
