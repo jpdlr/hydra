@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type {
   AgentState,
   CreateAgentPayload,
@@ -10,24 +10,17 @@ import { detectLatestModelFromTerminalOutput } from '@shared/terminalModelDetect
 import { basename } from '@/lib/pathUtils'
 import { createTraceId, logEvent } from '@/lib/observability'
 
-/** Maximum raw output size per agent (2 MB). Older output is trimmed. */
-const MAX_OUTPUT_BYTES = 2 * 1024 * 1024
+interface AgentData {
+  state: AgentState
+  rawOutput: string
+}
 
 function bufferToText(chunks: string[]): string {
   return chunks.length > 0 ? chunks.join('') : ''
 }
 
-function trimOutput(output: string): string {
-  if (output.length <= MAX_OUTPUT_BYTES) return output
-  // Keep the most recent portion
-  return output.slice(output.length - MAX_OUTPUT_BYTES)
-}
-
 export function useAgents(initialSelectedAgentId: string | null = null) {
-  // Agent metadata (status, model, yolo, etc.) — changes infrequently
-  const [agents, setAgents] = useState<Map<string, AgentState>>(new Map())
-  // Terminal output — changes frequently, separated to avoid re-rendering the whole tree
-  const [rawOutputs, setRawOutputs] = useState<Map<string, string>>(new Map())
+  const [agents, setAgents] = useState<Map<string, AgentData>>(new Map())
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(initialSelectedAgentId)
   const selectedAgentIdRef = useRef<string | null>(initialSelectedAgentId)
 
@@ -40,72 +33,46 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
       const lines = await window.hydra.getAgentBuffer(agentId)
       return bufferToText(lines)
     } catch {
+      // Buffer fetch failed — start with empty output
       return ''
     }
   }, [])
 
-  // ── Batched output handling ─────────────────────────────────────────────
-  // Accumulate output chunks in a ref, flush to React state on next tick.
-  // Uses setTimeout(0) instead of requestAnimationFrame because Electron IPC
-  // events may fire outside the normal rendering cycle where RAF is unreliable.
-  const pendingChunksRef = useRef<Map<string, string>>(new Map())
-  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
+  // Listen for agent output
   useEffect(() => {
     const unsub = window.hydra.onAgentOutput((payload: AgentOutputPayload) => {
-      const pending = pendingChunksRef.current
-      pending.set(payload.agentId, (pending.get(payload.agentId) ?? '') + payload.data)
+      setAgents((prev) => {
+        const next = new Map(prev)
+        const data = next.get(payload.agentId)
+        if (!data) return prev
+        const nextOutput = data.rawOutput + payload.data
+        const detectedModel = detectLatestModelFromTerminalOutput(data.state.provider, nextOutput)
 
-      if (!flushTimerRef.current) {
-        flushTimerRef.current = setTimeout(() => {
-          flushTimerRef.current = null
-          const batch = pendingChunksRef.current
-          pendingChunksRef.current = new Map()
-
-          // Flush accumulated output to React state (single update per batch)
-          setRawOutputs((prev) => {
-            const next = new Map(prev)
-            for (const [id, chunk] of batch) {
-              const combined = (prev.get(id) ?? '') + chunk
-              next.set(id, trimOutput(combined))
-            }
-            return next
-          })
-
-          // Check for model changes — only update agents state if model actually changed
-          setAgents((prev) => {
-            let changed = false
-            const next = new Map(prev)
-            for (const [id] of batch) {
-              const state = next.get(id)
-              if (!state) continue
-              const detectedModel = detectLatestModelFromTerminalOutput(state.provider, batch.get(id) ?? '')
-              if (detectedModel && detectedModel !== state.model) {
-                changed = true
-                next.set(id, { ...state, model: detectedModel })
+        // Only update lastActivityAt if >1 minute stale to avoid constant
+        // sidebar re-renders when multiple agents produce output.
+        const now = Date.now()
+        const prevActivity = Date.parse(data.state.lastActivityAt)
+        const stale = now - prevActivity > 60_000
+        next.set(payload.agentId, {
+          ...data,
+          state: stale
+            ? {
+                ...data.state,
+                lastActivityAt: new Date(now).toISOString(),
+                model: detectedModel ?? data.state.model
               }
-
-              // Only update lastActivityAt if >1 minute stale
-              const now = Date.now()
-              const prevActivity = Date.parse(state.lastActivityAt)
-              if (now - prevActivity > 60_000) {
-                changed = true
-                const existing = next.get(id)!
-                next.set(id, { ...existing, lastActivityAt: new Date(now).toISOString() })
-              }
-            }
-            return changed ? next : prev
-          })
-        }, 0)
-      }
+            : {
+                ...data.state,
+                model: detectedModel ?? data.state.model
+              },
+          rawOutput: nextOutput
+        })
+        return next
+      })
     })
 
     return () => {
       unsub()
-      if (flushTimerRef.current) {
-        clearTimeout(flushTimerRef.current)
-        flushTimerRef.current = null
-      }
     }
   }, [])
 
@@ -113,15 +80,17 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
   useEffect(() => {
     const unsub = window.hydra.onAgentStatus((payload: AgentStatusPayload) => {
       setAgents((prev) => {
-        const state = prev.get(payload.agentId)
-        if (!state) return prev
         const next = new Map(prev)
-        next.set(payload.agentId, {
-          ...state,
+        const data = next.get(payload.agentId)
+        if (!data) return prev
+
+        const updatedState = {
+          ...data.state,
           status: payload.status,
-          sessionId: payload.sessionId ?? state.sessionId,
-          model: payload.model ?? state.model
-        })
+          sessionId: payload.sessionId ?? data.state.sessionId,
+          model: payload.model ?? data.state.model
+        }
+        next.set(payload.agentId, { ...data, state: updatedState })
         return next
       })
     })
@@ -131,9 +100,9 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
   // Load existing agents on mount + fetch output buffers for reconnection
   useEffect(() => {
     window.hydra.listAgents().then(async (agentList) => {
-      const stateMap = new Map<string, AgentState>()
-      const outputMap = new Map<string, string>()
+      const map = new Map<string, AgentData>()
 
+      // Fetch output buffers in parallel for all agents (reconnection support)
       const bufferPromises = agentList.map(async (state) => {
         const rawOutput = await readAgentBufferText(state.id)
         return { state, rawOutput }
@@ -142,14 +111,15 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
       const results = await Promise.all(bufferPromises)
       for (const { state, rawOutput } of results) {
         const detectedModel = detectLatestModelFromTerminalOutput(state.provider, rawOutput)
-        stateMap.set(state.id, detectedModel ? { ...state, model: detectedModel } : state)
-        outputMap.set(state.id, trimOutput(rawOutput))
+        map.set(state.id, {
+          state: detectedModel ? { ...state, model: detectedModel } : state,
+          rawOutput
+        })
       }
 
-      setAgents(stateMap)
-      setRawOutputs(outputMap)
+      setAgents(map)
       const preferredId = selectedAgentIdRef.current
-      if (preferredId && stateMap.has(preferredId)) {
+      if (preferredId && map.has(preferredId)) {
         setSelectedAgentId(preferredId)
       } else if (agentList.length > 0 && !selectedAgentIdRef.current) {
         setSelectedAgentId(agentList[0].id)
@@ -175,14 +145,13 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
     })
     const state = await window.hydra.createAgent(payload)
     const rawOutput = await readAgentBufferText(state.id)
+    const data: AgentData = {
+      state,
+      rawOutput
+    }
     setAgents((prev) => {
       const next = new Map(prev)
-      next.set(state.id, state)
-      return next
-    })
-    setRawOutputs((prev) => {
-      const next = new Map(prev)
-      next.set(state.id, rawOutput)
+      next.set(state.id, data)
       return next
     })
     setSelectedAgentId(state.id)
@@ -207,11 +176,6 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
         next.delete(agentId)
         return next
       })
-      setRawOutputs((prev) => {
-        const next = new Map(prev)
-        next.delete(agentId)
-        return next
-      })
       if (selectedAgentId === agentId) {
         setSelectedAgentId((prevSelected) => (prevSelected === agentId ? null : prevSelected))
       }
@@ -227,17 +191,16 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
       agentId
     })
 
-    // Clear terminal before restarting
+    // Clear terminal before restarting to avoid carrying stale output into the new session.
     setAgents((prev) => {
-      const state = prev.get(agentId)
-      if (!state) return prev
       const next = new Map(prev)
-      next.set(agentId, { ...state, status: 'starting' })
-      return next
-    })
-    setRawOutputs((prev) => {
-      const next = new Map(prev)
-      next.set(agentId, '')
+      const data = next.get(agentId)
+      if (!data) return prev
+      next.set(agentId, {
+        ...data,
+        state: { ...data.state, status: 'starting' },
+        rawOutput: ''
+      })
       return next
     })
 
@@ -245,18 +208,25 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
     if (updated) {
       setAgents((prev) => {
         const next = new Map(prev)
-        next.set(agentId, updated)
+        const data = next.get(agentId)
+        if (data) {
+          next.set(agentId, {
+            ...data,
+            state: updated
+          })
+        }
         return next
       })
 
       // Backfill any startup output that may have arrived before restart resolved.
       const bufferSnapshot = await readAgentBufferText(agentId)
       if (bufferSnapshot) {
-        setRawOutputs((prev) => {
-          const current = prev.get(agentId) ?? ''
-          if (current.length >= bufferSnapshot.length) return prev
+        setAgents((prev) => {
           const next = new Map(prev)
-          next.set(agentId, bufferSnapshot)
+          const data = next.get(agentId)
+          if (!data) return prev
+          if (data.rawOutput.length >= bufferSnapshot.length) return prev
+          next.set(agentId, { ...data, rawOutput: bufferSnapshot })
           return next
         })
       }
@@ -268,7 +238,10 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
     if (updated) {
       setAgents((prev) => {
         const next = new Map(prev)
-        next.set(agentId, updated)
+        const data = next.get(agentId)
+        if (data) {
+          next.set(agentId, { ...data, state: updated })
+        }
         return next
       })
     }
@@ -279,7 +252,10 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
     if (updated) {
       setAgents((prev) => {
         const next = new Map(prev)
-        next.set(agentId, updated)
+        const data = next.get(agentId)
+        if (data) {
+          next.set(agentId, { ...data, state: updated })
+        }
         return next
       })
     }
@@ -291,7 +267,10 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
       if (updated) {
         setAgents((prev) => {
           const next = new Map(prev)
-          next.set(agentId, updated)
+          const data = next.get(agentId)
+          if (data) {
+            next.set(agentId, { ...data, state: updated })
+          }
           return next
         })
       }
@@ -330,24 +309,22 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
     return await window.hydra.broadcast(projectDir, input)
   }, [])
 
-  // Derived data — memoized
-  const agentList = useMemo(
-    () => Array.from(agents.values()),
-    [agents]
-  )
+  // Derived data
+  const agentList = Array.from(agents.values()).map((d) => d.state)
 
-  const projectGroups: ProjectGroup[] = useMemo(() => {
+  const projectGroups: ProjectGroup[] = (() => {
     const grouped = new Map<string, AgentState[]>()
-    for (const state of agents.values()) {
-      const dir = state.projectDir
+    for (const data of agents.values()) {
+      const dir = data.state.projectDir
       if (!grouped.has(dir)) grouped.set(dir, [])
-      grouped.get(dir)!.push(state)
+      grouped.get(dir)!.push(data.state)
     }
     // Quantize to 1-minute buckets to prevent flickering when multiple
     // agents/projects produce output at the same time.
     const SORT_BUCKET_MS = 60_000
     const bucketize = (ts: string) => Math.floor(Date.parse(ts) / SORT_BUCKET_MS)
     const groups = Array.from(grouped.entries()).map(([dir, agts]) => {
+      // Most recently active agent first within each project
       agts.sort((a, b) => bucketize(b.lastActivityAt) - bucketize(a.lastActivityAt))
       return { projectDir: dir, projectName: basename(dir), agents: agts }
     })
@@ -360,7 +337,7 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
       return bTime - aTime
     })
     return groups
-  }, [agents])
+  })()
 
   const selectedAgent = selectedAgentId ? agents.get(selectedAgentId) || null : null
 
@@ -368,7 +345,6 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
     agents,
     agentList,
     projectGroups,
-    rawOutputs,
     selectedAgentId,
     selectedAgent,
     setSelectedAgentId,

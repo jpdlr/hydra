@@ -218,6 +218,12 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Mistake**: Including a non-existent target directory (`app`) made `rg` exit non-zero and obscured whether results were complete.
 **Fix**: Scope `rg` targets to known existing roots (for this repo: `src`, `electron`, `hydra-remote`, `shared`) or run from repo root without extra path args.
 
+### Never place new hooks after a nullable early return
+**Date**: 2026-03-18
+**Context**: `ChatView` gained terminal-warming hooks after `if (!agent) return`, then the app hit the renderer error boundary when selection changed from no agent to an agent.
+**Mistake**: Adding `useMemo`/`useEffect` below a conditional early return changes hook order across renders and can crash React with a hooks mismatch.
+**Fix**: Keep all hooks unconditional. Derive nullable-safe values first, run hooks from those values, and only return early after hook declarations.
+
 ### Hydra session picker is provider-specific even though the IPC name is generic
 **Date**: 2026-03-08
 **Context**: Codex resume looked broken from the New Agent dialog.
@@ -420,3 +426,27 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Context**: Hydra restarts for Codex agents reopened a fresh session instead of continuing the previous thread.
 **Mistake**: Treating Codex as non-resumable in `providers.ts` meant Hydra never captured a Codex session id and never invoked `codex resume <session>`.
 **Fix**: Discover Codex session ids from `~/.codex/sessions/*/*/*/*.jsonl` and restart Codex agents with the native `resume` subcommand once a session id is known.
+
+### Hidden xterm panes must not auto-focus when kept alive in the background
+**Date**: 2026-03-18
+**Context**: Keeping chat-mode terminals mounted in the background fixes stale renders when switching sessions, but each xterm instance focuses itself on mount by default.
+**Mistake**: Reusing `TerminalPane` for hidden background sessions without an opt-out caused non-visible terminals to steal keyboard focus from the active pane/input.
+**Fix**: Add an `autoFocus` prop to `TerminalPane` and disable it for background-mounted panes while leaving the selected terminal focusable.
+
+### Vitest DOM assertions here should not assume `jest-dom` matchers are loaded
+**Date**: 2026-03-18
+**Context**: A new renderer test used `toHaveAttribute`, but the suite failed even though the DOM output was correct.
+**Mistake**: Assuming this test setup globally registers `@testing-library/jest-dom` matchers in every file.
+**Fix**: Prefer plain DOM attribute reads or explicitly import the matcher setup before using `toHaveAttribute`-style assertions.
+
+### Background terminal warming should not block the selected pane's first render
+**Date**: 2026-03-18
+**Context**: Keeping all running chat terminals mounted fixed stale switching, but opening chat on a busy workspace left the selected terminal blank for an obvious beat.
+**Mistake**: Mounting every running xterm in the same render pass made the visible terminal compete with hidden background panes during initialization and buffer replay.
+**Fix**: Mount the selected terminal immediately, then warm additional running terminals on the next tick so switching stays fast without delaying the active session.
+
+### Deferred renderer batching can break terminal freshness when pane visibility changes
+**Date**: 2026-03-18
+**Context**: Chat terminals stopped appearing/updating reliably after session switches once terminal output was decoupled from agent state and flushed asynchronously.
+**Mistake**: Treating PTY output as safe to batch/defer in renderer state introduced windows where a remounted or newly visible terminal replayed stale output until another flush occurred.
+**Fix**: Prefer immediate per-output updates for the source-of-truth terminal state first; only reintroduce batching after visibility-sensitive paths are explicitly handled.

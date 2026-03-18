@@ -13,6 +13,7 @@ const { terminalState } = vi.hoisted(() => ({
       dispose: ReturnType<typeof vi.fn>
       loadAddon: ReturnType<typeof vi.fn>
       open: ReturnType<typeof vi.fn>
+      focus: ReturnType<typeof vi.fn>
       onDataHandler: ((data: string) => void) | null
       onData: (handler: (data: string) => void) => void
     }>
@@ -118,5 +119,12 @@ describe('TerminalPane', () => {
     const onResize = vi.fn()
     render(<TerminalPane rawOutput="" onResize={onResize} />)
     expect(onResize).toHaveBeenCalledWith(80, 24)
+  })
+
+  it('does not auto-focus when disabled', () => {
+    render(<TerminalPane rawOutput="" autoFocus={false} />)
+    const term = terminalState.instances[0]
+
+    expect(term.focus).not.toHaveBeenCalled()
   })
 })
