@@ -44,25 +44,23 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
     }
   }, [])
 
-  // ── Batched output handling ─────────────────────────────────────────────
-  // Accumulate output chunks in a ref, flush to React state on next tick.
-  // Uses setTimeout(0) instead of requestAnimationFrame because Electron IPC
-  // events may fire outside the normal rendering cycle where RAF is unreliable.
+  // ── RAF-batched output handling ──────────────────────────────────────────
+  // Accumulate output chunks in a ref, flush to React state once per frame.
   const pendingChunksRef = useRef<Map<string, string>>(new Map())
-  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const rafRef = useRef<number>(0)
 
   useEffect(() => {
     const unsub = window.hydra.onAgentOutput((payload: AgentOutputPayload) => {
       const pending = pendingChunksRef.current
       pending.set(payload.agentId, (pending.get(payload.agentId) ?? '') + payload.data)
 
-      if (!flushTimerRef.current) {
-        flushTimerRef.current = setTimeout(() => {
-          flushTimerRef.current = null
+      if (!rafRef.current) {
+        rafRef.current = requestAnimationFrame(() => {
+          rafRef.current = 0
           const batch = pendingChunksRef.current
           pendingChunksRef.current = new Map()
 
-          // Flush accumulated output to React state (single update per batch)
+          // Flush accumulated output to React state (single update per frame)
           setRawOutputs((prev) => {
             const next = new Map(prev)
             for (const [id, chunk] of batch) {
@@ -79,6 +77,8 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
             for (const [id] of batch) {
               const state = next.get(id)
               if (!state) continue
+              // We need current output for detection — read from pending + prev
+              // For efficiency, detect on the chunk only (last portion is sufficient)
               const detectedModel = detectLatestModelFromTerminalOutput(state.provider, batch.get(id) ?? '')
               if (detectedModel && detectedModel !== state.model) {
                 changed = true
@@ -96,15 +96,15 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
             }
             return changed ? next : prev
           })
-        }, 0)
+        })
       }
     })
 
     return () => {
       unsub()
-      if (flushTimerRef.current) {
-        clearTimeout(flushTimerRef.current)
-        flushTimerRef.current = null
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current)
+        rafRef.current = 0
       }
     }
   }, [])
