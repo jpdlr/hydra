@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState, useEffect, useMemo } from 'react'
+import { useRef, useCallback, useState, useEffect } from 'react'
 import { TerminalPane } from '../Terminal/TerminalPane'
 import { FreeTerminalPanel } from '../Terminal/FreeTerminalPanel'
 import { InputBar } from './InputBar'
@@ -11,15 +11,12 @@ import type { EditorTab } from '../EditorPanel/TabBar'
 import styles from './ChatView.module.css'
 
 interface ChatViewProps {
-  agents: AgentState[]
   agent: AgentState | null
-  selectedAgentId: string | null
   rawOutput: string
   onSendInput: (input: string, images?: AttachedImage[]) => void
   onSwitchModel?: (model: string) => void
-  rawOutputs: Map<string, string>
-  onTerminalData: (agentId: string, data: string) => void
-  onTerminalResize: (agentId: string, cols: number, rows: number) => void
+  onTerminalData: (data: string) => void
+  onTerminalResize: (cols: number, rows: number) => void
   onRestartAgent: () => void
   onToggleYolo: () => void
   onKillAgent: () => void
@@ -46,13 +43,10 @@ interface ChatViewProps {
 }
 
 export function ChatView({
-  agents,
   agent,
-  selectedAgentId,
   rawOutput,
   onSendInput,
   onSwitchModel,
-  rawOutputs,
   onTerminalData,
   onTerminalResize,
   onRestartAgent,
@@ -76,34 +70,24 @@ export function ChatView({
   onToggleFreeTerminal,
   onToggleWorkMode
 }: ChatViewProps) {
-  const [mountedTerminalIds, setMountedTerminalIds] = useState<Set<string>>(
-    () => new Set(selectedAgentId ? [selectedAgentId] : [])
-  )
-  const agentProjectDir = agent?.projectDir ?? null
-  const selectedTerminalVisible = agent ? agent.status === 'running' || rawOutput.length > 0 : false
-  const runningAgentIds = useMemo(
-    () => agents.filter((entry) => entry.status === 'running').map((entry) => entry.id),
-    [agents]
-  )
-
   // Git branch for the current project
   const [gitBranch, setGitBranch] = useState<string | null>(null)
   useEffect(() => {
-    if (!agentProjectDir) { setGitBranch(null); return }
+    if (!agent?.projectDir) { setGitBranch(null); return }
     let cancelled = false
-    window.hydra.getGitStatus(agentProjectDir).then((status) => {
+    window.hydra.getGitStatus(agent.projectDir).then((status) => {
       if (!cancelled) setGitBranch(status.branch)
     }).catch(() => {
       if (!cancelled) setGitBranch(null)
     })
     // Poll every 15s to keep branch fresh
     const interval = setInterval(() => {
-      window.hydra.getGitStatus(agentProjectDir).then((status) => {
+      window.hydra.getGitStatus(agent.projectDir).then((status) => {
         if (!cancelled) setGitBranch(status.branch)
       }).catch(() => {})
     }, 15_000)
     return () => { cancelled = true; clearInterval(interval) }
-  }, [agentProjectDir])
+  }, [agent?.projectDir])
 
   // Prevent browser focus-scroll from moving the outer container.
   const containerRef = useRef<HTMLDivElement>(null)
@@ -132,59 +116,6 @@ export function ChatView({
   const handleSplitDoubleClick = useCallback(() => {
     setSplitRatio(0.5)
   }, [])
-
-  useEffect(() => {
-    if (!selectedAgentId) return
-    setMountedTerminalIds((prev) => {
-      if (prev.has(selectedAgentId)) return prev
-      const next = new Set(prev)
-      next.add(selectedAgentId)
-      return next
-    })
-  }, [selectedAgentId])
-
-  useEffect(() => {
-    if (runningAgentIds.length === 0) {
-      setMountedTerminalIds((prev) => {
-        const next = new Set<string>()
-        if (selectedAgentId && selectedTerminalVisible) {
-          next.add(selectedAgentId)
-        }
-        if (prev.size === next.size && [...next].every((id) => prev.has(id))) {
-          return prev
-        }
-        return next
-      })
-      return
-    }
-
-    const timer = window.setTimeout(() => {
-      setMountedTerminalIds((prev) => {
-        const next = new Set<string>()
-        for (const id of runningAgentIds) {
-          next.add(id)
-        }
-        if (selectedAgentId && selectedTerminalVisible) {
-          next.add(selectedAgentId)
-        }
-        if (prev.size === next.size && [...next].every((id) => prev.has(id))) {
-          return prev
-        }
-        return next
-      })
-    }, 0)
-
-    return () => window.clearTimeout(timer)
-  }, [runningAgentIds, selectedAgentId, selectedTerminalVisible])
-
-  const terminalAgents = agents.filter((entry) => {
-    if (entry.id === selectedAgentId) return selectedTerminalVisible
-    return entry.status === 'running' && mountedTerminalIds.has(entry.id)
-  }).sort((a, b) => {
-    if (a.id === selectedAgentId) return -1
-    if (b.id === selectedAgentId) return 1
-    return 0
-  })
 
   if (!agent) {
     return (
@@ -285,52 +216,41 @@ export function ChatView({
       )}
 
       {/* Agent terminal area */}
-      <div className={styles.terminalWrapper}>
-        {terminalAgents.map((terminalAgent) => {
-          const isSelected = terminalAgent.id === selectedAgentId
-          return (
-            <div
-              key={terminalAgent.id}
-              className={`${styles.terminalLayer} ${isSelected ? styles.terminalLayerActive : styles.terminalLayerHidden}`}
-              aria-hidden={!isSelected}
-            >
-              <TerminalPane
-                rawOutput={rawOutputs.get(terminalAgent.id) ?? ''}
-                onData={isSelected ? (data) => onTerminalData(terminalAgent.id, data) : undefined}
-                onResize={(cols, rows) => onTerminalResize(terminalAgent.id, cols, rows)}
-                autoFocus={isSelected}
-              />
-            </div>
-          )
-        })}
-
-        {!selectedTerminalVisible && (
-          <div className={styles.idleEmptyState}>
-            <div className={styles.idleEmptyContent}>
-              {agent.status === 'starting' ? (
-                <div className={styles.idleSpinner} />
-              ) : (
-                <HydraIcon size={56} />
-              )}
-              <h3 className={styles.idleTitle}>
-                {agent.status === 'starting' && 'Starting session...'}
-                {agent.status === 'idle' && 'Session is idle'}
-                {agent.status === 'errored' && 'Session disconnected'}
-              </h3>
-              <p className={styles.idleSubtitle}>
-                {agent.status === 'starting' && 'Launching the agent process.'}
-                {agent.status === 'idle' && 'Send a message or start to resume.'}
-                {agent.status === 'errored' && 'Restart to reconnect.'}
-              </p>
-              {agent.status !== 'starting' && (
-                <button className={styles.idleStartBtn} onClick={onRestartAgent}>
-                  {agent.status === 'errored' ? 'Reconnect' : 'Start'}
-                </button>
-              )}
-            </div>
+      {agent.status !== 'running' && rawOutput.length === 0 ? (
+        <div className={styles.idleEmptyState}>
+          <div className={styles.idleEmptyContent}>
+            {agent.status === 'starting' ? (
+              <div className={styles.idleSpinner} />
+            ) : (
+              <HydraIcon size={56} />
+            )}
+            <h3 className={styles.idleTitle}>
+              {agent.status === 'starting' && 'Starting session...'}
+              {agent.status === 'idle' && 'Session is idle'}
+              {agent.status === 'errored' && 'Session disconnected'}
+            </h3>
+            <p className={styles.idleSubtitle}>
+              {agent.status === 'starting' && 'Launching the agent process.'}
+              {agent.status === 'idle' && 'Send a message or start to resume.'}
+              {agent.status === 'errored' && 'Restart to reconnect.'}
+            </p>
+            {agent.status !== 'starting' && (
+              <button className={styles.idleStartBtn} onClick={onRestartAgent}>
+                {agent.status === 'errored' ? 'Reconnect' : 'Start'}
+              </button>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className={styles.terminalWrapper}>
+          <TerminalPane
+            key={agent.id}
+            rawOutput={rawOutput}
+            onData={onTerminalData}
+            onResize={onTerminalResize}
+          />
+        </div>
+      )}
 
       <div className={styles.bottomDock}>
         {/* Input */}

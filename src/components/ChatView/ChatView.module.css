@@ -288,28 +288,10 @@
 
 /* Terminal */
 .terminalWrapper {
-  position: relative;
   flex: 1;
   min-height: 0;
   overflow: hidden;
   background: var(--color-terminal-bg);
-}
-
-.terminalLayer {
-  position: absolute;
-  inset: 0;
-}
-
-.terminalLayerActive {
-  opacity: 1;
-  pointer-events: auto;
-  z-index: 1;
-}
-
-.terminalLayerHidden {
-  opacity: 0;
-  pointer-events: none;
-  z-index: 0;
 }
 
 /* Bottom dock: input + terminal slider */

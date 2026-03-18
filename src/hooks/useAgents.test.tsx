@@ -102,10 +102,15 @@ describe('useAgents', () => {
       restartPromise = result.current.restartAgent('agent-1')
     })
 
-    // Emit output + status before restart resolves.
+    // Emit output + status, then flush RAF
     act(() => {
       outputHandler?.({ agentId: 'agent-1', data: 'boot output' })
       statusHandler?.({ agentId: 'agent-1', status: 'running', sessionId: null })
+    })
+
+    // Flush the RAF-batched output update
+    await act(async () => {
+      await new Promise((r) => requestAnimationFrame(r))
     })
 
     await act(async () => {
@@ -114,7 +119,7 @@ describe('useAgents', () => {
     })
 
     await waitFor(() => {
-      expect(result.current.agents.get('agent-1')?.rawOutput).toContain('boot output')
+      expect(result.current.rawOutputs.get('agent-1')).toContain('boot output')
     })
   })
 
@@ -139,6 +144,6 @@ describe('useAgents', () => {
       })
     })
 
-    expect(result.current.agents.get(created.id)?.rawOutput).toBe('line one\nline two')
+    expect(result.current.rawOutputs.get(created.id)).toBe('line one\nline two')
   })
 })
