@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ModelId, ProviderId, CreateAgentPayload, ClaudeSessionSummary, McpServerStatus, WorkMode } from '@shared/types'
 import { PROVIDER_LABELS, CODEX_REASONING_LEVELS } from '@shared/types'
 import { useRuntimeProviderModels } from '../../hooks/useRuntimeProviderModels'
+import claudeIcon from '../../assets/claude-icon.png'
+import codexIcon from '../../assets/codex-icon.png'
 import styles from './NewAgentDialog.module.css'
 
 const PROVIDERS: ProviderId[] = ['claude', 'codex']
@@ -248,6 +250,13 @@ export function NewAgentDialog({
                     setSelectedSessionId('')
                   }}
                 >
+                  <img
+                    src={p === 'codex' ? codexIcon : claudeIcon}
+                    alt=""
+                    width={16}
+                    height={16}
+                    className={styles.providerIcon}
+                  />
                   {PROVIDER_LABELS[p]}
                 </button>
               ))}
