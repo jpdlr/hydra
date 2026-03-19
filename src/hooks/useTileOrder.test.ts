@@ -32,7 +32,7 @@ const STORAGE_KEY = 'hydra:tile-order:v1'
 
 describe('useTileOrder', () => {
   beforeEach(() => {
-    localStorage.clear()
+    window.localStorage.clear()
   })
 
   it('returns agent IDs in their natural order when no stored order exists', () => {
@@ -44,7 +44,7 @@ describe('useTileOrder', () => {
     expect(result.current.hasCustomOrder).toBe(false)
   })
 
-  it('reorders agents on handleReorder and persists to localStorage', () => {
+  it('reorders agents on handleReorder and persists to window.localStorage', () => {
     const agents = [makeAgent('a'), makeAgent('b'), makeAgent('c')]
     const { result } = renderHook(() =>
       useTileOrder('/tmp/project', agents, false)
@@ -57,12 +57,12 @@ describe('useTileOrder', () => {
     expect(result.current.orderedIds).toEqual(['c', 'a', 'b'])
     expect(result.current.hasCustomOrder).toBe(true)
 
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)!)
+    const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY)!)
     expect(stored['/tmp/project']).toEqual(['c', 'a', 'b'])
   })
 
   it('appends new agents at the end of stored order', () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
       '/tmp/project': ['b', 'a']
     }))
 
@@ -102,7 +102,7 @@ describe('useTileOrder', () => {
   })
 
   it('removes stale agent IDs from stored order', () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
       '/tmp/project': ['a', 'b', 'c']
     }))
 
@@ -131,7 +131,7 @@ describe('useTileOrder', () => {
   })
 
   it('resetOrder clears stored order for the project only', () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
       '/tmp/project': ['b', 'a'],
       '/tmp/other': ['x', 'y']
     }))
@@ -150,7 +150,7 @@ describe('useTileOrder', () => {
     expect(result.current.hasCustomOrder).toBe(false)
     expect(result.current.orderedIds).toEqual(['a', 'b'])
 
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)!)
+    const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY)!)
     expect(stored['/tmp/other']).toEqual(['x', 'y'])
     expect(stored['/tmp/project']).toBeUndefined()
   })

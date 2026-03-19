@@ -216,7 +216,7 @@ function setupViewModeMock() {
 
 describe('App flow behavior', () => {
   beforeEach(() => {
-    localStorage.clear()
+    window.localStorage.clear()
     currentConfig = { ...baseConfig }
     currentViewMode = currentConfig.defaultViewMode
     mockUpdateConfig.mockReset()

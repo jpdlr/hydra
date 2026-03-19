@@ -24,7 +24,7 @@ function mergeOrder(baseOrder: string[], agentIds: string[]): string[] {
 
 function readStoredOrders(): TileOrderMap {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) return {}
     const parsed = JSON.parse(raw)
     if (typeof parsed !== 'object' || parsed === null) return {}
@@ -36,7 +36,7 @@ function readStoredOrders(): TileOrderMap {
 
 function writeStoredOrders(orders: TileOrderMap): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(orders))
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(orders))
   } catch {
     // Best-effort persistence
   }
