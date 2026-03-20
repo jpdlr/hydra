@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { CcusageDailyEntry, CcusageSnapshot } from '@shared/types'
+import type { CcusageDailyEntry, CcusageSnapshot, ProviderId } from '@shared/types'
 import styles from './UsageDashboard.module.css'
 
 interface UsageDashboardProps {
@@ -8,6 +8,7 @@ interface UsageDashboardProps {
 
 const DAY_LIMIT = 30
 const TREND_WINDOWS = [7, 30] as const
+const USAGE_PROVIDERS: ProviderId[] = ['claude', 'codex']
 type TrendWindow = (typeof TREND_WINDOWS)[number]
 
 interface TrendPoint {
@@ -22,11 +23,12 @@ export function UsageDashboard({ onClose }: UsageDashboardProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [trendWindow, setTrendWindow] = useState<TrendWindow>(7)
+  const [selectedProvider, setSelectedProvider] = useState<ProviderId>('claude')
 
   const refresh = useCallback(async () => {
     setIsLoading(true)
     try {
-      const next = await window.hydra.getUsageDashboard({ days: DAY_LIMIT })
+      const next = await window.hydra.getUsageDashboard({ days: DAY_LIMIT, provider: selectedProvider })
       setSnapshot(next)
       setSelectedDate((prev) => {
         if (prev && next.daily.some((d) => d.date === prev)) return prev
@@ -35,7 +37,7 @@ export function UsageDashboard({ onClose }: UsageDashboardProps) {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [selectedProvider])
 
   useEffect(() => {
     void refresh()
@@ -78,6 +80,15 @@ export function UsageDashboard({ onClose }: UsageDashboardProps) {
     >
   }, [snapshot, selectedDate])
 
+  const providerLabel = selectedProvider === 'codex' ? 'Codex' : 'Claude Code'
+  const providerInstallTitle = selectedProvider === 'codex' ? 'Codex usage support is not installed' : 'ccusage is not installed'
+  const providerInstallDescription = selectedProvider === 'codex'
+    ? 'Hydra uses the Codex companion for ccusage to analyze your local Codex usage logs.'
+    : 'Hydra uses ccusage to analyze your Claude Code usage from local log files.'
+  const providerEmptyDescription = selectedProvider === 'codex'
+    ? 'No usage data found. Start using Codex to generate usage logs.'
+    : 'No usage data found. Start using Claude Code to generate usage logs.'
+
   // Not installed state
   if (!isLoading && snapshot && !snapshot.available) {
     return (
@@ -92,6 +103,23 @@ export function UsageDashboard({ onClose }: UsageDashboardProps) {
               &#x2715;
             </button>
           </div>
+          <div className={styles.controls}>
+            <div className={styles.controlGroup}>
+              <label className={styles.label}>Provider</label>
+              <div className={styles.segmented}>
+                {USAGE_PROVIDERS.map((provider) => (
+                  <button
+                    key={provider}
+                    className={`${styles.segmentBtn} ${selectedProvider === provider ? styles.segmentBtnActive : ''}`}
+                    type="button"
+                    onClick={() => setSelectedProvider(provider)}
+                  >
+                    {provider === 'codex' ? 'Codex' : 'Claude'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
           <div className={styles.notInstalled}>
             <div className={styles.notInstalledIcon}>
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -100,16 +128,16 @@ export function UsageDashboard({ onClose }: UsageDashboardProps) {
                 <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
             </div>
-            <h3>ccusage is not installed</h3>
+            <h3>{providerInstallTitle}</h3>
             <p>
-              Hydra uses <strong>ccusage</strong> to analyze your Claude Code usage from local log files.
-              No API keys required.
+              {providerInstallDescription}
+              {' '}No API keys required.
             </p>
             <div className={styles.installBlock}>
-              <code>npm install -g ccusage</code>
+              <code>{snapshot.installHint?.split('\n')[1]?.trim() ?? 'npm install -g ccusage'}</code>
             </div>
             <p className={styles.installNote}>
-              After installing, reopen this dashboard to see your usage data.
+              After installing, refresh or reopen this dashboard to see your usage data.
             </p>
             <a
               className={styles.learnMore}
@@ -132,7 +160,7 @@ export function UsageDashboard({ onClose }: UsageDashboardProps) {
           <div>
             <h2>Usage Dashboard</h2>
             <p className={styles.subtitle}>
-              Token usage and costs from local Claude Code logs via ccusage
+              Token usage and costs from local {providerLabel} logs via ccusage
             </p>
           </div>
           <button className={styles.closeBtn} type="button" onClick={onClose}>
@@ -149,6 +177,22 @@ export function UsageDashboard({ onClose }: UsageDashboardProps) {
           ) : selectedDay ? (
             <>
             <div className={styles.controls}>
+              <div className={styles.controlGroup}>
+                <label className={styles.label}>Provider</label>
+                <div className={styles.segmented}>
+                  {USAGE_PROVIDERS.map((provider) => (
+                    <button
+                      key={provider}
+                      className={`${styles.segmentBtn} ${selectedProvider === provider ? styles.segmentBtnActive : ''}`}
+                      type="button"
+                      onClick={() => setSelectedProvider(provider)}
+                    >
+                      {provider === 'codex' ? 'Codex' : 'Claude'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className={styles.controlGroup}>
                 <label className={styles.label}>Day</label>
                 <select
@@ -278,7 +322,7 @@ export function UsageDashboard({ onClose }: UsageDashboardProps) {
             </>
           ) : (
             <div className={styles.empty}>
-              No usage data found. Start using Claude Code to generate usage logs.
+              {providerEmptyDescription}
             </div>
           )}
         </div>

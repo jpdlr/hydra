@@ -108,7 +108,8 @@ const headlessLogOptionsSchema = z
   .optional()
 const ccusageOptionsSchema = z
   .object({
-    days: z.number().int().min(1).max(90).optional()
+    days: z.number().int().min(1).max(90).optional(),
+    provider: providerSchema.optional()
   })
   .optional()
 const sessionListOptionsSchema = z
@@ -501,89 +502,110 @@ export function registerIpcHandlers(
   ipcMain.handle(IPC.USAGE_DASHBOARD_GET, async (_event, options?: CcusageOptions): Promise<CcusageSnapshot> => {
     const parsed = ccusageOptionsSchema.parse(options)
     const days = parsed?.days ?? 30
+    const provider = parsed?.provider ?? 'claude'
     const since = new Date()
     since.setDate(since.getDate() - days)
     const sinceStr = since.toISOString().slice(0, 10).replace(/-/g, '')
+    const usageCommand = provider === 'codex' ? 'ccusage-codex' : 'ccusage'
+    const installHint =
+      provider === 'codex'
+        ? 'Install Codex usage support to view usage data:\n  npm install -g @ccusage/codex'
+        : 'Install ccusage to view usage data:\n  npm install -g ccusage'
 
     const notInstalled: CcusageSnapshot = {
       available: false,
-      installHint: 'Install ccusage to view usage data:\n  npm install -g ccusage',
+      provider,
+      installHint,
       generatedAt: new Date().toISOString(),
       daily: [],
       projects: {}
     }
 
+    const baseArgs = ['daily', '--json', '--since', sinceStr]
+
+    const runUsageCommand = (args: string[]): Promise<{ error: Error | null; stdout: string }> =>
+      new Promise((resolve) => {
+        execFile(
+          usageCommand,
+          args,
+          { timeout: 15_000, env: { ...process.env, FORCE_COLOR: '0' } },
+          (error, stdout) => resolve({ error, stdout })
+        )
+      })
+
     return new Promise<CcusageSnapshot>((resolve) => {
-      // First run: daily with instances (projects)
-      execFile(
-        'ccusage',
-        ['daily', '--json', '--instances', '--since', sinceStr],
-        { timeout: 15_000, env: { ...process.env, FORCE_COLOR: '0' } },
-        (error, stdout) => {
+      const resolveAvailable = (daily: CcusageDailyEntry[], projects: Record<string, CcusageDailyEntry[]>) => {
+        resolve({
+          available: true,
+          provider,
+          generatedAt: new Date().toISOString(),
+          daily,
+          projects
+        })
+      }
+
+      if (provider === 'codex') {
+        void runUsageCommand(baseArgs).then(({ error, stdout }) => {
           if (error) {
-            // Check if ccusage is simply not installed
             if ((error as NodeJS.ErrnoException).code === 'ENOENT' || error.message?.includes('ENOENT')) {
               resolve(notInstalled)
               return
             }
-            // Other error — ccusage exists but failed
-            resolve({
-              available: true,
-              generatedAt: new Date().toISOString(),
-              daily: [],
-              projects: {}
-            })
+            resolveAvailable([], {})
             return
           }
+
           try {
             const data = JSON.parse(stdout)
-            // ccusage --instances returns { projects: { ... } }
-            // ccusage without --instances returns { daily: [...] }
-            // With --instances, the daily array is not present — we need both
-            const projects: Record<string, CcusageDailyEntry[]> = {}
-            if (data.projects && typeof data.projects === 'object') {
-              for (const [key, entries] of Object.entries(data.projects)) {
-                if (Array.isArray(entries)) {
-                  projects[key] = entries as CcusageDailyEntry[]
-                }
+            const daily = Array.isArray(data.daily) ? data.daily as CcusageDailyEntry[] : []
+            resolveAvailable(daily, {})
+          } catch {
+            resolveAvailable([], {})
+          }
+        })
+        return
+      }
+
+      // Claude: fetch aggregate daily and project-grouped data separately.
+      void runUsageCommand([...baseArgs, '--instances']).then(({ error, stdout }) => {
+        if (error) {
+          if ((error as NodeJS.ErrnoException).code === 'ENOENT' || error.message?.includes('ENOENT')) {
+            resolve(notInstalled)
+            return
+          }
+          resolveAvailable([], {})
+          return
+        }
+
+        try {
+          const data = JSON.parse(stdout)
+          const projects: Record<string, CcusageDailyEntry[]> = {}
+          if (data.projects && typeof data.projects === 'object') {
+            for (const [key, entries] of Object.entries(data.projects)) {
+              if (Array.isArray(entries)) {
+                projects[key] = entries as CcusageDailyEntry[]
               }
             }
-
-            // Now run again without --instances to get the aggregate daily
-            execFile(
-              'ccusage',
-              ['daily', '--json', '--since', sinceStr],
-              { timeout: 15_000, env: { ...process.env, FORCE_COLOR: '0' } },
-              (error2, stdout2) => {
-                let daily: CcusageDailyEntry[] = []
-                if (!error2) {
-                  try {
-                    const data2 = JSON.parse(stdout2)
-                    if (Array.isArray(data2.daily)) {
-                      daily = data2.daily
-                    }
-                  } catch {
-                    // best effort
-                  }
-                }
-                resolve({
-                  available: true,
-                  generatedAt: new Date().toISOString(),
-                  daily,
-                  projects
-                })
-              }
-            )
-          } catch {
-            resolve({
-              available: true,
-              generatedAt: new Date().toISOString(),
-              daily: [],
-              projects: {}
-            })
           }
+
+          void runUsageCommand(baseArgs).then(({ error: error2, stdout: stdout2 }) => {
+            let daily: CcusageDailyEntry[] = []
+            if (!error2) {
+              try {
+                const data2 = JSON.parse(stdout2)
+                if (Array.isArray(data2.daily)) {
+                  daily = data2.daily
+                }
+              } catch {
+                // best effort
+              }
+            }
+            resolveAvailable(daily, projects)
+          })
+        } catch {
+          resolveAvailable([], {})
         }
-      )
+      })
     })
   })
 

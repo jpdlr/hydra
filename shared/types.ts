@@ -434,6 +434,7 @@ export interface CcusageDailyEntry {
 
 export interface CcusageSnapshot {
   available: boolean
+  provider: ProviderId
   installHint?: string
   generatedAt: string
   daily: CcusageDailyEntry[]
@@ -443,6 +444,7 @@ export interface CcusageSnapshot {
 
 export interface CcusageOptions {
   days?: number
+  provider?: ProviderId
 }
 
 // ── App updates ───────────────────────────────────────────────────────────────
