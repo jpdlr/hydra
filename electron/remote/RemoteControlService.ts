@@ -172,8 +172,10 @@ export class RemoteControlService extends EventEmitter {
     this.stopOutputFlushing()
 
     if (this.firebaseApp) {
+      const app = this.firebaseApp
+      this.firebaseApp = null
       import('firebase/app').then(({ deleteApp }) => {
-        if (this.firebaseApp) void deleteApp(this.firebaseApp)
+        return deleteApp(app)
       }).catch(() => {/* ignore */})
     }
   }
