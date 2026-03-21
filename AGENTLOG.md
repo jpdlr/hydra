@@ -438,3 +438,9 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Context**: Hydra Remote showed Claude conversation history but empty Codex history for the same chat UI.
 **Mistake**: Reused a Claude-only transcript reader for remote and daemon history endpoints, even though Codex stores sessions under `~/.codex/sessions/...` with different JSONL event shapes.
 **Fix**: Pass `agent.provider` into transcript history lookups and parse Claude and Codex transcripts separately instead of assuming one transcript format.
+
+### Cross-process searches should target `src`, `electron`, and `shared`
+**Date**: 2026-03-21
+**Context**: While tracing agent output flow, a search against `electron/shared` failed because shared types live in the top-level `shared/` directory.
+**Mistake**: Assuming a colocated `electron/shared` tree exists when following imports like `@shared/types`.
+**Fix**: Search `src`, `electron`, and `shared` explicitly when tracing renderer/main/daemon boundaries in Hydra.

@@ -199,15 +199,19 @@ export function AgentList({ agents, onSelect, onKill, onRestart }: AgentListProp
             {expanded && (
               <div style={projectBodyStyle}>
                 {projectAgents.map((agent) => (
-                  <div key={agent.agentId} style={cardStyle}>
-                    <div style={cardHeaderStyle}>
+                  <button
+                    key={agent.agentId}
+                    type="button"
+                    style={cardStyle}
+                    onClick={() => onSelect(agent.agentId)}
+                  >
+                    <div style={cardTopRowStyle}>
                       <div style={statusDotStyle(agent.status)} />
-                      <button type="button" style={nameStyle} onClick={() => onSelect(agent.agentId)}>
-                        {agent.name}
-                      </button>
+                      <span style={nameStyle}>{agent.name}</span>
+                      <span style={timeStyle}>{formatRelativeActivity(agent)}</span>
                     </div>
 
-                    <div style={metaStyle}>
+                    <div style={cardBottomRowStyle}>
                       <span style={modelPillStyle}>
                         <img
                           src={agent.provider === 'codex' ? codexIcon : claudeIcon}
@@ -216,25 +220,27 @@ export function AgentList({ agents, onSelect, onKill, onRestart }: AgentListProp
                         />
                         {formatModelLabel(agent.provider, agent.model)}
                       </span>
-                      <span>{formatRelativeActivity(agent)}</span>
-                    </div>
-
-                    <div style={actionsStyle}>
+                      <span style={actionsSpacer} />
                       {agent.status === 'running' && (
-                        <button type="button" style={killBtnStyle} onClick={() => onKill(agent.agentId)}>
+                        <span
+                          role="button"
+                          style={killBtnStyle}
+                          onClick={(e) => { e.stopPropagation(); onKill(agent.agentId) }}
+                        >
                           Stop
-                        </button>
+                        </span>
                       )}
                       {(agent.status === 'idle' || agent.status === 'errored') && (
-                        <button type="button" style={restartBtnStyle} onClick={() => onRestart(agent.agentId)}>
+                        <span
+                          role="button"
+                          style={restartBtnStyle}
+                          onClick={(e) => { e.stopPropagation(); onRestart(agent.agentId) }}
+                        >
                           Restart
-                        </button>
+                        </span>
                       )}
-                      <button type="button" style={chatBtnStyle} onClick={() => onSelect(agent.agentId)}>
-                        Chat
-                      </button>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -320,13 +326,13 @@ function formatModelLabel(provider: string, model: string): string {
 const modelPillStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
-  gap: 6,
-  background: 'rgba(255, 255, 255, 0.06)',
+  gap: 5,
+  background: 'rgba(255, 255, 255, 0.05)',
   borderRadius: 999,
-  padding: '3px 10px 3px 5px',
-  fontSize: '0.72rem',
+  padding: '3px 9px 3px 4px',
+  fontSize: '0.68rem',
   fontWeight: 500,
-  color: '#c0c0c0',
+  color: '#888',
   lineHeight: 1.5
 }
 
@@ -358,12 +364,12 @@ function statusDotStyle(status: string): CSSProperties {
 
 function filterChipStyle(active: boolean): CSSProperties {
   return {
-    padding: '6px 10px',
-    fontSize: '0.72rem',
+    padding: '5px 11px',
+    fontSize: '0.7rem',
     borderRadius: 999,
-    border: active ? '1px solid #e8e8e8' : '1px solid #333333',
-    color: active ? '#ffffff' : '#a0a0a0',
-    background: active ? 'rgba(255, 255, 255, 0.08)' : '#191919',
+    border: 'none',
+    color: active ? '#ffffff' : '#666',
+    background: active ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
     cursor: 'pointer',
     fontWeight: 600
   }
@@ -372,7 +378,7 @@ function filterChipStyle(active: boolean): CSSProperties {
 const listStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-  gap: 12,
+  gap: 10,
   padding: '0 16px 16px'
 }
 
@@ -382,18 +388,19 @@ const toolbarStyle: CSSProperties = {
   zIndex: 20,
   margin: '0 -16px',
   padding: '12px 16px 10px',
-  background: '#191919',
-  borderBottom: '1px solid #2a2a2a'
+  background: 'rgba(17, 17, 17, 0.92)',
+  backdropFilter: 'blur(12px)',
+  WebkitBackdropFilter: 'blur(12px)'
 }
 
 const searchInputStyle: CSSProperties = {
   width: '100%',
   border: '1px solid #2a2a2a',
-  borderRadius: 10,
-  background: '#191919',
+  borderRadius: 12,
+  background: '#1e1e1e',
   color: '#e8e8e8',
-  padding: '10px 12px',
-  fontSize: '0.875rem',
+  padding: '11px 14px',
+  fontSize: '0.85rem',
   outline: 'none'
 }
 
@@ -401,24 +408,22 @@ const filtersRowStyle: CSSProperties = {
   marginTop: 10,
   display: 'flex',
   alignItems: 'center',
-  gap: 8,
+  gap: 6,
   overflowX: 'auto',
   paddingBottom: 2
 }
 
 const resultCountStyle: CSSProperties = {
   marginLeft: 'auto',
-  fontSize: '0.72rem',
-  color: '#a0a0a0',
+  fontSize: '0.7rem',
+  color: '#666',
   whiteSpace: 'nowrap'
 }
 
 const projectSectionStyle: CSSProperties = {
-  border: '1px solid #2a2a2a',
   borderRadius: 14,
-  background: '#191919',
-  overflow: 'hidden',
-  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)'
+  background: '#161616',
+  overflow: 'hidden'
 }
 
 const projectHeaderStyle: CSSProperties = {
@@ -426,16 +431,16 @@ const projectHeaderStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 8,
-  background: '#212121',
+  background: 'transparent',
   border: 'none',
   color: '#e8e8e8',
-  padding: '11px 12px',
+  padding: '12px 14px',
   cursor: 'pointer'
 }
 
 const projectChevronStyle: CSSProperties = {
-  fontSize: '0.72rem',
-  opacity: 0.8
+  fontSize: '0.7rem',
+  opacity: 0.5
 }
 
 const projectTitleStyle: CSSProperties = {
@@ -448,114 +453,106 @@ const projectCountStyle: CSSProperties = {
   marginLeft: 'auto',
   padding: '2px 8px',
   borderRadius: 999,
-  border: '1px solid #333333',
-  fontSize: '0.6875rem',
-  color: '#e8e8e8'
+  border: '1px solid #2a2a2a',
+  fontSize: '0.65rem',
+  color: '#888'
 }
 
 const projectBodyStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-  gap: 8,
-  padding: 10
+  gap: 6,
+  padding: '4px 8px 10px'
 }
 
 const cardStyle: CSSProperties = {
-  background: '#212121',
+  width: '100%',
+  background: '#1e1e1e',
   borderRadius: 12,
-  padding: 14,
-  border: '1px solid #2a2a2a',
+  padding: '12px 14px',
+  border: 'none',
   display: 'flex',
   flexDirection: 'column',
-  gap: 10
+  gap: 8,
+  cursor: 'pointer',
+  textAlign: 'left',
+  color: 'inherit',
+  transition: 'background 150ms'
 }
 
-const cardHeaderStyle: CSSProperties = {
+const cardTopRowStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 8
 }
 
 const nameStyle: CSSProperties = {
-  background: 'none',
-  border: 'none',
   color: '#e8e8e8',
-  fontSize: '0.95rem',
+  fontSize: '0.88rem',
   fontWeight: 600,
-  cursor: 'pointer',
-  padding: 0,
-  textAlign: 'left'
+  flex: 1,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap'
 }
 
-const metaStyle: CSSProperties = {
+const timeStyle: CSSProperties = {
+  fontSize: '0.68rem',
+  color: '#555',
+  flexShrink: 0
+}
+
+const cardBottomRowStyle: CSSProperties = {
   display: 'flex',
-  justifyContent: 'space-between',
-  fontSize: '0.74rem',
-  color: '#a0a0a0',
+  alignItems: 'center',
   gap: 8
 }
 
-const actionsStyle: CSSProperties = {
-  display: 'flex',
-  gap: 8,
-  alignItems: 'center'
+const actionsSpacer: CSSProperties = {
+  flex: 1
 }
 
 const killBtnStyle: CSSProperties = {
-  padding: '7px 12px',
-  fontSize: '0.76rem',
-  borderRadius: 8,
-  border: '1px solid #f87171',
+  padding: '4px 10px',
+  fontSize: '0.7rem',
+  borderRadius: 999,
+  border: '1px solid rgba(248, 113, 113, 0.4)',
   color: '#f87171',
-  background: 'transparent',
+  background: 'rgba(248, 113, 113, 0.08)',
   cursor: 'pointer',
   fontWeight: 600
 }
 
 const restartBtnStyle: CSSProperties = {
-  padding: '7px 12px',
-  fontSize: '0.76rem',
-  borderRadius: 8,
-  border: '1px solid #ffd166',
+  padding: '4px 10px',
+  fontSize: '0.7rem',
+  borderRadius: 999,
+  border: '1px solid rgba(255, 209, 102, 0.4)',
   color: '#ffd166',
-  background: 'transparent',
+  background: 'rgba(255, 209, 102, 0.08)',
   cursor: 'pointer',
-  fontWeight: 600
-}
-
-const chatBtnStyle: CSSProperties = {
-  padding: '7px 12px',
-  fontSize: '0.76rem',
-  borderRadius: 8,
-  border: '1px solid #e8e8e8',
-  color: '#e8e8e8',
-  background: 'transparent',
-  cursor: 'pointer',
-  marginLeft: 'auto',
   fontWeight: 600
 }
 
 const emptyStyle: CSSProperties = {
   textAlign: 'center',
-  color: '#a0a0a0',
-  padding: 28,
-  border: '1px solid #2a2a2a',
+  color: '#666',
+  padding: 32,
   margin: '0 16px',
-  borderRadius: 12,
-  background: '#191919'
+  borderRadius: 14,
+  background: '#161616'
 }
 
 const emptySearchStyle: CSSProperties = {
   textAlign: 'center',
   color: '#e8e8e8',
-  padding: 20,
-  border: '1px solid #2a2a2a',
-  borderRadius: 12,
-  background: '#191919'
+  padding: 24,
+  borderRadius: 14,
+  background: '#161616'
 }
 
 const emptySubtextStyle: CSSProperties = {
   marginTop: 6,
   fontSize: '0.75rem',
-  color: '#666666'
+  color: '#555'
 }

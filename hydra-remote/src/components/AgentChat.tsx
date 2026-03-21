@@ -1,4 +1,6 @@
 import { type CSSProperties, type FormEvent, type KeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import claudeIcon from '../assets/claude-icon.png'
+import codexIcon from '../assets/codex-icon.png'
 import styles from './AgentChat.module.css'
 
 interface OutboxMessage {
@@ -18,6 +20,7 @@ interface AgentChatProps {
   agentId: string
   agentName: string
   agentStatus: string
+  provider?: string
   messages: OutboxMessage[]
   onSendPrompt: (input: string) => void | Promise<void>
   onSendCommand: (type: 'get_history', payload: Record<string, unknown>) => void | Promise<void>
@@ -89,6 +92,7 @@ export function AgentChat({
   agentId,
   agentName,
   agentStatus,
+  provider,
   messages,
   onSendPrompt,
   onSendCommand,
@@ -101,6 +105,7 @@ export function AgentChat({
   const [promptAnchorTimestamp, setPromptAnchorTimestamp] = useState<string | null>(null)
   const [activePromptText, setActivePromptText] = useState<string | null>(null)
   const [copiedCodeKey, setCopiedCodeKey] = useState<string | null>(null)
+  const [showScrollBtn, setShowScrollBtn] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [transcriptHistory, setTranscriptHistory] = useState<TranscriptMessage[]>([])
@@ -358,9 +363,21 @@ export function AgentChat({
   const showStatusBanner = statusText !== null
   const canRestart = agentStatus === 'idle' || agentStatus === 'errored'
 
+  // Scroll to bottom whenever messages change or on mount
   useEffect(() => {
-    if (!scrollRef.current) return
-    scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    const scroll = () => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+      }
+    }
+    const t1 = setTimeout(scroll, 1000)
+    const t2 = setTimeout(scroll, 1200)
+    const t3 = setTimeout(scroll, 1400)
+    return () => {
+      clearTimeout(t1)
+      clearTimeout(t2)
+      clearTimeout(t3)
+    }
   }, [chatBubbles, isTyping])
 
   useEffect(() => {
@@ -369,6 +386,19 @@ export function AgentChat({
     element.style.height = '0px'
     element.style.height = `${Math.min(element.scrollHeight, 180)}px`
   }, [input])
+
+  // Fix iOS Safari gap when virtual keyboard closes
+  useEffect(() => {
+    const element = textareaRef.current
+    if (!element) return
+    const handleBlur = () => {
+      setTimeout(() => {
+        window.scrollTo(0, 0)
+      }, 50)
+    }
+    element.addEventListener('blur', handleBlur)
+    return () => element.removeEventListener('blur', handleBlur)
+  }, [])
 
   useEffect(() => {
     if (!copiedCodeKey) return
@@ -455,7 +485,16 @@ export function AgentChat({
         </div>
       )}
 
-      <div ref={scrollRef} className={styles.timeline}>
+      <div
+        ref={scrollRef}
+        className={styles.timeline}
+        onScroll={() => {
+          const el = scrollRef.current
+          if (!el) return
+          const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+          setShowScrollBtn(distFromBottom > 150)
+        }}
+      >
         {chatBubbles.length === 0 && !isTyping && (
           <section className={styles.emptyState}>
             <div className={styles.emptyStateBadge}>Hydra Remote</div>
@@ -484,7 +523,13 @@ export function AgentChat({
             className={`${styles.messageRow} ${message.role === 'user' ? styles.messageRowUser : styles.messageRowAssistant}`}
           >
             <div className={`${styles.avatar} ${message.role === 'user' ? styles.avatarUser : styles.avatarAssistant}`}>
-              {message.role === 'user' ? 'You' : 'AI'}
+              {message.role === 'user' ? 'You' : (
+                <img
+                  src={provider === 'codex' ? codexIcon : claudeIcon}
+                  alt={provider === 'codex' ? 'Codex' : 'Claude'}
+                  className={styles.avatarIcon}
+                />
+              )}
             </div>
 
             <div className={`${styles.messageCard} ${message.role === 'user' ? styles.messageCardUser : styles.messageCardAssistant}`}>
@@ -505,7 +550,13 @@ export function AgentChat({
 
         {isTyping && (
           <article className={`${styles.messageRow} ${styles.messageRowAssistant}`}>
-            <div className={`${styles.avatar} ${styles.avatarAssistant}`}>AI</div>
+            <div className={`${styles.avatar} ${styles.avatarAssistant}`}>
+              <img
+                src={provider === 'codex' ? codexIcon : claudeIcon}
+                alt={provider === 'codex' ? 'Codex' : 'Claude'}
+                className={styles.avatarIcon}
+              />
+            </div>
             <div className={`${styles.messageCard} ${styles.messageCardAssistant}`}>
               <div className={styles.messageMeta}>
                 <span className={styles.messageAuthor}>{agentName}</span>
@@ -520,6 +571,21 @@ export function AgentChat({
           </article>
         )}
       </div>
+
+      {showScrollBtn && (
+        <button
+          type="button"
+          className={styles.scrollDownBtn}
+          onClick={() => {
+            if (scrollRef.current) {
+              scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
+            }
+          }}
+          aria-label="Scroll to bottom"
+        >
+          ↓
+        </button>
+      )}
 
       <footer className={styles.composerShell}>
         <div className={styles.quickActions}>

@@ -216,6 +216,7 @@ export default function App() {
         agentId={selectedAgent.agentId}
         agentName={selectedAgent.name}
         agentStatus={selectedAgent.status}
+        provider={selectedAgent.provider}
         messages={messages}
         onSendPrompt={handleSendPrompt}
         onSendCommand={sendCommand}
