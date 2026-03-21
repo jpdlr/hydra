@@ -426,3 +426,15 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Context**: The Usage Dashboard showed Codex token totals but missing pricing/model data, plus invalid day labels, even though `npx @ccusage/codex@latest daily` worked correctly in Terminal.
 **Mistake**: Assuming Codex exposed a standalone `ccusage-codex` binary and that its output shape could be treated exactly like Claude's existing path without normalizing dates/cost aliases.
 **Fix**: Invoke Codex usage through `npx -y @ccusage/codex@latest ...`, and defensively normalize Codex date/cost fields before rendering.
+
+### Discriminated unions in JSX renderers should use `switch` when fields differ by variant
+**Date**: 2026-03-21
+**Context**: Reworked `hydra-remote/src/components/AgentChat.tsx` to render paragraphs, headings, lists, and code blocks from parsed chat content.
+**Mistake**: Used a chain of `if` branches inside `Array.map()` and then accessed `block.text` in the fallback branch, assuming TypeScript would exclude list variants cleanly.
+**Fix**: Prefer an explicit `switch (block.type)` for discriminated unions in JSX renderers, especially when some variants expose different fields (`text` vs `items` vs `code`).
+
+### Remote transcript history must be provider-aware
+**Date**: 2026-03-21
+**Context**: Hydra Remote showed Claude conversation history but empty Codex history for the same chat UI.
+**Mistake**: Reused a Claude-only transcript reader for remote and daemon history endpoints, even though Codex stores sessions under `~/.codex/sessions/...` with different JSONL event shapes.
+**Fix**: Pass `agent.provider` into transcript history lookups and parse Claude and Codex transcripts separately instead of assuming one transcript format.

@@ -351,7 +351,7 @@ export class RemoteControlService extends EventEmitter {
   private async sendConversationHistory(agentId: string): Promise<void> {
     const agent = await Promise.resolve(this.agentManager.get(agentId))
     if (!agent?.sessionId) return
-    const messages = readTranscriptHistory(agent.sessionId)
+    const messages = readTranscriptHistory(agent.sessionId, agent.provider)
     await this.writeOutbox('conversation_history', { agentId, messages })
   }
 

@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import claudeIcon from '../assets/claude-icon.png'
+import codexIcon from '../assets/codex-icon.png'
 
 type DateFilterKey = '24h' | '7d' | '30d' | 'all'
 
@@ -206,7 +208,14 @@ export function AgentList({ agents, onSelect, onKill, onRestart }: AgentListProp
                     </div>
 
                     <div style={metaStyle}>
-                      <span>{agent.provider} / {agent.model}</span>
+                      <span style={modelPillStyle}>
+                        <img
+                          src={agent.provider === 'codex' ? codexIcon : claudeIcon}
+                          alt={agent.provider === 'codex' ? 'Codex' : 'Claude'}
+                          style={providerIconStyle}
+                        />
+                        {formatModelLabel(agent.provider, agent.model)}
+                      </span>
                       <span>{formatRelativeActivity(agent)}</span>
                     </div>
 
@@ -301,6 +310,32 @@ function formatRelativeActivity(agent: AgentSummary): string {
     month: 'short',
     day: 'numeric'
   }).format(new Date(timestamp))
+}
+
+function formatModelLabel(provider: string, model: string): string {
+  if (provider === 'codex') return model.toUpperCase()
+  return model.charAt(0).toUpperCase() + model.slice(1).toLowerCase()
+}
+
+const modelPillStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 6,
+  background: 'rgba(255, 255, 255, 0.06)',
+  borderRadius: 999,
+  padding: '3px 10px 3px 5px',
+  fontSize: '0.72rem',
+  fontWeight: 500,
+  color: '#c0c0c0',
+  lineHeight: 1.5
+}
+
+const providerIconStyle: CSSProperties = {
+  width: 14,
+  height: 14,
+  borderRadius: 3,
+  objectFit: 'contain',
+  flexShrink: 0
 }
 
 function statusDotStyle(status: string): CSSProperties {

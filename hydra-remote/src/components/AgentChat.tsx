@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { type CSSProperties, type FormEvent, type KeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import styles from './AgentChat.module.css'
 
 interface OutboxMessage {
   id: string
@@ -44,11 +45,45 @@ interface PersistedChatState {
   activePromptText: string | null
 }
 
+interface ContentBlockBase {
+  key: string
+  type: 'paragraph' | 'heading' | 'unordered-list' | 'ordered-list' | 'code'
+}
+
+interface ParagraphBlock extends ContentBlockBase {
+  type: 'paragraph'
+  text: string
+}
+
+interface HeadingBlock extends ContentBlockBase {
+  type: 'heading'
+  text: string
+  level: 1 | 2 | 3
+}
+
+interface ListBlock extends ContentBlockBase {
+  type: 'unordered-list' | 'ordered-list'
+  items: string[]
+}
+
+interface CodeBlock extends ContentBlockBase {
+  type: 'code'
+  code: string
+  language: string | null
+}
+
+type ContentBlock = ParagraphBlock | HeadingBlock | ListBlock | CodeBlock
+
 const OUTPUT_HISTORY_LIMIT = 220
 const LOCAL_USER_MAX = 24
 const MAX_ASSISTANT_LINES = 40
 const MAX_ASSISTANT_CHARS = 4000
 const CHAT_STORAGE_VERSION = 'v3'
+const QUICK_ACTIONS = [
+  'Summarize the current state of this task.',
+  'What should we do next?',
+  'List the blockers you see right now.'
+]
 
 export function AgentChat({
   agentId,
@@ -65,21 +100,23 @@ export function AgentChat({
   const [awaitingReplySince, setAwaitingReplySince] = useState<string | null>(null)
   const [promptAnchorTimestamp, setPromptAnchorTimestamp] = useState<string | null>(null)
   const [activePromptText, setActivePromptText] = useState<string | null>(null)
+  const [copiedCodeKey, setCopiedCodeKey] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [transcriptHistory, setTranscriptHistory] = useState<TranscriptMessage[]>([])
   const historyRequestedRef = useRef(false)
   const storageKey = `hydra-remote:${CHAT_STORAGE_VERSION}:chat:${agentId}`
 
-  // Request conversation history from daemon on mount
   useEffect(() => {
     if (!historyRequestedRef.current) {
       historyRequestedRef.current = true
       void Promise.resolve(onSendCommand('get_history', { agentId }))
     }
-    return () => { historyRequestedRef.current = false }
+    return () => {
+      historyRequestedRef.current = false
+    }
   }, [agentId, onSendCommand])
 
-  // Pick up conversation_history outbox messages
   useEffect(() => {
     const historyMsg = messages.find(
       (msg) =>
@@ -146,7 +183,6 @@ export function AgentChat({
     return outputMessages.filter((msg) => compareTimestamp(msg.timestamp, promptAnchorTimestamp) > 0)
   }, [outputMessages, promptAnchorTimestamp])
 
-  // Structured conversation history from JSONL transcript
   const conversationHistory = useMemo(() => {
     if (transcriptHistory.length === 0) return []
 
@@ -179,17 +215,14 @@ export function AgentChat({
 
     if (allLines.length === 0) return null
 
-    // Find the LAST assistant start marker (⏺) — this is the response to the
-    // current prompt.  Using the first marker would pick up stale responses from
-    // a previous exchange that can still be in the output buffer.
     let startIndex = -1
-    for (let i = allLines.length - 1; i >= 0; i--) {
+    for (let i = allLines.length - 1; i >= 0; i -= 1) {
       if (isAssistantStartLine(allLines[i])) {
         startIndex = i
         break
       }
     }
-    // Strict mode: do not show any assistant bubble until an explicit assistant marker exists.
+
     if (startIndex < 0) return null
 
     const candidateLines: string[] = []
@@ -220,31 +253,23 @@ export function AgentChat({
       candidateLines.push(candidate)
     }
 
-    if (candidateLines.length === 0) {
-      return null
-    }
+    if (candidateLines.length === 0) return null
 
     const nonPromptLines = candidateLines.filter((line) => {
       if (!promptText) return true
       return !isPromptTextMatch(line, promptText)
     })
 
-    if (nonPromptLines.length === 0) {
-      return null
-    }
+    if (nonPromptLines.length === 0) return null
 
     const uniqueLines = dedupeConsecutiveLines(nonPromptLines)
     if (uniqueLines.length === 0) return null
 
-    if (uniqueLines.length === 1 && uniqueLines[0].length < 2) {
-      return null
-    }
+    if (uniqueLines.length === 1 && uniqueLines[0].length < 2) return null
 
     const joined = uniqueLines.join('\n').trim()
     if (!joined) return null
-    if (promptText && isPromptTextMatch(joined, promptText)) {
-      return null
-    }
+    if (promptText && isPromptTextMatch(joined, promptText)) return null
 
     let text = uniqueLines.slice(0, MAX_ASSISTANT_LINES).join('\n').trim()
     if (!text) return null
@@ -288,14 +313,12 @@ export function AgentChat({
   }, [awaitingReplySince, assistantText, latestTerminalStatusAt, agentStatus])
 
   const chatBubbles = useMemo(() => {
-    // Dedupe: collect text keys from history so we don't show duplicates
     const historyUserTexts = new Set(
       conversationHistory
         .filter((b) => b.role === 'user')
         .map((b) => b.text.toLowerCase().trim())
     )
 
-    // Pending user messages not yet reflected in terminal history
     const pendingUserBubbles: ChatBubble[] = localUserMessages
       .filter((m) => !historyUserTexts.has(m.text.toLowerCase().trim()))
       .map((message) => ({
@@ -305,10 +328,8 @@ export function AgentChat({
         timestamp: message.timestamp
       }))
 
-    // Current live assistant response (may duplicate the latest history entry)
     const liveBubbles: ChatBubble[] = []
     if (assistantText) {
-      // Only add live bubble if it's not already the last history assistant entry
       const lastHistAssistant = [...conversationHistory].reverse().find((b: ChatBubble) => b.role === 'assistant')
       if (!lastHistAssistant || lastHistAssistant.text !== assistantText) {
         const assistantTimestamp =
@@ -333,14 +354,30 @@ export function AgentChat({
     !isTerminalStatus(agentStatus)
   )
 
+  const statusText = getStatusBannerText(agentStatus)
+  const showStatusBanner = statusText !== null
+  const canRestart = agentStatus === 'idle' || agentStatus === 'errored'
+
   useEffect(() => {
     if (!scrollRef.current) return
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight
   }, [chatBubbles, isTyping])
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const trimmed = input.trim()
+  useEffect(() => {
+    const element = textareaRef.current
+    if (!element) return
+    element.style.height = '0px'
+    element.style.height = `${Math.min(element.scrollHeight, 180)}px`
+  }, [input])
+
+  useEffect(() => {
+    if (!copiedCodeKey) return
+    const timer = window.setTimeout(() => setCopiedCodeKey(null), 1800)
+    return () => window.clearTimeout(timer)
+  }, [copiedCodeKey])
+
+  const submitPrompt = (rawInput: string) => {
+    const trimmed = rawInput.trim()
     if (!trimmed) return
 
     const timestamp = new Date().toISOString()
@@ -358,69 +395,375 @@ export function AgentChat({
     })
   }
 
-  const statusText = getStatusBannerText(agentStatus)
-  const showStatusBanner = statusText !== null
-  const canRestart = agentStatus === 'idle' || agentStatus === 'errored'
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault()
+    submitPrompt(input)
+  }
+
+  const handleTextareaKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
+      submitPrompt(input)
+    }
+  }
+
+  const handleQuickAction = (prompt: string) => {
+    setInput(prompt)
+    window.requestAnimationFrame(() => {
+      textareaRef.current?.focus()
+      textareaRef.current?.setSelectionRange(prompt.length, prompt.length)
+    })
+  }
+
+  const handleCopyCode = async (codeKey: string, code: string) => {
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopiedCodeKey(codeKey)
+    } catch {
+      setCopiedCodeKey(null)
+    }
+  }
 
   return (
-    <div style={containerStyle}>
-      <div style={headerStyle}>
-        <button style={backBtnStyle} onClick={onBack}>
-          ←
+    <div className={styles.shell}>
+      <header className={styles.header}>
+        <button type="button" className={styles.backButton} onClick={onBack} aria-label="Back to agents">
+          <span aria-hidden="true">←</span>
         </button>
-        <div style={headerInfoStyle}>
-          <span style={headerNameStyle}>{agentName}</span>
-          <span style={headerStatusStyle(agentStatus)}>{agentStatus}</span>
+
+        <div className={styles.headerMeta}>
+          <div className={styles.headerTitleRow}>
+            <span className={styles.headerName}>{agentName}</span>
+            <span className={styles.statusDot} style={{ '--status-color': getStatusColor(agentStatus) } as CSSProperties} />
+          </div>
+          <span className={styles.headerSubtitle}>
+            {getHeaderSubtitle(agentStatus, chatBubbles.length, isTyping)}
+          </span>
         </div>
-      </div>
+      </header>
 
       {showStatusBanner && (
-        <div style={statusBannerStyle(agentStatus)}>
+        <div
+          className={`${styles.statusBanner} ${agentStatus === 'errored' ? styles.statusBannerError : ''}`}
+        >
           <span>{statusText}</span>
           {canRestart && (
-            <button type="button" style={statusBannerBtnStyle} onClick={onRestart}>
+            <button type="button" className={styles.statusButton} onClick={onRestart}>
               {agentStatus === 'errored' ? 'Reconnect' : 'Restart'}
             </button>
           )}
         </div>
       )}
 
-      <div ref={scrollRef} style={messagesStyle}>
-        {chatBubbles.map((message) => (
-          <div key={message.id} style={messageRowStyle(message.role)}>
-            <div style={messageBubbleStyle(message.role)}>
-              <span style={messageTextStyle(message.role)}>{message.text}</span>
+      <div ref={scrollRef} className={styles.timeline}>
+        {chatBubbles.length === 0 && !isTyping && (
+          <section className={styles.emptyState}>
+            <div className={styles.emptyStateBadge}>Hydra Remote</div>
+            <h2 className={styles.emptyStateTitle}>Interactive chat is ready</h2>
+            <p className={styles.emptyStateText}>
+              Ask for summaries, next actions, or targeted edits. Messages now render as rich content with code blocks and cleaner transcript structure.
+            </p>
+            <div className={styles.quickActions}>
+              {QUICK_ACTIONS.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  className={styles.quickAction}
+                  onClick={() => handleQuickAction(prompt)}
+                >
+                  {prompt}
+                </button>
+              ))}
             </div>
-          </div>
+          </section>
+        )}
+
+        {chatBubbles.map((message) => (
+          <article
+            key={message.id}
+            className={`${styles.messageRow} ${message.role === 'user' ? styles.messageRowUser : styles.messageRowAssistant}`}
+          >
+            <div className={`${styles.avatar} ${message.role === 'user' ? styles.avatarUser : styles.avatarAssistant}`}>
+              {message.role === 'user' ? 'You' : 'AI'}
+            </div>
+
+            <div className={`${styles.messageCard} ${message.role === 'user' ? styles.messageCardUser : styles.messageCardAssistant}`}>
+              <div className={styles.messageMeta}>
+                <span className={styles.messageAuthor}>{message.role === 'user' ? 'You' : agentName}</span>
+                <time dateTime={message.timestamp}>{formatTimestamp(message.timestamp)}</time>
+              </div>
+
+              <RichMessage
+                text={message.text}
+                role={message.role}
+                copiedCodeKey={copiedCodeKey}
+                onCopyCode={handleCopyCode}
+              />
+            </div>
+          </article>
         ))}
 
         {isTyping && (
-          <div style={messageRowStyle('assistant')}>
-            <div style={typingBubbleStyle}>
-              <span style={typingTextStyle}>Agent is typing...</span>
+          <article className={`${styles.messageRow} ${styles.messageRowAssistant}`}>
+            <div className={`${styles.avatar} ${styles.avatarAssistant}`}>AI</div>
+            <div className={`${styles.messageCard} ${styles.messageCardAssistant}`}>
+              <div className={styles.messageMeta}>
+                <span className={styles.messageAuthor}>{agentName}</span>
+                <span>Responding now</span>
+              </div>
+              <div className={styles.typingIndicator} aria-label="Agent is typing">
+                <span />
+                <span />
+                <span />
+              </div>
             </div>
-          </div>
-        )}
-
-        {chatBubbles.length === 0 && !isTyping && (
-          <div style={emptyMsgStyle}>No messages yet. Send a prompt to get started.</div>
+          </article>
         )}
       </div>
 
-      <form onSubmit={handleSubmit} style={inputFormStyle}>
-        <input
-          style={inputStyle}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Send a prompt..."
-          autoFocus
-        />
-        <button type="submit" style={sendBtnStyle} disabled={!input.trim()}>
-          Send
-        </button>
-      </form>
+      <footer className={styles.composerShell}>
+        <div className={styles.quickActions}>
+          {QUICK_ACTIONS.map((prompt) => (
+            <button
+              key={`footer-${prompt}`}
+              type="button"
+              className={styles.quickActionFooter}
+              onClick={() => handleQuickAction(prompt)}
+            >
+              {prompt}
+            </button>
+          ))}
+        </div>
+
+        <form onSubmit={handleSubmit} className={styles.composerForm}>
+          <textarea
+            ref={textareaRef}
+            className={styles.textarea}
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            onKeyDown={handleTextareaKeyDown}
+            placeholder="Ask Hydra Remote for the next move..."
+            rows={1}
+            autoFocus
+          />
+
+          <div className={styles.composerActions}>
+            <span className={styles.composerHint}>Enter to send · Shift+Enter for newline</span>
+            <button type="submit" className={styles.sendButton} disabled={!input.trim()}>
+              Send
+            </button>
+          </div>
+        </form>
+      </footer>
     </div>
   )
+}
+
+function RichMessage({
+  text,
+  role,
+  copiedCodeKey,
+  onCopyCode
+}: {
+  text: string
+  role: 'user' | 'assistant'
+  copiedCodeKey: string | null
+  onCopyCode: (codeKey: string, code: string) => void | Promise<void>
+}) {
+  if (role === 'user') {
+    return <p className={styles.userText}>{text}</p>
+  }
+
+  const blocks = parseContentBlocks(text)
+
+  return (
+    <div className={styles.richContent}>
+      {blocks.map((block) => {
+        switch (block.type) {
+          case 'heading':
+            if (block.level === 1) return <h1 key={block.key}>{renderInline(block.text, block.key)}</h1>
+            if (block.level === 2) return <h2 key={block.key}>{renderInline(block.text, block.key)}</h2>
+            return <h3 key={block.key}>{renderInline(block.text, block.key)}</h3>
+          case 'unordered-list':
+            return (
+              <ul key={block.key}>
+                {block.items.map((item, index) => (
+                  <li key={`${block.key}-${index}`}>{renderInline(item, `${block.key}-${index}`)}</li>
+                ))}
+              </ul>
+            )
+          case 'ordered-list':
+            return (
+              <ol key={block.key}>
+                {block.items.map((item, index) => (
+                  <li key={`${block.key}-${index}`}>{renderInline(item, `${block.key}-${index}`)}</li>
+                ))}
+              </ol>
+            )
+          case 'code': {
+            const copyLabel = copiedCodeKey === block.key ? 'Copied' : 'Copy'
+            return (
+              <section key={block.key} className={styles.codeBlock}>
+                <div className={styles.codeHeader}>
+                  <span>{block.language ?? 'code'}</span>
+                  <button type="button" className={styles.codeCopyButton} onClick={() => void onCopyCode(block.key, block.code)}>
+                    {copyLabel}
+                  </button>
+                </div>
+                <pre>
+                  <code>{block.code}</code>
+                </pre>
+              </section>
+            )
+          }
+          case 'paragraph':
+            return <p key={block.key}>{renderInline(block.text, block.key)}</p>
+        }
+      })}
+    </div>
+  )
+}
+
+function parseContentBlocks(text: string): ContentBlock[] {
+  const normalized = text.replace(/\r\n/g, '\n')
+  const lines = normalized.split('\n')
+  const blocks: ContentBlock[] = []
+  let index = 0
+
+  while (index < lines.length) {
+    const line = lines[index]
+    const trimmed = line.trim()
+
+    if (!trimmed) {
+      index += 1
+      continue
+    }
+
+    const fenceMatch = trimmed.match(/^```(\S+)?\s*$/)
+    if (fenceMatch) {
+      const codeLines: string[] = []
+      const language = fenceMatch[1] ?? null
+      index += 1
+      while (index < lines.length && !lines[index].trim().startsWith('```')) {
+        codeLines.push(lines[index])
+        index += 1
+      }
+      if (index < lines.length) index += 1
+      blocks.push({
+        key: `block-${blocks.length}`,
+        type: 'code',
+        code: codeLines.join('\n').trimEnd(),
+        language
+      })
+      continue
+    }
+
+    const headingMatch = trimmed.match(/^(#{1,3})\s+(.*)$/)
+    if (headingMatch) {
+      blocks.push({
+        key: `block-${blocks.length}`,
+        type: 'heading',
+        level: Math.min(headingMatch[1].length, 3) as 1 | 2 | 3,
+        text: headingMatch[2].trim()
+      })
+      index += 1
+      continue
+    }
+
+    const unorderedMatch = trimmed.match(/^[-*+]\s+(.*)$/)
+    if (unorderedMatch) {
+      const items: string[] = []
+      while (index < lines.length) {
+        const candidate = lines[index].trim().match(/^[-*+]\s+(.*)$/)
+        if (!candidate) break
+        items.push(candidate[1].trim())
+        index += 1
+      }
+      blocks.push({
+        key: `block-${blocks.length}`,
+        type: 'unordered-list',
+        items
+      })
+      continue
+    }
+
+    const orderedMatch = trimmed.match(/^\d+\.\s+(.*)$/)
+    if (orderedMatch) {
+      const items: string[] = []
+      while (index < lines.length) {
+        const candidate = lines[index].trim().match(/^\d+\.\s+(.*)$/)
+        if (!candidate) break
+        items.push(candidate[1].trim())
+        index += 1
+      }
+      blocks.push({
+        key: `block-${blocks.length}`,
+        type: 'ordered-list',
+        items
+      })
+      continue
+    }
+
+    const paragraphLines: string[] = [trimmed]
+    index += 1
+    while (index < lines.length) {
+      const candidate = lines[index]
+      const candidateTrimmed = candidate.trim()
+      if (!candidateTrimmed) break
+      if (/^```(\S+)?\s*$/.test(candidateTrimmed)) break
+      if (/^(#{1,3})\s+/.test(candidateTrimmed)) break
+      if (/^[-*+]\s+/.test(candidateTrimmed)) break
+      if (/^\d+\.\s+/.test(candidateTrimmed)) break
+      paragraphLines.push(candidateTrimmed)
+      index += 1
+    }
+    blocks.push({
+      key: `block-${blocks.length}`,
+      type: 'paragraph',
+      text: paragraphLines.join(' ')
+    })
+  }
+
+  return blocks
+}
+
+function renderInline(text: string, keyPrefix: string): ReactNode[] {
+  const nodes: ReactNode[] = []
+  const pattern = /(`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|_[^_]+_|https?:\/\/[^\s)]+(?:\)[^\s]*)?)/g
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+
+  for (match = pattern.exec(text); match; match = pattern.exec(text)) {
+    if (match.index > lastIndex) {
+      nodes.push(text.slice(lastIndex, match.index))
+    }
+
+    const token = match[0]
+    const tokenKey = `${keyPrefix}-${match.index}`
+    if (token.startsWith('`') && token.endsWith('`')) {
+      nodes.push(<code key={tokenKey}>{token.slice(1, -1)}</code>)
+    } else if ((token.startsWith('**') && token.endsWith('**')) || (token.startsWith('__') && token.endsWith('__'))) {
+      nodes.push(<strong key={tokenKey}>{token.slice(2, -2)}</strong>)
+    } else if ((token.startsWith('*') && token.endsWith('*')) || (token.startsWith('_') && token.endsWith('_'))) {
+      nodes.push(<em key={tokenKey}>{token.slice(1, -1)}</em>)
+    } else if (token.startsWith('http://') || token.startsWith('https://')) {
+      nodes.push(
+        <a key={tokenKey} href={token} target="_blank" rel="noreferrer">
+          {token}
+        </a>
+      )
+    } else {
+      nodes.push(token)
+    }
+
+    lastIndex = match.index + token.length
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex))
+  }
+
+  return nodes
 }
 
 function loadPersistedChatState(storageKey: string): PersistedChatState {
@@ -445,13 +788,13 @@ function loadPersistedChatState(storageKey: string): PersistedChatState {
     const parsed = JSON.parse(raw) as Partial<PersistedChatState>
     const localUserMessages = Array.isArray(parsed.localUserMessages)
       ? parsed.localUserMessages
-          .filter((item): item is LocalUserMessage =>
-            Boolean(item) &&
-            typeof item.id === 'string' &&
-            typeof item.text === 'string' &&
-            typeof item.timestamp === 'string'
-          )
-          .slice(-LOCAL_USER_MAX)
+        .filter((item): item is LocalUserMessage =>
+          Boolean(item) &&
+          typeof item.id === 'string' &&
+          typeof item.text === 'string' &&
+          typeof item.timestamp === 'string'
+        )
+        .slice(-LOCAL_USER_MAX)
       : []
     const awaitingReplySince = typeof parsed.awaitingReplySince === 'string'
       ? parsed.awaitingReplySince
@@ -481,7 +824,6 @@ function savePersistedChatState(storageKey: string, state: PersistedChatState): 
     // Ignore storage quota/private mode failures.
   }
 }
-
 
 function getPayloadAgentId(payload: Record<string, unknown>): string | null {
   const candidates = [payload.agentId, payload.agentID, payload.agent_id]
@@ -527,15 +869,11 @@ function stripAssistantPrefix(line: string): string {
   return truncateScreenLineJunk(stripped).trim()
 }
 
-/** Truncate junk from terminal screen lines where cursor positioning causes
- *  response text and status bar content to merge onto the same line. */
 function truncateScreenLineJunk(text: string): string {
-  // Cut at first middle-dot or tool-use bracket preceded by a space
   const junkBoundary = text.search(/\s[·✢✳✶✻✽✴⎿⏵⏺●•]/)
   if (junkBoundary > 0) {
     text = text.slice(0, junkBoundary)
   }
-  // Cut at (thinking) / (running stop hook …)
   text = text.replace(/\s*\((?:thinking|running\s).*$/i, '')
   return text
 }
@@ -680,19 +1018,6 @@ function createLocalId(): string {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
-function headerStatusStyle(status: string): React.CSSProperties {
-  const colors: Record<string, string> = {
-    running: '#4ade80',
-    idle: '#a0a0a0',
-    errored: '#f87171',
-    starting: '#fbbf24'
-  }
-  return {
-    fontSize: '0.6875rem',
-    color: colors[status] || '#666'
-  }
-}
-
 function getStatusBannerText(status: string): string | null {
   if (status === 'starting') return 'Starting session...'
   if (status === 'idle') return 'Session is idle. Send a prompt or restart.'
@@ -700,169 +1025,26 @@ function getStatusBannerText(status: string): string | null {
   return null
 }
 
-function messageRowStyle(role: 'user' | 'assistant'): React.CSSProperties {
-  return {
-    display: 'flex',
-    justifyContent: role === 'user' ? 'flex-end' : 'flex-start'
-  }
+function getStatusColor(status: string): string {
+  if (status === 'running') return 'var(--color-status-running)'
+  if (status === 'errored') return 'var(--color-status-error)'
+  if (status === 'starting') return 'var(--color-status-starting)'
+  return 'var(--color-status-idle)'
 }
 
-function messageBubbleStyle(role: 'user' | 'assistant'): React.CSSProperties {
-  if (role === 'user') {
-    return {
-      maxWidth: '80%',
-      padding: '10px 12px',
-      borderRadius: 14,
-      background: '#e8e8e8',
-      color: '#111111'
-    }
-  }
-
-  return {
-    maxWidth: '90%',
-    padding: '10px 12px',
-    borderRadius: 14,
-    background: '#2a2a2a',
-    color: '#e8e8e8'
-  }
+function getHeaderSubtitle(status: string, messageCount: number, isTyping: boolean): string {
+  if (isTyping) return 'Streaming reply'
+  if (status === 'running') return `${messageCount} messages in this conversation`
+  if (status === 'starting') return 'Session is spinning up'
+  if (status === 'errored') return 'Session disconnected'
+  return 'Ready for the next prompt'
 }
 
-function messageTextStyle(role: 'user' | 'assistant'): React.CSSProperties {
-  if (role === 'user') {
-    return {
-      fontSize: '0.9375rem',
-      lineHeight: 1.4,
-      whiteSpace: 'pre-wrap',
-      overflowWrap: 'anywhere'
-    }
-  }
-
-  return {
-    fontSize: '0.875rem',
-    lineHeight: 1.45,
-    whiteSpace: 'pre-wrap',
-    overflowWrap: 'anywhere'
-  }
-}
-
-const containerStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  height: '100dvh',
-  background: '#191919'
-}
-
-const headerStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 12,
-  padding: '12px 16px',
-  borderBottom: '1px solid #333',
-  flexShrink: 0
-}
-
-const backBtnStyle: React.CSSProperties = {
-  background: 'none',
-  border: 'none',
-  color: '#e8e8e8',
-  fontSize: '1.25rem',
-  cursor: 'pointer',
-  padding: '4px 8px'
-}
-
-const headerInfoStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 2
-}
-
-const headerNameStyle: React.CSSProperties = {
-  fontSize: '0.9375rem',
-  fontWeight: 600,
-  color: '#e8e8e8'
-}
-
-const messagesStyle: React.CSSProperties = {
-  flex: 1,
-  overflowY: 'auto',
-  padding: '12px 14px',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 8
-}
-
-const typingBubbleStyle: React.CSSProperties = {
-  maxWidth: '74%',
-  padding: '9px 12px',
-  borderRadius: 14,
-  background: '#2a2a2a'
-}
-
-const typingTextStyle: React.CSSProperties = {
-  fontSize: '0.8125rem',
-  color: '#a0a0a0',
-  fontStyle: 'italic'
-}
-
-const emptyMsgStyle: React.CSSProperties = {
-  textAlign: 'center',
-  color: '#666',
-  fontSize: '0.8125rem',
-  padding: 40
-}
-
-const inputFormStyle: React.CSSProperties = {
-  display: 'flex',
-  gap: 8,
-  padding: '12px 16px',
-  borderTop: '1px solid #333',
-  flexShrink: 0
-}
-
-function statusBannerStyle(status: string): React.CSSProperties {
-  const isError = status === 'errored'
-  return {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    padding: '10px 16px',
-    borderBottom: '1px solid #333',
-    fontSize: '0.75rem',
-    color: isError ? '#fecaca' : '#d1d5db',
-    background: isError ? 'rgba(127, 29, 29, 0.35)' : '#202020'
-  }
-}
-
-const statusBannerBtnStyle: React.CSSProperties = {
-  padding: '6px 10px',
-  borderRadius: 8,
-  border: '1px solid #444',
-  background: '#2a2a2a',
-  color: '#f3f4f6',
-  fontSize: '0.75rem',
-  fontWeight: 600,
-  cursor: 'pointer'
-}
-
-const inputStyle: React.CSSProperties = {
-  flex: 1,
-  padding: '10px 14px',
-  background: '#232323',
-  border: '1px solid #333',
-  borderRadius: 8,
-  color: '#e8e8e8',
-  fontSize: '0.875rem',
-  outline: 'none'
-}
-
-const sendBtnStyle: React.CSSProperties = {
-  padding: '10px 20px',
-  background: '#e8e8e8',
-  color: '#191919',
-  border: 'none',
-  borderRadius: 8,
-  fontWeight: 600,
-  fontSize: '0.875rem',
-  cursor: 'pointer'
+function formatTimestamp(timestamp: string): string {
+  const parsed = parseIsoMs(timestamp)
+  if (parsed === null) return 'Now'
+  return new Intl.DateTimeFormat(undefined, {
+    hour: 'numeric',
+    minute: '2-digit'
+  }).format(parsed)
 }

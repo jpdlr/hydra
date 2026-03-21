@@ -330,7 +330,7 @@ export class DaemonServer {
         const agent = this.agentManager.get(agentId)
         if (!agent) return this.json(res, 404, { error: 'Agent not found' })
         if (!agent.sessionId) return this.json(res, 200, { messages: [] })
-        const messages = readTranscriptHistory(agent.sessionId)
+        const messages = readTranscriptHistory(agent.sessionId, agent.provider)
         return this.json(res, 200, { messages })
       }
 
