@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { ProjectTree } from './ProjectTree'
 import { SearchBar } from './SearchBar'
 import { SortDropdown } from './SortDropdown'
@@ -39,7 +39,9 @@ export function Sidebar({
   defaultEditor = 'vscode'
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState('')
+  const [expandedDirs, setExpandedDirs] = useState<Set<string>>(() => new Set(projectGroups.map((g) => g.projectDir)))
   const [isDragging, setIsDragging] = useState(false)
+  const treeContainerRef = useRef<HTMLDivElement>(null)
   const startXRef = useRef(0)
   const startWidthRef = useRef(0)
 
@@ -84,6 +86,53 @@ export function Sidebar({
     [width, onWidthChange]
   )
 
+  // Auto-expand newly appearing project groups
+  useEffect(() => {
+    setExpandedDirs((prev) => {
+      const next = new Set(prev)
+      let changed = false
+      for (const g of projectGroups) {
+        if (!next.has(g.projectDir)) {
+          next.add(g.projectDir)
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [projectGroups])
+
+  const toggleDir = useCallback((dir: string) => {
+    setExpandedDirs((prev) => {
+      const next = new Set(prev)
+      if (next.has(dir)) {
+        next.delete(dir)
+      } else {
+        next.add(dir)
+      }
+      return next
+    })
+  }, [])
+
+  // Cmd+Left = collapse all, Cmd+Right = expand all (when sidebar focused)
+  useEffect(() => {
+    const container = treeContainerRef.current
+    if (!container) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!e.metaKey) return
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        setExpandedDirs(new Set())
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault()
+        setExpandedDirs(new Set(projectGroups.map((g) => g.projectDir)))
+      }
+    }
+
+    container.addEventListener('keydown', handleKeyDown)
+    return () => container.removeEventListener('keydown', handleKeyDown)
+  }, [projectGroups])
+
   const filteredGroups = searchQuery
     ? processed
         .map((group) => ({
@@ -115,7 +164,7 @@ export function Sidebar({
 
       <div className={styles.sectionLabel}>PROJECTS</div>
 
-      <div className={styles.treeContainer}>
+      <div ref={treeContainerRef} className={styles.treeContainer} tabIndex={-1}>
         {filteredGroups.length === 0 ? (
           <div className={styles.empty}>
             {searchQuery || hasActiveFilter ? 'No matches' : 'No agents running'}
@@ -131,6 +180,8 @@ export function Sidebar({
               onRenameAgent={onRenameAgent}
               onRemoveAgent={onRemoveAgent}
               defaultEditor={defaultEditor}
+              expanded={expandedDirs.has(group.projectDir)}
+              onToggleExpanded={() => toggleDir(group.projectDir)}
             />
           ))
         )}

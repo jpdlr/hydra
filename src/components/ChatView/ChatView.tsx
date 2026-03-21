@@ -5,8 +5,7 @@ import { InputBar } from './InputBar'
 import type { AttachedImage } from './InputBar'
 import { EditorPanel } from '../EditorPanel'
 import { SplitHandle } from '../EditorPanel/SplitHandle'
-import { OpenInButton } from '../Header/OpenInButton'
-import type { AgentState, EditorId, WorkMode } from '@shared/types'
+import type { AgentState, WorkMode } from '@shared/types'
 import type { EditorTab } from '../EditorPanel/TabBar'
 import styles from './ChatView.module.css'
 
@@ -33,8 +32,6 @@ interface ChatViewProps {
   onEditorContentChange?: (path: string, content: string) => void
   onEditorSaveFile?: (path: string) => void
   theme?: string
-  defaultEditor?: EditorId
-  onSetDefaultEditor?: (editorId: EditorId) => void
   // Free terminal
   freeTerminalOpen?: boolean
   onToggleFreeTerminal?: () => void
@@ -64,8 +61,6 @@ export function ChatView({
   onEditorContentChange,
   onEditorSaveFile,
   theme = 'dark',
-  defaultEditor = 'vscode',
-  onSetDefaultEditor,
   freeTerminalOpen = false,
   onToggleFreeTerminal,
   onToggleWorkMode
@@ -144,13 +139,6 @@ export function ChatView({
           </div>
         </div>
         <div className={styles.agentActions}>
-          <div className={styles.openInSlot}>
-            <OpenInButton
-              projectDir={agent.projectDir}
-              defaultEditor={defaultEditor}
-              onSetDefaultEditor={onSetDefaultEditor ?? (() => {})}
-            />
-          </div>
           <div className={styles.iconActions}>
             {onToggleEditor && (
               <button

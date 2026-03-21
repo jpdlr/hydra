@@ -506,10 +506,9 @@ export function registerIpcHandlers(
     const since = new Date()
     since.setDate(since.getDate() - days)
     const sinceStr = since.toISOString().slice(0, 10).replace(/-/g, '')
-    const usageCommand = provider === 'codex' ? 'ccusage-codex' : 'ccusage'
     const installHint =
       provider === 'codex'
-        ? 'Install Codex usage support to view usage data:\n  npm install -g @ccusage/codex'
+        ? 'Install Codex usage support to view usage data:\n  npx @ccusage/codex@latest daily'
         : 'Install ccusage to view usage data:\n  npm install -g ccusage'
 
     const notInstalled: CcusageSnapshot = {
@@ -521,7 +520,11 @@ export function registerIpcHandlers(
       projects: {}
     }
 
-    const baseArgs = ['daily', '--json', '--since', sinceStr]
+    const usageCommand = provider === 'codex' ? 'npx' : 'ccusage'
+    const baseArgs =
+      provider === 'codex'
+        ? ['-y', '@ccusage/codex@latest', 'daily', '--json', '--since', sinceStr]
+        : ['daily', '--json', '--since', sinceStr]
 
     const runUsageCommand = (args: string[]): Promise<{ error: Error | null; stdout: string }> =>
       new Promise((resolve) => {

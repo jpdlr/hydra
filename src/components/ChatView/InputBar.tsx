@@ -252,28 +252,6 @@ export function InputBar({
       }}
       onDrop={handleDrop}
     >
-      {images.length > 0 && (
-        <div className={styles.imageStrip}>
-          {images.map((img) => (
-            <div key={img.id} className={styles.imageChip}>
-              <img
-                src={img.dataUrl}
-                alt={img.name}
-                className={styles.imageThumb}
-                onClick={() => setPreviewImage(img)}
-              />
-              <span className={styles.imageName}>{img.name || 'Pasted image'}</span>
-              <button
-                className={styles.imageRemove}
-                onClick={() => removeImage(img.id)}
-                title="Remove image"
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
       {previewImage && (
         <div className={styles.lightbox} onClick={() => setPreviewImage(null)}>
           <img
@@ -287,7 +265,29 @@ export function InputBar({
           </button>
         </div>
       )}
-      <div className={styles.inputWrapper}>
+      <div className={styles.inputCard}>
+        {images.length > 0 && (
+          <div className={styles.imageStrip}>
+            {images.map((img) => (
+              <div key={img.id} className={styles.imageChip}>
+                <img
+                  src={img.dataUrl}
+                  alt={img.name}
+                  className={styles.imageThumb}
+                  onClick={() => setPreviewImage(img)}
+                />
+                <span className={styles.imageName}>{img.name || 'Pasted image'}</span>
+                <button
+                  className={styles.imageRemove}
+                  onClick={() => removeImage(img.id)}
+                  title="Remove image"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         <textarea
           ref={inputRef}
           className={styles.input}
@@ -299,19 +299,7 @@ export function InputBar({
           disabled={disabled}
           rows={1}
         />
-        <div className={styles.actions}>
-          <button
-            className={styles.sendBtn}
-            onClick={handleSubmit}
-            disabled={disabled || (!value.trim() && images.length === 0)}
-            title="Send (Enter)"
-          >
-            <SendIcon />
-          </button>
-        </div>
-      </div>
-      {(model || gitBranch) && (
-        <div className={styles.statusRow}>
+        <div className={styles.toolbar}>
           {model && (
             <div className={styles.modelPickerAnchor} ref={modelPickerRef}>
               <button
@@ -348,7 +336,6 @@ export function InputBar({
               )}
             </div>
           )}
-          <span className={styles.statusSpacer} />
           {gitBranch && (
             <WorkModePill
               workMode={workMode}
@@ -381,16 +368,26 @@ export function InputBar({
               )}
             </div>
           )}
+          <span className={styles.toolbarSpacer} />
+          <button
+            className={styles.sendBtn}
+            onClick={handleSubmit}
+            disabled={disabled || (!value.trim() && images.length === 0)}
+            title="Send (Enter)"
+          >
+            <SendIcon />
+          </button>
         </div>
-      )}
+      </div>
     </div>
   )
 }
 
 function SendIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="19" x2="12" y2="5" />
+      <polyline points="5 12 12 5 19 12" />
     </svg>
   )
 }

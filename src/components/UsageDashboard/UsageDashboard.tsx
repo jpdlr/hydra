@@ -29,10 +29,11 @@ export function UsageDashboard({ onClose }: UsageDashboardProps) {
     setIsLoading(true)
     try {
       const next = await window.hydra.getUsageDashboard({ days: DAY_LIMIT, provider: selectedProvider })
-      setSnapshot(next)
+      const normalized = normalizeSnapshot(next)
+      setSnapshot(normalized)
       setSelectedDate((prev) => {
-        if (prev && next.daily.some((d) => d.date === prev)) return prev
-        return next.daily[next.daily.length - 1]?.date ?? null
+        if (prev && normalized.daily.some((d) => d.date === prev)) return prev
+        return normalized.daily[normalized.daily.length - 1]?.date ?? null
       })
     } finally {
       setIsLoading(false)
@@ -80,7 +81,7 @@ export function UsageDashboard({ onClose }: UsageDashboardProps) {
     >
   }, [snapshot, selectedDate])
 
-  const providerLabel = selectedProvider === 'codex' ? 'Codex' : 'Claude Code'
+  const subtitle = 'Token usage and costs from local Claude Code and Codex logs via ccusage'
   const providerInstallTitle = selectedProvider === 'codex' ? 'Codex usage support is not installed' : 'ccusage is not installed'
   const providerInstallDescription = selectedProvider === 'codex'
     ? 'Hydra uses the Codex companion for ccusage to analyze your local Codex usage logs.'
@@ -97,7 +98,7 @@ export function UsageDashboard({ onClose }: UsageDashboardProps) {
           <div className={styles.header}>
             <div>
               <h2>Usage Dashboard</h2>
-              <p className={styles.subtitle}>Powered by ccusage</p>
+              <p className={styles.subtitle}>{subtitle}</p>
             </div>
             <button className={styles.closeBtn} type="button" onClick={onClose}>
               &#x2715;
@@ -159,9 +160,7 @@ export function UsageDashboard({ onClose }: UsageDashboardProps) {
         <div className={styles.header}>
           <div>
             <h2>Usage Dashboard</h2>
-            <p className={styles.subtitle}>
-              Token usage and costs from local {providerLabel} logs via ccusage
-            </p>
+            <p className={styles.subtitle}>{subtitle}</p>
           </div>
           <button className={styles.closeBtn} type="button" onClick={onClose}>
             &#x2715;
@@ -331,6 +330,49 @@ export function UsageDashboard({ onClose }: UsageDashboardProps) {
   )
 }
 
+function normalizeSnapshot(snapshot: CcusageSnapshot): CcusageSnapshot {
+  return {
+    ...snapshot,
+    daily: Array.isArray(snapshot.daily) ? snapshot.daily.map(normalizeDailyEntry) : [],
+    projects: Object.fromEntries(
+      Object.entries(snapshot.projects ?? {}).map(([key, entries]) => [
+        key,
+        Array.isArray(entries) ? entries.map(normalizeDailyEntry) : []
+      ])
+    )
+  }
+}
+
+function normalizeDailyEntry(entry: Partial<CcusageDailyEntry>): CcusageDailyEntry {
+  const modelBreakdowns = Array.isArray(entry.modelBreakdowns)
+    ? entry.modelBreakdowns.map((model) => {
+        const looseModel = model as unknown as Record<string, unknown>
+        return {
+          modelName: typeof model.modelName === 'string' ? model.modelName : 'Unknown',
+          inputTokens: typeof model.inputTokens === 'number' ? model.inputTokens : 0,
+          outputTokens: typeof model.outputTokens === 'number' ? model.outputTokens : 0,
+          cacheCreationTokens: typeof model.cacheCreationTokens === 'number' ? model.cacheCreationTokens : 0,
+          cacheReadTokens: typeof model.cacheReadTokens === 'number' ? model.cacheReadTokens : 0,
+          cost: readNumber(model.cost, looseModel.totalCost, looseModel.costUSD)
+        }
+      })
+    : []
+
+  return {
+    date: normalizeDateKey(entry.date),
+    inputTokens: typeof entry.inputTokens === 'number' ? entry.inputTokens : 0,
+    outputTokens: typeof entry.outputTokens === 'number' ? entry.outputTokens : 0,
+    cacheCreationTokens: typeof entry.cacheCreationTokens === 'number' ? entry.cacheCreationTokens : 0,
+    cacheReadTokens: typeof entry.cacheReadTokens === 'number' ? entry.cacheReadTokens : 0,
+    totalTokens: typeof entry.totalTokens === 'number' ? entry.totalTokens : 0,
+    totalCost: readNumber(entry.totalCost, (entry as Record<string, unknown>).cost, (entry as Record<string, unknown>).costUSD),
+    modelsUsed: Array.isArray(entry.modelsUsed)
+      ? entry.modelsUsed.filter((model): model is string => typeof model === 'string')
+      : modelBreakdowns.map((model) => model.modelName),
+    modelBreakdowns
+  }
+}
+
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
     <div className={styles.summaryCard}>
@@ -492,7 +534,8 @@ function formatUsd(value: number): string {
 }
 
 function formatDay(date: string): string {
-  const parsed = new Date(`${date}T00:00:00`)
+  const parsed = parseUsageDate(date)
+  if (!parsed) return date
   return parsed.toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'short',
@@ -537,11 +580,38 @@ function toDateKey(date: Date): string {
 }
 
 function formatDayShort(dateKey: string): string {
-  const date = new Date(`${dateKey}T00:00:00`)
+  const date = parseUsageDate(dateKey)
+  if (!date) return dateKey
   return date.toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric'
   })
+}
+
+function parseUsageDate(value: string): Date | null {
+  if (!value) return null
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const isoDate = new Date(`${value}T00:00:00`)
+    return Number.isNaN(isoDate.getTime()) ? null : isoDate
+  }
+
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function normalizeDateKey(value: unknown): string {
+  if (typeof value !== 'string') return ''
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value
+
+  const parsed = parseUsageDate(value)
+  return parsed ? toDateKey(parsed) : value
+}
+
+function readNumber(...values: unknown[]): number {
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value
+  }
+  return 0
 }
 
 function prettifyProjectKey(key: string): string {

@@ -420,3 +420,9 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Context**: Hydra restarts for Codex agents reopened a fresh session instead of continuing the previous thread.
 **Mistake**: Treating Codex as non-resumable in `providers.ts` meant Hydra never captured a Codex session id and never invoked `codex resume <session>`.
 **Fix**: Discover Codex session ids from `~/.codex/sessions/*/*/*/*.jsonl` and restart Codex agents with the native `resume` subcommand once a session id is known.
+
+### Codex ccusage integration should use the documented `npx` entrypoint
+**Date**: 2026-03-20
+**Context**: The Usage Dashboard showed Codex token totals but missing pricing/model data, plus invalid day labels, even though `npx @ccusage/codex@latest daily` worked correctly in Terminal.
+**Mistake**: Assuming Codex exposed a standalone `ccusage-codex` binary and that its output shape could be treated exactly like Claude's existing path without normalizing dates/cost aliases.
+**Fix**: Invoke Codex usage through `npx -y @ccusage/codex@latest ...`, and defensively normalize Codex date/cost fields before rendering.

@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { AgentItem } from './AgentItem'
 import { EditorIcon } from '../shared/EditorIcon'
 import type { ProjectGroup, EditorId } from '@shared/types'
@@ -13,17 +12,18 @@ interface ProjectTreeProps {
   onRenameAgent: (agentId: string, newName: string) => void
   onRemoveAgent: (agentId: string) => void
   defaultEditor?: EditorId
+  expanded: boolean
+  onToggleExpanded: () => void
 }
 
-export function ProjectTree({ group, selectedAgentId, onSelectAgent, onNewAgentForProject, onRenameAgent, onRemoveAgent, defaultEditor = 'vscode' }: ProjectTreeProps) {
-  const [expanded, setExpanded] = useState(true)
+export function ProjectTree({ group, selectedAgentId, onSelectAgent, onNewAgentForProject, onRenameAgent, onRemoveAgent, defaultEditor = 'vscode', expanded, onToggleExpanded }: ProjectTreeProps) {
 
   return (
     <div className={styles.group}>
       <div className={styles.groupRow}>
         <button
           className={styles.groupHeader}
-          onClick={() => setExpanded(!expanded)}
+          onClick={onToggleExpanded}
         >
           <span className={`${styles.chevron} ${expanded ? styles.expanded : ''}`}>
             <ChevronIcon />

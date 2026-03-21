@@ -651,8 +651,6 @@ export default function App() {
               onEditorContentChange={editorPanel.updateContent}
               onEditorSaveFile={(path) => { void editorPanel.saveFile(path) }}
               theme={config.theme}
-              defaultEditor={config.defaultEditor}
-              onSetDefaultEditor={handleSetDefaultEditor}
               freeTerminalOpen={freeTerminalOpen}
               onToggleFreeTerminal={() => setFreeTerminalOpen((prev) => !prev)}
               onToggleWorkMode={(mode) => {

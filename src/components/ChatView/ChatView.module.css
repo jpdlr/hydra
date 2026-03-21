@@ -134,12 +134,6 @@
   gap: var(--space-2);
 }
 
-.openInSlot {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
 .iconActions {
   display: flex;
   align-items: center;

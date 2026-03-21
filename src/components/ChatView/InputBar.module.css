@@ -1,8 +1,7 @@
 .bar {
   flex-shrink: 0;
   padding: var(--space-3) var(--space-5);
-  border-top: 1px solid var(--color-border);
-  background: var(--color-surface);
+  background: transparent;
 }
 
 .imageStrip {
@@ -109,23 +108,23 @@
   background: rgba(0, 0, 0, 0.8);
 }
 
-.inputWrapper {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-2);
-  background: var(--color-input-bg);
+.inputCard {
+  background: var(--color-sidebar-hover);
   border: 1px solid var(--color-input-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-2) var(--space-3);
+  border-radius: 16px;
+  padding: var(--space-3) var(--space-4);
   transition: border-color var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
-.inputWrapper:focus-within {
+.inputCard:focus-within {
   border-color: var(--color-input-focus);
 }
 
 .input {
-  flex: 1;
+  width: 100%;
   background: none;
   border: none;
   outline: none;
@@ -147,23 +146,29 @@
   opacity: 0.5;
 }
 
-.actions {
+/* Toolbar row inside card */
+.toolbar {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  flex-shrink: 0;
+  padding-top: var(--space-2);
+}
+
+.toolbarSpacer {
+  flex: 1;
 }
 
 .sendBtn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-md);
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-full);
   background: var(--color-accent);
   color: var(--color-accent-text);
   transition: all var(--transition-fast);
+  flex-shrink: 0;
 }
 
 .sendBtn:hover:not(:disabled) {
@@ -175,17 +180,6 @@
   cursor: not-allowed;
 }
 
-/* Status row below input */
-.statusRow {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding-top: var(--space-2);
-}
-
-.statusSpacer {
-  flex: 1;
-}
 
 .modelPill {
   display: inline-flex;
