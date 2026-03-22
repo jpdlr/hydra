@@ -21,6 +21,8 @@ interface AgentChatProps {
   agentName: string
   agentStatus: string
   provider?: string
+  remoteSessionId: string | null
+  agentSessionId: string | null
   messages: OutboxMessage[]
   onSendPrompt: (input: string) => void | Promise<void>
   onSendCommand: (type: 'get_history', payload: Record<string, unknown>) => void | Promise<void>
@@ -82,6 +84,7 @@ const LOCAL_USER_MAX = 24
 const MAX_ASSISTANT_LINES = 40
 const MAX_ASSISTANT_CHARS = 4000
 const CHAT_STORAGE_VERSION = 'v3'
+const HISTORY_REFRESH_INTERVAL_MS = 10_000
 const QUICK_ACTIONS = [
   'Summarize the current state of this task.',
   'What should we do next?',
@@ -93,6 +96,8 @@ export function AgentChat({
   agentName,
   agentStatus,
   provider,
+  remoteSessionId,
+  agentSessionId,
   messages,
   onSendPrompt,
   onSendCommand,
@@ -110,29 +115,60 @@ export function AgentChat({
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [transcriptHistory, setTranscriptHistory] = useState<TranscriptMessage[]>([])
-  const historyRequestedRef = useRef(false)
-  const storageKey = `hydra-remote:${CHAT_STORAGE_VERSION}:chat:${agentId}`
+  const storageKey = `hydra-remote:${CHAT_STORAGE_VERSION}:chat:${remoteSessionId ?? 'no-remote-session'}:${agentId}:${agentSessionId ?? 'no-agent-session'}`
 
   useEffect(() => {
-    if (!historyRequestedRef.current) {
-      historyRequestedRef.current = true
+    const requestHistory = () => {
       void Promise.resolve(onSendCommand('get_history', { agentId }))
     }
+
+    requestHistory()
+
+    const intervalId = window.setInterval(requestHistory, HISTORY_REFRESH_INTERVAL_MS)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        requestHistory()
+      }
+    }
+
+    window.addEventListener('focus', requestHistory)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
     return () => {
-      historyRequestedRef.current = false
+      window.clearInterval(intervalId)
+      window.removeEventListener('focus', requestHistory)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [agentId, onSendCommand])
 
   useEffect(() => {
-    const historyMsg = messages.find(
-      (msg) =>
-        msg.type === 'conversation_history' &&
-        (msg.payload.agentId as string) === agentId
-    )
+    const historyMsg = [...messages]
+      .reverse()
+      .find((msg) => {
+        if (msg.type !== 'conversation_history') return false
+        if ((msg.payload.agentId as string) !== agentId) return false
+
+        const payloadSessionId = typeof msg.payload.sessionId === 'string'
+          ? msg.payload.sessionId
+          : null
+
+        if (agentSessionId && payloadSessionId && payloadSessionId !== agentSessionId) {
+          return false
+        }
+
+        return true
+      })
     if (!historyMsg) return
 
     const incoming = historyMsg.payload.messages
-    if (!Array.isArray(incoming) || incoming.length === 0) return
+    if (!Array.isArray(incoming)) {
+      setTranscriptHistory([])
+      return
+    }
+    if (incoming.length === 0) {
+      setTranscriptHistory([])
+      return
+    }
 
     setTranscriptHistory(
       incoming
@@ -148,7 +184,11 @@ export function AgentChat({
           timestamp: m.timestamp || ''
         }))
     )
-  }, [messages, agentId])
+  }, [messages, agentId, agentSessionId])
+
+  useEffect(() => {
+    setTranscriptHistory([])
+  }, [agentId, agentSessionId, remoteSessionId])
 
   useEffect(() => {
     const state = loadPersistedChatState(storageKey)
@@ -363,7 +403,6 @@ export function AgentChat({
   const statusText = getStatusBannerText(agentStatus)
   const showStatusBanner = statusText !== null
   const canRestart = agentStatus === 'idle' || agentStatus === 'errored'
-
   // Scroll to bottom only when user is already near the bottom (or on mount)
   useEffect(() => {
     if (!isNearBottomRef.current) return

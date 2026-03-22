@@ -39,6 +39,7 @@ type Unsubscribe = () => void
 const OUTPUT_FLUSH_INTERVAL_MS = 2000
 const MAX_OUTBOX_PAYLOAD_BYTES = 50_000
 const ENABLE_PHASE_TIMEOUT_MS = 15_000
+const SESSION_HEARTBEAT_INTERVAL_MS = 15_000
 
 export class RemoteControlService extends EventEmitter {
   private state: RemoteControlState = {
@@ -63,6 +64,7 @@ export class RemoteControlService extends EventEmitter {
 
   private outputBuffers = new Map<string, string[]>()
   private flushTimer: ReturnType<typeof setInterval> | null = null
+  private sessionHeartbeatTimer: ReturnType<typeof setInterval> | null = null
 
   constructor(
     private agentManager: AgentBackend,
@@ -107,11 +109,13 @@ export class RemoteControlService extends EventEmitter {
         'Timed out syncing remote agent state.'
       )
 
+      this.startSessionHeartbeat()
       this.updateState({ status: 'active', connectedAt: new Date().toISOString() })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       this.detachAllListeners()
       this.stopOutputFlushing()
+      this.stopSessionHeartbeat()
       this.updateState({
         enabled: false,
         status: 'error',
@@ -132,6 +136,7 @@ export class RemoteControlService extends EventEmitter {
 
     this.detachAllListeners()
     this.stopOutputFlushing()
+    this.stopSessionHeartbeat()
 
     // Clean up Firestore session
     if (this.firestore && this.state.sessionId) {
@@ -170,6 +175,7 @@ export class RemoteControlService extends EventEmitter {
   destroy(): void {
     this.detachAllListeners()
     this.stopOutputFlushing()
+    this.stopSessionHeartbeat()
 
     if (this.firebaseApp) {
       const app = this.firebaseApp
@@ -257,6 +263,11 @@ export class RemoteControlService extends EventEmitter {
     })
 
     this.updateState({ sessionId, qrPayload, expiresAt })
+    await this.writeSessionMetadata({
+      status: 'active',
+      hostConnected: true,
+      connectedAt: new Date().toISOString()
+    })
 
     // Attach inbox listener
     this.attachInboxListener(sessionId)
@@ -286,6 +297,7 @@ export class RemoteControlService extends EventEmitter {
         // If first inbox message, mark mobile as connected
         if (!this.state.mobileConnected) {
           this.updateState({ mobileConnected: true })
+          void this.writeSessionMetadata({ mobileConnected: true })
         }
 
         this.processInboxMessage(data)
@@ -354,7 +366,11 @@ export class RemoteControlService extends EventEmitter {
     const agent = await Promise.resolve(this.agentManager.get(agentId))
     if (!agent?.sessionId) return
     const messages = readTranscriptHistory(agent.sessionId, agent.provider)
-    await this.writeOutbox('conversation_history', { agentId, messages })
+    await this.writeOutbox('conversation_history', {
+      agentId,
+      sessionId: agent.sessionId,
+      messages
+    })
   }
 
   // ── Agent state sync ──────────────────────────────────────────────────────
@@ -388,6 +404,13 @@ export class RemoteControlService extends EventEmitter {
 
       void setDoc(stateRef, summary)
     }
+
+    await this.writeSessionMetadata({
+      status: 'active',
+      hostConnected: true,
+      agentCount: agents.length,
+      lastSyncedAt: new Date().toISOString()
+    })
   }
 
   // ── Outbox writing ────────────────────────────────────────────────────────
@@ -444,6 +467,30 @@ export class RemoteControlService extends EventEmitter {
       clearInterval(this.flushTimer)
       this.flushTimer = null
     }
+  }
+
+  private startSessionHeartbeat(): void {
+    this.stopSessionHeartbeat()
+    void this.writeSessionHeartbeat()
+    this.sessionHeartbeatTimer = setInterval(() => {
+      void this.writeSessionHeartbeat()
+    }, SESSION_HEARTBEAT_INTERVAL_MS)
+  }
+
+  private stopSessionHeartbeat(): void {
+    if (this.sessionHeartbeatTimer) {
+      clearInterval(this.sessionHeartbeatTimer)
+      this.sessionHeartbeatTimer = null
+    }
+  }
+
+  private async writeSessionHeartbeat(): Promise<void> {
+    await this.writeSessionMetadata({
+      status: 'active',
+      hostConnected: true,
+      mobileConnected: this.state.mobileConnected,
+      lastHeartbeatAt: new Date().toISOString()
+    })
   }
 
   private async flushOutputBatch(): Promise<void> {
@@ -534,6 +581,21 @@ export class RemoteControlService extends EventEmitter {
     }
 
     void setDoc(stateRef, summary)
+    const currentAgentCount = (await Promise.resolve(this.agentManager.list())).length
+    await this.writeSessionMetadata({
+      status: 'active',
+      hostConnected: true,
+      agentCount: currentAgentCount,
+      lastSyncedAt: new Date().toISOString()
+    })
+  }
+
+  private async writeSessionMetadata(payload: Record<string, unknown>): Promise<void> {
+    if (!this.firestore || !this.state.sessionId) return
+
+    const { doc, updateDoc } = await import('firebase/firestore')
+    const sessionRef = doc(this.firestore, 'sessions', this.state.sessionId)
+    await updateDoc(sessionRef, payload)
   }
 
   private detachAllListeners(): void {

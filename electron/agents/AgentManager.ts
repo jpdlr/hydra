@@ -532,10 +532,10 @@ export class AgentManager extends EventEmitter {
   private startSessionDiscovery(managed: ManagedAgent): void {
     const provider = getProvider(managed.state.provider)
     if (!provider.supportsResume) return
-    if (managed.state.sessionId || managed.source !== 'hydra') return
+    if (managed.source !== 'hydra') return
     this.stopSessionDiscovery(managed)
     this.probeSessionIdFromCatalog(managed, { forceRefresh: true })
-    if (!managed.state.sessionId) {
+    if (this.shouldDiscoverSessionId(managed)) {
       this.scheduleSessionDiscovery(managed)
     }
   }
@@ -548,7 +548,7 @@ export class AgentManager extends EventEmitter {
   }
 
   private scheduleSessionDiscovery(managed: ManagedAgent): void {
-    if (managed.state.sessionId || managed.source !== 'hydra') return
+    if (!this.shouldDiscoverSessionId(managed)) return
 
     const attempts = managed.sessionDiscoveryAttempts
     const delay =
@@ -563,14 +563,13 @@ export class AgentManager extends EventEmitter {
     managed.sessionSyncTimer = setTimeout(() => {
       managed.sessionSyncTimer = null
       this.probeSessionIdFromCatalog(managed)
-      if (!managed.state.sessionId) {
+      if (this.shouldDiscoverSessionId(managed)) {
         this.scheduleSessionDiscovery(managed)
       }
     }, delay)
   }
 
   private probeSessionIdFromCatalog(managed: ManagedAgent, options: { forceRefresh?: boolean } = {}): void {
-    if (managed.state.sessionId || managed.source !== 'hydra') return
     if (!managed.state.projectDir) return
 
     try {
@@ -580,10 +579,15 @@ export class AgentManager extends EventEmitter {
         projectPathPrefix: managed.state.projectDir,
         forceRefresh: options.forceRefresh === true
       })
+      if (!this.shouldDiscoverSessionId(managed, sessions)) {
+        this.stopSessionDiscovery(managed)
+        return
+      }
       if (sessions.length === 0) return
 
       const usedSessionIds = new Set(
         Array.from(this.agents.values())
+          .filter((agent) => agent.state.id !== managed.state.id)
           .map((agent) => agent.state.sessionId)
           .filter((value): value is string => !!value)
       )
@@ -618,6 +622,31 @@ export class AgentManager extends EventEmitter {
     } catch {
       // Best-effort sync; ignore catalog failures.
     }
+  }
+
+  private shouldDiscoverSessionId(
+    managed: ManagedAgent,
+    sessions: ClaudeSessionSummary[] | null = null
+  ): boolean {
+    if (managed.source !== 'hydra') return false
+
+    const provider = getProvider(managed.state.provider)
+    if (!provider.supportsResume) return false
+
+    if (!managed.state.sessionId) return true
+    if (managed.state.provider !== 'codex') return false
+    if (!sessions) return true
+
+    const startedAtMs = Date.parse(managed.state.startedAt ?? managed.state.createdAt)
+    if (!Number.isFinite(startedAtMs)) return true
+
+    const currentSession = sessions.find((session) => session.sessionId === managed.state.sessionId)
+    if (!currentSession) return true
+
+    const currentModifiedAtMs = Date.parse(currentSession.modifiedAt)
+    if (!Number.isFinite(currentModifiedAtMs)) return true
+
+    return currentModifiedAtMs < startedAtMs - SESSION_DISCOVERY_GRACE_MS
   }
 
   private normalizePromptHint(input: string | null): string {

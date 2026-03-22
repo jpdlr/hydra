@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hydra-remote-v3'
+const CACHE_NAME = 'hydra-remote-v4'
 
 self.addEventListener('install', () => {
   self.skipWaiting()

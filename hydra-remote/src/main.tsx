@@ -4,6 +4,7 @@ import App from './App'
 import './styles/tokens.css'
 
 const UPDATE_CHECK_INTERVAL_MS = 60_000
+const SW_VERSION = '20260322-remote-sync-1'
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -28,7 +29,8 @@ if ('serviceWorker' in navigator) {
 
     const registerServiceWorker = async () => {
       try {
-        const registration = await navigator.serviceWorker.register('/sw.js', {
+        const registration = await navigator.serviceWorker.register(`/sw.js?v=${SW_VERSION}`, {
+          scope: '/',
           updateViaCache: 'none'
         })
 

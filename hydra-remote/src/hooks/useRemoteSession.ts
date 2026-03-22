@@ -5,6 +5,8 @@ import {
   getFirestore,
   collection,
   addDoc,
+  doc,
+  getDoc,
   onSnapshot,
   query,
   orderBy,
@@ -81,6 +83,14 @@ interface QrPayload {
 }
 
 const LAST_SESSION_STORAGE_KEY = 'hydra.remote.lastSessionQrPayload'
+const REMOTE_SESSION_STALE_MS = 45_000
+
+interface RemoteSessionRecord {
+  status?: string
+  expiresAt?: string
+  hostConnected?: boolean
+  lastHeartbeatAt?: string
+}
 
 function readStoredSessionPayload(): string | null {
   try {
@@ -119,6 +129,7 @@ export function useRemoteSession() {
   const firestoreRef = useRef<Firestore | null>(null)
   const authRef = useRef<Auth | null>(null)
   const unsubscribesRef = useRef<Unsubscribe[]>([])
+  const sessionMetaUnsubscribeRef = useRef<Unsubscribe | null>(null)
   const connectInFlightRef = useRef(false)
   const autoReconnectTriedRef = useRef(false)
 
@@ -136,6 +147,23 @@ export function useRemoteSession() {
     },
     [sessionId]
   )
+
+  const disconnectInternal = useCallback((nextError: string | null) => {
+    sessionMetaUnsubscribeRef.current?.()
+    sessionMetaUnsubscribeRef.current = null
+
+    for (const unsub of unsubscribesRef.current) {
+      unsub()
+    }
+    unsubscribesRef.current = []
+
+    setConnected(false)
+    setSessionId(null)
+    setAgents([])
+    setMessages([])
+    setError(nextError)
+    clearStoredSessionPayload()
+  }, [])
 
   const connect = useCallback(async (qrData: string): Promise<boolean> => {
     if (connectInFlightRef.current) return false
@@ -164,6 +192,17 @@ export function useRemoteSession() {
 
       // Auth with mobile token
       await signInWithCustomToken(auth, payload.mobileToken)
+      const sessionRef = doc(firestore, 'sessions', payload.sessionId)
+      const sessionSnapshot = await getDoc(sessionRef)
+      if (!sessionSnapshot.exists()) {
+        throw new Error('Remote session was not found. Scan the latest desktop QR code.')
+      }
+
+      const sessionRecord = sessionSnapshot.data() as RemoteSessionRecord
+      if (!isRemoteSessionActive(sessionRecord)) {
+        throw new Error('Remote session is stale or disconnected. Scan the latest desktop QR code.')
+      }
+
       setSessionId(payload.sessionId)
       // Signal desktop that mobile has successfully connected.
       const inboxRef = collection(firestore, 'sessions', payload.sessionId, 'inbox')
@@ -200,6 +239,19 @@ export function useRemoteSession() {
         setMessages(msgs.reverse())
       })
 
+      sessionMetaUnsubscribeRef.current?.()
+      sessionMetaUnsubscribeRef.current = onSnapshot(sessionRef, (snapshot) => {
+        if (!snapshot.exists()) {
+          disconnectInternal('Remote session ended on desktop. Scan again.')
+          return
+        }
+
+        const data = snapshot.data() as RemoteSessionRecord
+        if (!isRemoteSessionActive(data)) {
+          disconnectInternal('Remote session expired or host disconnected. Scan again.')
+        }
+      })
+
       unsubscribesRef.current = [stateUnsub, outboxUnsub]
       setConnected(true)
       writeStoredSessionPayload(qrData)
@@ -211,7 +263,7 @@ export function useRemoteSession() {
       connectInFlightRef.current = false
       setConnecting(false)
     }
-  }, [])
+  }, [disconnectInternal])
 
   const sendCommand = useCallback(
     async (
@@ -224,16 +276,8 @@ export function useRemoteSession() {
   )
 
   const disconnect = useCallback(() => {
-    for (const unsub of unsubscribesRef.current) {
-      unsub()
-    }
-    unsubscribesRef.current = []
-    setConnected(false)
-    setSessionId(null)
-    setAgents([])
-    setMessages([])
-    clearStoredSessionPayload()
-  }, [])
+    disconnectInternal(null)
+  }, [disconnectInternal])
 
   useEffect(() => {
     // Attempt seamless reconnect after relaunch to avoid requiring a fresh QR scan.
@@ -260,11 +304,9 @@ export function useRemoteSession() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      for (const unsub of unsubscribesRef.current) {
-        unsub()
-      }
+      disconnectInternal(null)
     }
-  }, [])
+  }, [disconnectInternal])
 
   return {
     connected,
@@ -278,4 +320,26 @@ export function useRemoteSession() {
     sendCommand,
     disconnect
   }
+}
+
+function isRemoteSessionActive(record: RemoteSessionRecord | null | undefined): boolean {
+  if (!record) return false
+  if (typeof record.status === 'string' && record.status !== 'active') return false
+  if (record.hostConnected === false) return false
+
+  const expiresAtMs = parseIsoTimestamp(record.expiresAt)
+  if (expiresAtMs !== null && expiresAtMs <= Date.now()) return false
+
+  const heartbeatMs = parseIsoTimestamp(record.lastHeartbeatAt)
+  if (heartbeatMs !== null && Date.now() - heartbeatMs > REMOTE_SESSION_STALE_MS) {
+    return false
+  }
+
+  return true
+}
+
+function parseIsoTimestamp(value: string | undefined): number | null {
+  if (!value) return null
+  const parsed = Date.parse(value)
+  return Number.isFinite(parsed) ? parsed : null
 }

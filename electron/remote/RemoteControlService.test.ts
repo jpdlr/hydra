@@ -218,6 +218,23 @@ describe('RemoteControlService', () => {
       expect(notificationService.subscribe).toHaveBeenCalledOnce()
     })
 
+    it('publishes remote session heartbeat metadata', async () => {
+      await service.enable()
+
+      expect(
+        (mockUpdateDoc.mock.calls as Array<unknown[]>).some((call) => {
+          const payload = call[1] as Record<string, unknown> | undefined
+          return (
+          Boolean(payload) &&
+          typeof payload === 'object' &&
+          payload.status === 'active' &&
+          payload.hostConnected === true &&
+          payload.agentCount === 1
+          )
+        })
+      ).toBe(true)
+    })
+
     it('times out and surfaces an error when session creation stalls', async () => {
       mockCreateSessionFn.mockImplementationOnce(() => new Promise(() => {}))
 

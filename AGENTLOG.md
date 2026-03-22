@@ -450,3 +450,15 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Context**: Added a new `shared/keybindings.test.ts` file for the keybinding helpers, but `npm test -- shared/keybindings.test.ts` returned "No test files found".
 **Mistake**: Placing new tests under `shared/` without checking the repo's Vitest include globs.
 **Fix**: Keep new tests under `src/` or `electron/`, or update Vitest config intentionally if shared tests need first-class coverage.
+
+### Hydra Remote auto-reconnect needs host heartbeat validation and session-scoped cache keys
+**Date**: 2026-03-22
+**Context**: Hydra Remote reopened into a stale Firestore session and showed chat/history that no longer matched the current desktop agent, while prompt sends appeared to do nothing.
+**Mistake**: Trusting any saved QR payload without validating live desktop heartbeat, and keying mobile chat cache too loosely (`agentId` only) let stale remote sessions and stale bubbles masquerade as the active desktop state.
+**Fix**: Publish a desktop heartbeat to the session document, reject or tear down stale mobile reconnects when the heartbeat expires, and scope persisted remote chat state to both the remote session id and the underlying agent session id.
+
+### Codex session discovery must be allowed to correct stale catalog matches
+**Date**: 2026-03-22
+**Context**: Hydra Remote kept showing an older Codex thread even after the mobile app refreshed correctly and the live desktop terminal had moved on.
+**Mistake**: Treating the first discovered Codex `sessionId` as final meant a bad catalog match could stick forever; remote transcript lookups then faithfully read the wrong JSONL session even though the active PTY was the right one.
+**Fix**: Let Codex session discovery continue after spawn when the current session id looks stale relative to the agent start time, and allow catalog probing to replace the current session id with a fresher project-local candidate.

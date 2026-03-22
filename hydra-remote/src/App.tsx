@@ -15,6 +15,7 @@ export default function App() {
     error,
     agents,
     messages,
+    sessionId,
     connect,
     sendCommand,
     disconnect
@@ -159,6 +160,20 @@ export default function App() {
 
   const selectedAgent = agents.find((a) => a.agentId === selectedAgentId)
 
+  useEffect(() => {
+    if (selectedAgentId && !selectedAgent) {
+      setSelectedAgentId(null)
+      setView('agents')
+    }
+  }, [selectedAgentId, selectedAgent])
+
+  useEffect(() => {
+    if (!connected && !connecting && !restoringSession) {
+      setSelectedAgentId(null)
+      setView('scan')
+    }
+  }, [connected, connecting, restoringSession])
+
   // Scan view
   if (!connected && view === 'scan') {
     return (
@@ -217,6 +232,8 @@ export default function App() {
         agentName={selectedAgent.name}
         agentStatus={selectedAgent.status}
         provider={selectedAgent.provider}
+        remoteSessionId={sessionId}
+        agentSessionId={selectedAgent.sessionId ?? null}
         messages={messages}
         onSendPrompt={handleSendPrompt}
         onSendCommand={sendCommand}
