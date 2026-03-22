@@ -5,8 +5,10 @@ import { InputBar } from './InputBar'
 import type { AttachedImage } from './InputBar'
 import { EditorPanel } from '../EditorPanel'
 import { SplitHandle } from '../EditorPanel/SplitHandle'
-import type { AgentState } from '@shared/types'
+import type { AgentState, ProviderId } from '@shared/types'
 import type { EditorTab } from '../EditorPanel/TabBar'
+import claudeIcon from '@/assets/claude-icon.png'
+import codexIcon from '@/assets/codex-icon.png'
 import styles from './ChatView.module.css'
 
 interface ChatViewProps {
@@ -35,6 +37,8 @@ interface ChatViewProps {
   // Free terminal
   freeTerminalOpen?: boolean
   onToggleFreeTerminal?: () => void
+  gitPanelOpen?: boolean
+  onOpenGitPanel?: () => void
 }
 
 export function ChatView({
@@ -60,7 +64,9 @@ export function ChatView({
   onEditorSaveFile,
   theme = 'dark',
   freeTerminalOpen = false,
-  onToggleFreeTerminal
+  onToggleFreeTerminal,
+  gitPanelOpen = false,
+  onOpenGitPanel
 }: ChatViewProps) {
   // Git branch for the current project
   const [gitBranch, setGitBranch] = useState<string | null>(null)
@@ -128,7 +134,7 @@ export function ChatView({
         <div className={styles.agentInfo}>
           <h3 className={styles.agentName}>{agent.name}</h3>
           <div className={styles.agentMeta}>
-            <span className={styles.model}>{agent.provider === 'codex' ? 'Codex' : 'Claude'} / {agent.model}</span>
+            <ProviderModelPill provider={agent.provider} model={agent.model} />
             <span className={styles.separator}>&middot;</span>
             <StatusBadge status={agent.status} />
             {agent.isManager && <span className={styles.managerBadge}>Manager</span>}
@@ -153,6 +159,15 @@ export function ChatView({
                 title="Toggle Terminal (Cmd+J)"
               >
                 <TermShellIcon />
+              </button>
+            )}
+            {onOpenGitPanel && (
+              <button
+                className={`${styles.actionBtn} ${gitPanelOpen ? styles.actionBtnActive : ''}`}
+                onClick={onOpenGitPanel}
+                title="Open Git Panel (Cmd+G)"
+              >
+                <GitIcon />
               </button>
             )}
             <button
@@ -365,6 +380,28 @@ function LockIcon({ unlocked }: { unlocked: boolean }) {
   )
 }
 
+function ProviderModelPill({ provider, model }: { provider: ProviderId; model: string }) {
+  const src = provider === 'codex' ? codexIcon : claudeIcon
+  const alt = provider === 'codex' ? 'Codex' : 'Claude'
+  return (
+    <span className={styles.modelPill}>
+      <img
+        src={src}
+        alt={alt}
+        width={14}
+        height={14}
+        className={styles.providerIcon}
+      />
+      {formatModelLabel(provider, model)}
+    </span>
+  )
+}
+
+function formatModelLabel(provider: ProviderId, model: string): string {
+  if (provider === 'codex') return model.toUpperCase()
+  return model.charAt(0).toUpperCase() + model.slice(1).toLowerCase()
+}
+
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
     running: 'var(--color-status-running)',
@@ -395,6 +432,28 @@ function TermShellIcon() {
     >
       <path d="M3 5l3 3-3 3" />
       <path d="M8 11h5" />
+    </svg>
+  )
+}
+
+function GitIcon() {
+  return (
+    <svg
+      className={styles.actionIcon}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="4.5" cy="3.5" r="1.6" />
+      <circle cx="11.5" cy="5.5" r="1.6" />
+      <circle cx="4.5" cy="12.5" r="1.6" />
+      <path d="M6 4.1l4 0.8" />
+      <path d="M4.5 5.1v5.8" />
+      <path d="M5.8 11.4l4.3-4.2" />
     </svg>
   )
 }

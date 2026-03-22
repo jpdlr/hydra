@@ -644,6 +644,8 @@ export default function App() {
               theme={config.theme}
               freeTerminalOpen={freeTerminalOpen}
               onToggleFreeTerminal={() => setFreeTerminalOpen((prev) => !prev)}
+              gitPanelOpen={showGitPanel}
+              onOpenGitPanel={() => setShowGitPanel(true)}
               onSwitchModel={(nextModel) => {
                 if (!selectedAgentId || !selectedAgent) return
                 if (selectedAgent.state.provider === 'codex') {
