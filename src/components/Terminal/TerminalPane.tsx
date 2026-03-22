@@ -12,6 +12,7 @@ interface TerminalPaneProps {
   className?: string
   fontSize?: number
   lineHeight?: number
+  autoFocus?: boolean
 }
 
 function getTerminalTheme(): Record<string, string> {
@@ -51,7 +52,8 @@ export function TerminalPane({
   onResize,
   className,
   fontSize = 12,
-  lineHeight = 1.35
+  lineHeight = 1.35,
+  autoFocus = true
 }: TerminalPaneProps) {
   const wrapperRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -113,10 +115,12 @@ export function TerminalPane({
       }
     }
 
-    // Fit after a microtask to allow layout, then auto-focus
+    // Fit after a microtask to allow layout, then optionally focus.
     requestAnimationFrame(() => {
       fitAndNotify()
-      terminal.focus()
+      if (autoFocus) {
+        terminal.focus()
+      }
     })
     const fitTimers = [80, 180].map((delay) => setTimeout(fitAndNotify, delay))
 
@@ -236,7 +240,7 @@ export function TerminalPane({
       terminal.dispose()
       terminalRef.current = null
     }
-  }, [fontSize, lineHeight])
+  }, [autoFocus, fontSize, lineHeight])
 
   // Write new output incrementally
   useEffect(() => {

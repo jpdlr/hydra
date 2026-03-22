@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { TerminalPane } from '../Terminal/TerminalPane'
 import type { AgentState } from '@shared/types'
 import styles from './TerminalTile.module.css'
@@ -56,7 +57,7 @@ function TrashIcon() {
   )
 }
 
-export function TerminalTile({
+function TerminalTileInner({
   agent,
   projectName,
   rawOutput,
@@ -155,8 +156,20 @@ export function TerminalTile({
           onResize={onTerminalResize}
           fontSize={11}
           lineHeight={1.3}
+          autoFocus={false}
         />
       </div>
     </div>
   )
 }
+
+export const TerminalTile = memo(TerminalTileInner, (prev, next) => {
+  return (
+    prev.agent === next.agent &&
+    prev.projectName === next.projectName &&
+    prev.rawOutput === next.rawOutput &&
+    prev.isExpanded === next.isExpanded &&
+    prev.hidden === next.hidden &&
+    prev.dragListeners === next.dragListeners
+  )
+})

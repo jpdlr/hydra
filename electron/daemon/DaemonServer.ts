@@ -39,6 +39,7 @@ interface DaemonServerOptions {
 }
 
 export class DaemonServer {
+  private readonly outputFlushIntervalMs = 16
   private server: Server | null = null
   private wss: WebSocketServer | null = null
   private readonly socketPath: string
@@ -55,6 +56,8 @@ export class DaemonServer {
   private readonly startedAt = Date.now()
   private testPty: IPty | null = null
   private freePty: IPty | null = null
+  private pendingAgentOutput = new Map<string, string>()
+  private outputFlushTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor(options: DaemonServerOptions) {
     this.socketPath = options.socketPath
@@ -92,10 +95,11 @@ export class DaemonServer {
 
     // Forward agent events over WebSocket
     this.agentManager.on('output', (payload: AgentOutputPayload) => {
-      this.broadcast({ type: 'agent:output', payload })
+      this.queueAgentOutput(payload)
     })
 
     this.agentManager.on('status', (payload: AgentStatusPayload) => {
+      this.flushPendingAgentOutput()
       this.persistWorkspace()
       this.broadcast({ type: 'agent:status', payload })
     })
@@ -138,6 +142,7 @@ export class DaemonServer {
   }
 
   stop(): void {
+    this.flushPendingAgentOutput()
     this.killTestPty()
     this.killFreePty()
     if (this.wss) {
@@ -164,6 +169,33 @@ export class DaemonServer {
       if (client.readyState === WebSocket.OPEN) {
         client.send(data)
       }
+    }
+  }
+
+  private queueAgentOutput(payload: AgentOutputPayload): void {
+    if (!payload.data) return
+    this.pendingAgentOutput.set(
+      payload.agentId,
+      (this.pendingAgentOutput.get(payload.agentId) ?? '') + payload.data
+    )
+    if (this.outputFlushTimer) return
+    this.outputFlushTimer = setTimeout(() => {
+      this.outputFlushTimer = null
+      this.flushPendingAgentOutput()
+    }, this.outputFlushIntervalMs)
+  }
+
+  private flushPendingAgentOutput(): void {
+    if (this.outputFlushTimer) {
+      clearTimeout(this.outputFlushTimer)
+      this.outputFlushTimer = null
+    }
+    if (this.pendingAgentOutput.size === 0) return
+
+    const pending = this.pendingAgentOutput
+    this.pendingAgentOutput = new Map()
+    for (const [agentId, data] of pending.entries()) {
+      this.broadcast({ type: 'agent:output', payload: { agentId, data } })
     }
   }
 
