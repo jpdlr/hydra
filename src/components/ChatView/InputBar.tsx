@@ -23,7 +23,6 @@ interface InputBarProps {
   placeholder?: string
   workMode?: WorkMode
   worktreeBranch?: string | null
-  onToggleWorkMode?: (mode: WorkMode) => void
 }
 
 let imageIdCounter = 0
@@ -39,8 +38,7 @@ export function InputBar({
   onBranchChanged,
   placeholder = 'Send a message...',
   workMode = 'local',
-  worktreeBranch,
-  onToggleWorkMode
+  worktreeBranch
 }: InputBarProps) {
   const [value, setValue] = useState('')
   const [images, setImages] = useState<AttachedImage[]>([])
@@ -340,7 +338,6 @@ export function InputBar({
             <WorkModePill
               workMode={workMode}
               worktreeBranch={worktreeBranch}
-              onToggle={onToggleWorkMode}
             />
           )}
           {gitBranch && (
@@ -535,67 +532,22 @@ function BranchPickerDropdown({
 
 function WorkModePill({
   workMode,
-  worktreeBranch,
-  onToggle
+  worktreeBranch
 }: {
   workMode: WorkMode
   worktreeBranch?: string | null
-  onToggle?: (mode: WorkMode) => void
 }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [open])
-
   const isWorktree = workMode === 'worktree'
 
   return (
-    <div className={styles.workModeAnchor} ref={ref}>
-      <button
-        type="button"
+    <div className={styles.workModeAnchor}>
+      <div
         className={`${styles.workModePill} ${isWorktree ? styles.workModeWorktree : ''}`}
-        onClick={() => setOpen(!open)}
         title={isWorktree ? `Worktree: ${worktreeBranch || 'active'}` : 'Local project'}
       >
         {isWorktree ? <WorktreeIcon /> : <LocalIcon />}
         {isWorktree ? 'Worktree' : 'Local'}
-        <ChevronIcon open={open} />
-      </button>
-      {open && (
-        <div className={styles.workModeDropdown}>
-          <button
-            type="button"
-            className={`${styles.workModeOption} ${!isWorktree ? styles.workModeOptionActive : ''}`}
-            onClick={() => {
-              if (isWorktree && onToggle) onToggle('local')
-              setOpen(false)
-            }}
-          >
-            <LocalIcon />
-            <span>Local project</span>
-            {!isWorktree && <span className={styles.workModeCheck}>✓</span>}
-          </button>
-          <button
-            type="button"
-            className={`${styles.workModeOption} ${isWorktree ? styles.workModeOptionActive : ''}`}
-            onClick={() => {
-              if (!isWorktree && onToggle) onToggle('worktree')
-              setOpen(false)
-            }}
-          >
-            <WorktreeIcon />
-            <span>New worktree</span>
-            {isWorktree && <span className={styles.workModeCheck}>✓</span>}
-          </button>
-        </div>
-      )}
+      </div>
     </div>
   )
 }

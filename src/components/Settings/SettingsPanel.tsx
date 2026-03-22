@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { AppConfig, ProviderId, ThemeId, ViewMode } from '@shared/types'
+import type { KeybindingRule } from '@shared/keybindings'
 import {
   PROVIDER_LABELS,
   MAX_CONCURRENT_AGENTS_HARD_LIMIT
@@ -33,6 +34,8 @@ const THEMES: Array<{ id: ThemeId; label: string; description: string; swatches:
 
 interface SettingsPanelProps {
   config: AppConfig
+  keybindings: KeybindingRule[]
+  keybindingsPath: string
   onUpdate: (partial: Partial<AppConfig>) => void
   onClose: () => void
   globalYolo: boolean
@@ -47,7 +50,15 @@ function matchesSearch(query: string, ...keywords: string[]): boolean {
   return keywords.some((kw) => kw.toLowerCase().includes(q))
 }
 
-export function SettingsPanel({ config, onUpdate, onClose, globalYolo, onToggleGlobalYolo }: SettingsPanelProps) {
+export function SettingsPanel({
+  config,
+  keybindings,
+  keybindingsPath,
+  onUpdate,
+  onClose,
+  globalYolo,
+  onToggleGlobalYolo
+}: SettingsPanelProps) {
   const [exportState, setExportState] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const [searchQuery, setSearchQuery] = useState('')
@@ -98,7 +109,9 @@ export function SettingsPanel({ config, onUpdate, onClose, globalYolo, onToggleG
           </div>
         )}
 
-        {activeTab === 'shortcuts' && <ShortcutsTab />}
+        {activeTab === 'shortcuts' && (
+          <ShortcutsTab keybindings={keybindings} keybindingsPath={keybindingsPath} />
+        )}
         {activeTab === 'skills' && <SkillsTab />}
 
         {activeTab === 'general' && <div className={styles.body}>

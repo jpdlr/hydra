@@ -11,6 +11,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { DaemonClient } from './daemon/DaemonClient'
 import { ensureDaemon, stopDaemon, getDaemonPaths } from './daemon/lifecycle'
 import { ConfigStore } from './config/ConfigStore'
+import { KeybindingStore } from './config/KeybindingStore'
 import { registerIpcHandlers } from './ipc/handlers'
 import { ObservabilityService } from './observability/ObservabilityService'
 import { NotificationService } from './notifications/NotificationService'
@@ -29,6 +30,7 @@ let daemonClient: DaemonClient | null = null
 const userDataPath = app.getPath('userData')
 const daemonPaths = getDaemonPaths(userDataPath)
 const configStore = new ConfigStore(userDataPath)
+const keybindingStore = new KeybindingStore(userDataPath)
 const updateService = new UpdateService()
 const fileSystemService = new FileSystemService()
 const gitService = new GitService()
@@ -242,6 +244,12 @@ app.whenReady().then(async () => {
     }
   }
 
+  keybindingStore.subscribe((bindings) => {
+    BrowserWindow.getAllWindows().forEach((win) => {
+      win.webContents.send(IPC.KEYBINDINGS_ON_CHANGE, bindings)
+    })
+  })
+
   registerIpcHandlers(
     daemonClient!,
     configStore,
@@ -256,6 +264,7 @@ app.whenReady().then(async () => {
       }
     },
     notificationService,
+    keybindingStore,
     fileSystemService,
     gitService,
     remoteControlService

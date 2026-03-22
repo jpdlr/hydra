@@ -11,6 +11,7 @@ import { FileSystemService } from '../fs/FileSystemService'
 import { GitService } from '../git/GitService'
 import { RemoteControlService } from '../remote/RemoteControlService'
 import { ProviderModelCatalog } from '../agents/ProviderModelCatalog'
+import { KeybindingStore } from '../config/KeybindingStore'
 import { IPC, EDITOR_REGISTRY, MAX_CONCURRENT_AGENTS_HARD_LIMIT } from '@shared/types'
 import type {
   CreateAgentPayload,
@@ -163,6 +164,7 @@ export function registerIpcHandlers(
   updateService: UpdateService,
   observability: ObservabilityHandlers,
   notificationService?: NotificationService | null,
+  keybindingStore?: KeybindingStore | null,
   fileSystemService?: FileSystemService | null,
   gitService?: GitService | null,
   remoteControlService?: RemoteControlService | null
@@ -332,6 +334,14 @@ export function registerIpcHandlers(
     return configStore.get()
   })
 
+  ipcMain.handle(IPC.KEYBINDINGS_GET, () => {
+    return keybindingStore?.get() ?? []
+  })
+
+  ipcMain.handle(IPC.KEYBINDINGS_PATH_GET, () => {
+    return keybindingStore?.getPath() ?? ''
+  })
+
   ipcMain.handle(IPC.CONFIG_SET, async (_event, partial: Partial<AppConfig>) => {
     const validated = appConfigPatchSchema.parse(partial)
     const updated = configStore.set(validated)
@@ -475,6 +485,11 @@ export function registerIpcHandlers(
     const validEditor = editorIdSchema.parse(editorId)
     const validated = projectDirSchema.parse(dir)
     return openInAppTarget(validEditor, validated)
+  })
+
+  ipcMain.handle(IPC.OPEN_PATH, (_event, targetPath: string) => {
+    const validated = fsPathSchema.parse(targetPath)
+    return runOpenPath(validated)
   })
 
   ipcMain.handle(IPC.GET_INSTALLED_EDITORS, async () => {

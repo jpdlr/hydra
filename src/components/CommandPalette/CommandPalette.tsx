@@ -1,49 +1,41 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import {
+  KEYBINDING_COMMANDS,
+  formatKeybinding,
+  getShortcutForCommand,
+  type HydraCommandId,
+  type KeybindingRule
+} from '@shared/keybindings'
 import styles from './CommandPalette.module.css'
 
-const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform)
-const MOD = isMac ? '\u2318' : 'Ctrl'
-
 interface Command {
-  id: string
+  id: HydraCommandId
   label: string
   category: string
-  shortcut?: string
 }
 
-const COMMANDS: Command[] = [
-  // Navigation
-  { id: 'toggle-view', label: 'Toggle Chat / Grid View', category: 'Navigation', shortcut: `${MOD}+\\` },
-  // Agents
-  { id: 'new-agent', label: 'New Agent', category: 'Agents', shortcut: `${MOD}+N` },
-  { id: 'kill-agent', label: 'Close Selected Agent', category: 'Agents', shortcut: `${MOD}+W` },
-  { id: 'restart-agent', label: 'Restart Selected Agent', category: 'Agents', shortcut: `${MOD}+R` },
-  { id: 'toggle-yolo', label: 'Toggle YOLO for Selected Agent', category: 'Agents', shortcut: `${MOD}+Y` },
-  { id: 'toggle-global-yolo', label: 'Toggle Global YOLO', category: 'Agents', shortcut: `${MOD}+Shift+Y` },
-  // Editor
-  { id: 'toggle-editor', label: 'Toggle Code Editor', category: 'Editor', shortcut: `${MOD}+E` },
-  { id: 'file-search', label: 'Search Files', category: 'Editor', shortcut: `${MOD}+P` },
-  // Panels
-  { id: 'settings', label: 'Open Settings', category: 'Panels', shortcut: `${MOD}+,` },
-  { id: 'usage-dashboard', label: 'Usage Dashboard', category: 'Panels', shortcut: `${MOD}+U` },
-  { id: 'updates', label: 'Check for Updates', category: 'Panels', shortcut: `${MOD}+Shift+U` },
-  { id: 'headless', label: 'Headless Runs', category: 'Panels' },
-  { id: 'remote-control', label: 'Remote Control', category: 'Panels' },
-  { id: 'git-panel', label: 'Git Panel', category: 'Panels', shortcut: `${MOD}+G` },
-  // Actions
-  { id: 'export-diagnostics', label: 'Export Diagnostics', category: 'Actions' },
-]
-
 interface CommandPaletteProps {
-  onExecute: (commandId: string) => void
+  keybindings: KeybindingRule[]
+  onExecute: (commandId: HydraCommandId) => void
   onClose: () => void
 }
 
-export function CommandPalette({ onExecute, onClose }: CommandPaletteProps) {
+export function CommandPalette({ keybindings, onExecute, onClose }: CommandPaletteProps) {
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const resultsRef = useRef<HTMLDivElement>(null)
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform)
+
+  const commands: Command[] = useMemo(
+    () =>
+      KEYBINDING_COMMANDS.filter((command) => command.showInPalette).map((command) => ({
+        id: command.id,
+        label: command.label,
+        category: command.category
+      })),
+    []
+  )
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -51,13 +43,13 @@ export function CommandPalette({ onExecute, onClose }: CommandPaletteProps) {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return COMMANDS
-    return COMMANDS.filter(
+    if (!q) return commands
+    return commands.filter(
       (cmd) =>
         cmd.label.toLowerCase().includes(q) ||
         cmd.category.toLowerCase().includes(q)
     )
-  }, [query])
+  }, [commands, query])
 
   useEffect(() => {
     setSelectedIndex(0)
@@ -73,7 +65,7 @@ export function CommandPalette({ onExecute, onClose }: CommandPaletteProps) {
   }, [selectedIndex])
 
   const handleExecute = useCallback(
-    (id: string) => {
+    (id: HydraCommandId) => {
       onExecute(id)
       onClose()
     },
@@ -131,9 +123,9 @@ export function CommandPalette({ onExecute, onClose }: CommandPaletteProps) {
             >
               <span className={styles.category}>{cmd.category}</span>
               <span className={styles.label}>{cmd.label}</span>
-              {cmd.shortcut && (
+              {getShortcutForCommand(keybindings, cmd.id) && (
                 <span className={styles.shortcut}>
-                  {cmd.shortcut.split('+').map((k, j) => (
+                  {formatKeybinding(getShortcutForCommand(keybindings, cmd.id) || '', isMac).map((k, j) => (
                     <kbd key={j}>{k}</kbd>
                   ))}
                 </span>

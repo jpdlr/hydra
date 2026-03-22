@@ -185,6 +185,9 @@ export const IPC = {
   CONFIG_GET: 'config:get',
   CONFIG_SET: 'config:set',
   CONFIG_ON_CHANGE: 'config:on-change',
+  KEYBINDINGS_GET: 'keybindings:get',
+  KEYBINDINGS_PATH_GET: 'keybindings:path-get',
+  KEYBINDINGS_ON_CHANGE: 'keybindings:on-change',
 
   // Global YOLO
   GLOBAL_YOLO_TOGGLE: 'global:yolo-toggle',
@@ -201,6 +204,7 @@ export const IPC = {
   // Shell
   OPEN_IN_EDITOR: 'shell:open-in-editor',
   OPEN_IN_APP: 'shell:open-in-app',
+  OPEN_PATH: 'shell:open-path',
   GET_INSTALLED_EDITORS: 'shell:get-installed-editors',
 
   // Broadcast

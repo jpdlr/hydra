@@ -444,3 +444,9 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Context**: While tracing agent output flow, a search against `electron/shared` failed because shared types live in the top-level `shared/` directory.
 **Mistake**: Assuming a colocated `electron/shared` tree exists when following imports like `@shared/types`.
 **Fix**: Search `src`, `electron`, and `shared` explicitly when tracing renderer/main/daemon boundaries in Hydra.
+
+### Vitest only discovers tests under `src/` and `electron/`
+**Date**: 2026-03-22
+**Context**: Added a new `shared/keybindings.test.ts` file for the keybinding helpers, but `npm test -- shared/keybindings.test.ts` returned "No test files found".
+**Mistake**: Placing new tests under `shared/` without checking the repo's Vitest include globs.
+**Fix**: Keep new tests under `src/` or `electron/`, or update Vitest config intentionally if shared tests need first-class coverage.

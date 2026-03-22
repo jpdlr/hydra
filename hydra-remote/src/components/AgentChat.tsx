@@ -106,6 +106,7 @@ export function AgentChat({
   const [activePromptText, setActivePromptText] = useState<string | null>(null)
   const [copiedCodeKey, setCopiedCodeKey] = useState<string | null>(null)
   const [showScrollBtn, setShowScrollBtn] = useState(false)
+  const isNearBottomRef = useRef(true)
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [transcriptHistory, setTranscriptHistory] = useState<TranscriptMessage[]>([])
@@ -363,21 +364,16 @@ export function AgentChat({
   const showStatusBanner = statusText !== null
   const canRestart = agentStatus === 'idle' || agentStatus === 'errored'
 
-  // Scroll to bottom whenever messages change or on mount
+  // Scroll to bottom only when user is already near the bottom (or on mount)
   useEffect(() => {
+    if (!isNearBottomRef.current) return
     const scroll = () => {
-      if (scrollRef.current) {
+      if (scrollRef.current && isNearBottomRef.current) {
         scrollRef.current.scrollTop = scrollRef.current.scrollHeight
       }
     }
-    const t1 = setTimeout(scroll, 1000)
-    const t2 = setTimeout(scroll, 1200)
-    const t3 = setTimeout(scroll, 1400)
-    return () => {
-      clearTimeout(t1)
-      clearTimeout(t2)
-      clearTimeout(t3)
-    }
+    const t = setTimeout(scroll, 100)
+    return () => clearTimeout(t)
   }, [chatBubbles, isTyping])
 
   useEffect(() => {
@@ -492,6 +488,7 @@ export function AgentChat({
           const el = scrollRef.current
           if (!el) return
           const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+          isNearBottomRef.current = distFromBottom < 150
           setShowScrollBtn(distFromBottom > 150)
         }}
       >
@@ -577,6 +574,7 @@ export function AgentChat({
           type="button"
           className={styles.scrollDownBtn}
           onClick={() => {
+            isNearBottomRef.current = true
             if (scrollRef.current) {
               scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
             }

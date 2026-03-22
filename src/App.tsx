@@ -17,6 +17,7 @@ import { RemoteControlModal } from './components/RemoteControl/RemoteControlModa
 import { PreflightTestModal } from './components/PreflightTestModal/PreflightTestModal'
 import { useAgents } from './hooks/useAgents'
 import { useConfig } from './hooks/useConfig'
+import { useKeybindings } from './hooks/useKeybindings'
 import { useViewMode } from './hooks/useViewMode'
 import { useNotifications } from './hooks/useNotifications'
 import { useEditorPanel } from './hooks/useEditorPanel'
@@ -24,6 +25,10 @@ import { useUpdates } from './hooks/useUpdates'
 import { useRemoteControl } from './hooks/useRemoteControl'
 import { RUNNING_PROJECT_ID } from '@shared/types'
 import type { PreflightResult, ViewMode, EditorId } from '@shared/types'
+import {
+  matchKeybindingEvent,
+  type HydraCommandId
+} from '@shared/keybindings'
 import styles from './App.module.css'
 
 interface PersistedWorkspaceUiState {
@@ -89,6 +94,7 @@ function writeWorkspaceUiState(state: PersistedWorkspaceUiState): void {
 export default function App() {
   const persistedUi = useMemo(() => readWorkspaceUiState(), [])
   const { config, updateConfig } = useConfig()
+  const { keybindings, keybindingsPath } = useKeybindings()
   const { notifications, dismiss: dismissNotification } = useNotifications(config.enableSoundEffects)
   const { updateState, check: checkForUpdates, download: downloadUpdate, install: installUpdate } =
     useUpdates()
@@ -281,6 +287,136 @@ export default function App() {
     await window.hydra.quitBackground()
   }, [])
 
+  const handleCloseDialogs = useCallback(() => {
+    if (showCommandPalette) setShowCommandPalette(false)
+    if (showFileSearch) setShowFileSearch(false)
+    if (showSettings) setShowSettings(false)
+    if (showNewAgent) setShowNewAgent(false)
+    if (showHeadless) setShowHeadless(false)
+    if (showRemoteControl) setShowRemoteControl(false)
+    if (showUsageDashboard) setShowUsageDashboard(false)
+    if (showUpdatePanel) setShowUpdatePanel(false)
+    if (showGitPanel) setShowGitPanel(false)
+    if (showYoloConfirm) setShowYoloConfirm(false)
+    if (showPreflightGate) setShowPreflightGate(false)
+    if (quitConfirmRunningCount !== null) setQuitConfirmRunningCount(null)
+  }, [
+    quitConfirmRunningCount,
+    showCommandPalette,
+    showFileSearch,
+    showGitPanel,
+    showHeadless,
+    showNewAgent,
+    showPreflightGate,
+    showRemoteControl,
+    showSettings,
+    showUpdatePanel,
+    showUsageDashboard,
+    showYoloConfirm
+  ])
+
+  const executeCommand = useCallback(
+    (commandId: HydraCommandId, argument?: string): boolean => {
+      switch (commandId) {
+        case 'toggle-view':
+          toggleViewMode()
+          return true
+        case 'switch-agent-by-index': {
+          if (!argument) return false
+          const index = parseInt(argument, 10) - 1
+          if (index < 0 || index >= agentList.length) return false
+          setSelectedAgentId(agentList[index].id)
+          return true
+        }
+        case 'new-agent':
+          void handleOpenNewAgent()
+          return true
+        case 'close-agent':
+          if (!selectedAgentId) return false
+          void handleRemoveAgent(selectedAgentId)
+          return true
+        case 'restart-agent':
+          if (!selectedAgentId) return false
+          void handleRestartAgent(selectedAgentId)
+          return true
+        case 'toggle-yolo': {
+          if (!selectedAgentId) return false
+          const agent = agents.get(selectedAgentId)
+          if (!agent) return false
+          void toggleYolo(selectedAgentId, !agent.state.yolo)
+          return true
+        }
+        case 'toggle-global-yolo':
+          setShowYoloConfirm(true)
+          return true
+        case 'toggle-editor':
+          if (viewMode !== 'chat') return false
+          editorPanel.toggle()
+          return true
+        case 'toggle-terminal':
+          if (viewMode !== 'chat') return false
+          setFreeTerminalOpen((prev) => !prev)
+          return true
+        case 'file-search':
+          if (!selectedAgentId) return false
+          setShowFileSearch(true)
+          return true
+        case 'save-file':
+          if (!editorPanel.activeTabPath) return false
+          void editorPanel.saveFile(editorPanel.activeTabPath)
+          return true
+        case 'command-palette':
+          setShowCommandPalette(true)
+          return true
+        case 'settings':
+          setShowSettings(true)
+          return true
+        case 'git-panel':
+          setShowGitPanel(true)
+          return true
+        case 'usage-dashboard':
+          setShowUsageDashboard(true)
+          return true
+        case 'updates':
+          if (!updateState.supported) return false
+          setShowUpdatePanel(true)
+          return true
+        case 'close-dialogs':
+          handleCloseDialogs()
+          return true
+        case 'headless':
+          setShowHeadless(true)
+          return true
+        case 'remote-control':
+          setShowRemoteControl(true)
+          return true
+        case 'export-diagnostics':
+          void window.hydra.exportDiagnostics()
+          return true
+        case 'open-keybindings-file':
+          if (!keybindingsPath) return false
+          void window.hydra.openPath(keybindingsPath)
+          return true
+      }
+    },
+    [
+      agentList,
+      agents,
+      editorPanel,
+      handleCloseDialogs,
+      handleOpenNewAgent,
+      handleRemoveAgent,
+      handleRestartAgent,
+      keybindingsPath,
+      selectedAgentId,
+      setSelectedAgentId,
+      toggleViewMode,
+      toggleYolo,
+      updateState.supported,
+      viewMode
+    ]
+  )
+
   // Sync view mode with config preference only when no persisted runtime view.
   useEffect(() => {
     if (persistedUi.viewMode) return
@@ -344,163 +480,18 @@ export default function App() {
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      const meta = e.metaKey || e.ctrlKey
-
-      // Cmd+\ — toggle view
-      if (meta && e.key === '\\') {
-        e.preventDefault()
-        toggleViewMode()
-        return
-      }
-
-      // Cmd+E — toggle code editor (chat mode only)
-      if (meta && e.key === 'e' && viewMode === 'chat') {
-        e.preventDefault()
-        editorPanel.toggle()
-        return
-      }
-
-      // Cmd+J — toggle free terminal (chat mode only)
-      if (meta && e.key === 'j' && viewMode === 'chat') {
-        e.preventDefault()
-        setFreeTerminalOpen((prev) => !prev)
-        return
-      }
-
-      // Cmd+Shift+P — command palette
-      if (meta && e.shiftKey && e.key.toLowerCase() === 'p') {
-        e.preventDefault()
-        setShowCommandPalette(true)
-        return
-      }
-
-      // Cmd+P — file search (requires selected agent)
-      if (meta && e.key === 'p' && selectedAgentId) {
-        e.preventDefault()
-        setShowFileSearch(true)
-        return
-      }
-
-      // Cmd+N — new agent
-      if (meta && e.key === 'n') {
-        e.preventDefault()
-        void handleOpenNewAgent()
-        return
-      }
-
-      // Cmd+, — settings
-      if (meta && e.key === ',') {
-        e.preventDefault()
-        setShowSettings(true)
-        return
-      }
-
-      // Cmd+Shift+U — updates panel
-      if (meta && e.shiftKey && e.key.toLowerCase() === 'u') {
-        e.preventDefault()
-        if (updateState.supported) {
-          setShowUpdatePanel(true)
-        }
-        return
-      }
-
-      // Cmd+U — usage dashboard
-      if (meta && !e.shiftKey && e.key.toLowerCase() === 'u') {
-        e.preventDefault()
-        setShowUsageDashboard(true)
-        return
-      }
-
-      // Cmd+G — git panel
-      if (meta && !e.shiftKey && e.key.toLowerCase() === 'g') {
-        e.preventDefault()
-        setShowGitPanel(true)
-        return
-      }
-
-      // Cmd+W — close selected agent
-      if (meta && e.key === 'w' && selectedAgentId) {
-        e.preventDefault()
-        void handleRemoveAgent(selectedAgentId)
-        return
-      }
-
-      // Cmd+R — restart selected agent
-      if (meta && e.key === 'r' && selectedAgentId) {
-        e.preventDefault()
-        void handleRestartAgent(selectedAgentId)
-        return
-      }
-
-      // Cmd+Y — toggle YOLO for selected agent
-      if (meta && e.key === 'y' && !e.shiftKey && selectedAgentId) {
-        e.preventDefault()
-        const agent = agents.get(selectedAgentId)
-        if (agent) toggleYolo(selectedAgentId, !agent.state.yolo)
-        return
-      }
-
-      // Cmd+Shift+Y — toggle global YOLO
-      if (meta && e.key === 'Y' && e.shiftKey) {
-        e.preventDefault()
-        setShowYoloConfirm(true)
-        return
-      }
-
-      // Cmd+1-9 — quick switch to agent by index
-      if (meta && e.key >= '1' && e.key <= '9') {
-        e.preventDefault()
-        const index = parseInt(e.key) - 1
-        if (index < agentList.length) {
-          setSelectedAgentId(agentList[index].id)
-        }
-        return
-      }
-
-      // Escape — close dialogs
-      if (e.key === 'Escape') {
-        if (showCommandPalette) setShowCommandPalette(false)
-        if (showFileSearch) setShowFileSearch(false)
-        if (showSettings) setShowSettings(false)
-        if (showNewAgent) setShowNewAgent(false)
-        if (showHeadless) setShowHeadless(false)
-        if (showRemoteControl) setShowRemoteControl(false)
-        if (showUsageDashboard) setShowUsageDashboard(false)
-        if (showUpdatePanel) setShowUpdatePanel(false)
-        if (showGitPanel) setShowGitPanel(false)
-        if (showYoloConfirm) setShowYoloConfirm(false)
-        if (showPreflightGate) setShowPreflightGate(false)
-        if (quitConfirmRunningCount !== null) setQuitConfirmRunningCount(null)
-      }
+      const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform)
+      const match = matchKeybindingEvent(e, keybindings, isMac)
+      if (!match) return
+      if (!executeCommand(match.command, match.argument)) return
+      e.preventDefault()
     }
 
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [
-    selectedAgentId,
-    agentList,
-    agents,
-    showCommandPalette,
-    showFileSearch,
-    showSettings,
-    showNewAgent,
-    showHeadless,
-    showRemoteControl,
-    showUsageDashboard,
-    showUpdatePanel,
-    showGitPanel,
-    showYoloConfirm,
-    showPreflightGate,
-    quitConfirmRunningCount,
-    viewMode,
-    editorPanel.toggle,
-    toggleViewMode,
-    handleOpenNewAgent,
-    handleRemoveAgent,
-    handleRestartAgent,
-    toggleYolo,
-    setSelectedAgentId,
-    updateState.supported
+    executeCommand,
+    keybindings
   ])
 
   // Handle global YOLO toggle
@@ -653,12 +644,6 @@ export default function App() {
               theme={config.theme}
               freeTerminalOpen={freeTerminalOpen}
               onToggleFreeTerminal={() => setFreeTerminalOpen((prev) => !prev)}
-              onToggleWorkMode={(mode) => {
-                if (!selectedAgentId || !selectedAgent) return
-                // Work mode can only be set at agent creation time for now.
-                // Switching mid-session would require restarting in a new directory.
-                console.info(`Work mode toggle requested: ${mode} (agent: ${selectedAgentId})`)
-              }}
               onSwitchModel={(nextModel) => {
                 if (!selectedAgentId || !selectedAgent) return
                 if (selectedAgent.state.provider === 'codex') {
@@ -714,6 +699,8 @@ export default function App() {
       {showSettings && (
         <SettingsPanel
           config={config}
+          keybindings={keybindings}
+          keybindingsPath={keybindingsPath}
           onUpdate={updateConfig}
           onClose={() => setShowSettings(false)}
           globalYolo={config.globalYolo}
@@ -899,30 +886,9 @@ export default function App() {
 
       {showCommandPalette && (
         <CommandPalette
+          keybindings={keybindings}
           onExecute={(id) => {
-            switch (id) {
-              case 'toggle-view': toggleViewMode(); break
-              case 'new-agent': void handleOpenNewAgent(); break
-              case 'kill-agent': if (selectedAgentId) void handleRemoveAgent(selectedAgentId); break
-              case 'restart-agent': if (selectedAgentId) void handleRestartAgent(selectedAgentId); break
-              case 'toggle-yolo': {
-                if (selectedAgentId) {
-                  const agent = agents.get(selectedAgentId)
-                  if (agent) toggleYolo(selectedAgentId, !agent.state.yolo)
-                }
-                break
-              }
-              case 'toggle-global-yolo': setShowYoloConfirm(true); break
-              case 'toggle-editor': if (viewMode === 'chat') editorPanel.toggle(); break
-              case 'file-search': if (selectedAgentId) setShowFileSearch(true); break
-              case 'settings': setShowSettings(true); break
-              case 'usage-dashboard': setShowUsageDashboard(true); break
-              case 'updates': if (updateState.supported) setShowUpdatePanel(true); break
-              case 'headless': setShowHeadless(true); break
-              case 'remote-control': setShowRemoteControl(true); break
-              case 'git-panel': setShowGitPanel(true); break
-              case 'export-diagnostics': void window.hydra.exportDiagnostics(); break
-            }
+            executeCommand(id)
           }}
           onClose={() => setShowCommandPalette(false)}
         />

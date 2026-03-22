@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '@shared/types'
+import type { KeybindingRule } from '@shared/keybindings'
 import type {
   CreateAgentPayload,
   AgentState,
@@ -108,6 +109,14 @@ const hydraApi = {
     ipcRenderer.on(IPC.CONFIG_ON_CHANGE, handler)
     return () => { ipcRenderer.removeListener(IPC.CONFIG_ON_CHANGE, handler) }
   },
+  getKeybindings: (): Promise<KeybindingRule[]> => ipcRenderer.invoke(IPC.KEYBINDINGS_GET),
+  getKeybindingsPath: (): Promise<string> => ipcRenderer.invoke(IPC.KEYBINDINGS_PATH_GET),
+  onKeybindingsChange: (callback: (bindings: KeybindingRule[]) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, bindings: KeybindingRule[]) =>
+      callback(bindings)
+    ipcRenderer.on(IPC.KEYBINDINGS_ON_CHANGE, handler)
+    return () => { ipcRenderer.removeListener(IPC.KEYBINDINGS_ON_CHANGE, handler) }
+  },
 
   // Global YOLO
   toggleGlobalYolo: (enabled: boolean): Promise<string[]> =>
@@ -126,6 +135,8 @@ const hydraApi = {
     ipcRenderer.invoke(IPC.OPEN_IN_EDITOR, dir),
   openInApp: (editorId: EditorId, dir: string): Promise<boolean> =>
     ipcRenderer.invoke(IPC.OPEN_IN_APP, editorId, dir),
+  openPath: (targetPath: string): Promise<boolean> =>
+    ipcRenderer.invoke(IPC.OPEN_PATH, targetPath),
   getInstalledEditors: (): Promise<EditorId[]> =>
     ipcRenderer.invoke(IPC.GET_INSTALLED_EDITORS),
 

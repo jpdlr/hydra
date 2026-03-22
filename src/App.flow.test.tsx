@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import type { AgentState, AppConfig, PreflightResult, ViewMode } from '@shared/types'
+import { DEFAULT_KEYBINDINGS } from '@shared/keybindings'
 
 const mockUpdateConfig = vi.fn()
 const mockUseAgents = vi.fn()
@@ -13,6 +14,13 @@ vi.mock('./hooks/useConfig', () => ({
   useConfig: () => ({
     config: currentConfig,
     updateConfig: mockUpdateConfig
+  })
+}))
+
+vi.mock('./hooks/useKeybindings', () => ({
+  useKeybindings: () => ({
+    keybindings: DEFAULT_KEYBINDINGS,
+    keybindingsPath: '/tmp/keybindings.json'
   })
 }))
 
@@ -244,7 +252,10 @@ describe('App flow behavior', () => {
       getRemoteControlState: vi.fn().mockResolvedValue({ enabled: false, status: 'creating', sessionId: null, qrPayload: null, connectedAt: null, expiresAt: null, mobileConnected: false, error: null }),
       onRemoteStateChange: vi.fn().mockReturnValue(() => undefined),
       getAgentBuffer: vi.fn().mockResolvedValue([]),
-      quitBackground: vi.fn().mockResolvedValue(true)
+      quitBackground: vi.fn().mockResolvedValue(true),
+      getKeybindings: vi.fn().mockResolvedValue(DEFAULT_KEYBINDINGS),
+      getKeybindingsPath: vi.fn().mockResolvedValue('/tmp/keybindings.json'),
+      onKeybindingsChange: vi.fn().mockReturnValue(() => undefined)
     }
   })
 
