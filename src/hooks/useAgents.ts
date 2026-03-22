@@ -6,7 +6,6 @@ import type {
   AgentStatusPayload,
   ProjectGroup
 } from '@shared/types'
-import { detectLatestModelFromTerminalOutput } from '@shared/terminalModelDetection'
 import { basename } from '@/lib/pathUtils'
 import { createTraceId, logEvent } from '@/lib/observability'
 
@@ -19,10 +18,14 @@ function bufferToText(chunks: string[]): string {
   return chunks.length > 0 ? chunks.join('') : ''
 }
 
+const OUTPUT_FLUSH_INTERVAL_MS = 16
+
 export function useAgents(initialSelectedAgentId: string | null = null) {
   const [agents, setAgents] = useState<Map<string, AgentData>>(new Map())
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(initialSelectedAgentId)
   const selectedAgentIdRef = useRef<string | null>(initialSelectedAgentId)
+  const pendingOutputRef = useRef<Map<string, string>>(new Map())
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     selectedAgentIdRef.current = selectedAgentId
@@ -40,38 +43,57 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
 
   // Listen for agent output
   useEffect(() => {
-    const unsub = window.hydra.onAgentOutput((payload: AgentOutputPayload) => {
-      setAgents((prev) => {
-        const next = new Map(prev)
-        const data = next.get(payload.agentId)
-        if (!data) return prev
-        const nextOutput = data.rawOutput + payload.data
-        const detectedModel = detectLatestModelFromTerminalOutput(data.state.provider, nextOutput)
+    const flushPendingOutput = () => {
+      flushTimerRef.current = null
+      const pending = pendingOutputRef.current
+      if (pending.size === 0) return
+      pendingOutputRef.current = new Map()
 
-        // Only update lastActivityAt if >1 minute stale to avoid constant
-        // sidebar re-renders when multiple agents produce output.
+      setAgents((prev) => {
+        let changed = false
+        const next = new Map(prev)
         const now = Date.now()
-        const prevActivity = Date.parse(data.state.lastActivityAt)
-        const stale = now - prevActivity > 60_000
-        next.set(payload.agentId, {
-          ...data,
-          state: stale
-            ? {
-                ...data.state,
-                lastActivityAt: new Date(now).toISOString(),
-                model: detectedModel ?? data.state.model
-              }
-            : {
-                ...data.state,
-                model: detectedModel ?? data.state.model
-              },
-          rawOutput: nextOutput
-        })
-        return next
+
+        for (const [agentId, chunk] of pending.entries()) {
+          const data = next.get(agentId)
+          if (!data || !chunk) continue
+          const prevActivity = Date.parse(data.state.lastActivityAt)
+          const stale = now - prevActivity > 60_000
+          next.set(agentId, {
+            ...data,
+            state: stale
+              ? {
+                  ...data.state,
+                  lastActivityAt: new Date(now).toISOString()
+                }
+              : data.state,
+            rawOutput: data.rawOutput + chunk
+          })
+          changed = true
+        }
+
+        return changed ? next : prev
       })
+    }
+
+    const scheduleFlush = () => {
+      if (flushTimerRef.current) return
+      flushTimerRef.current = setTimeout(flushPendingOutput, OUTPUT_FLUSH_INTERVAL_MS)
+    }
+
+    const unsub = window.hydra.onAgentOutput((payload: AgentOutputPayload) => {
+      if (!payload.data) return
+      const pending = pendingOutputRef.current
+      pending.set(payload.agentId, (pending.get(payload.agentId) || '') + payload.data)
+      scheduleFlush()
     })
 
     return () => {
+      if (flushTimerRef.current) {
+        clearTimeout(flushTimerRef.current)
+        flushTimerRef.current = null
+      }
+      pendingOutputRef.current.clear()
       unsub()
     }
   }, [])
@@ -110,11 +132,7 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
 
       const results = await Promise.all(bufferPromises)
       for (const { state, rawOutput } of results) {
-        const detectedModel = detectLatestModelFromTerminalOutput(state.provider, rawOutput)
-        map.set(state.id, {
-          state: detectedModel ? { ...state, model: detectedModel } : state,
-          rawOutput
-        })
+        map.set(state.id, { state, rawOutput })
       }
 
       setAgents(map)

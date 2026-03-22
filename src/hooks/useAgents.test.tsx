@@ -108,6 +108,10 @@ describe('useAgents', () => {
     })
 
     await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 25))
+    })
+
+    await act(async () => {
       resolveRestart?.(makeAgent('agent-1', { status: 'running', restartCount: 1 }))
       await restartPromise
     })
