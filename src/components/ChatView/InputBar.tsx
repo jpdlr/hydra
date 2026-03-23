@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
-import type { ModelId, ProviderId, GitBranch, WorkMode } from '@shared/types'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import type { ModelId, ProviderId, GitBranch, WorkMode, SkillInfo, SkillScanResult } from '@shared/types'
 import claudeIcon from '@/assets/claude-icon.png'
 import codexIcon from '@/assets/codex-icon.png'
 import { useRuntimeProviderModels } from '../../hooks/useRuntimeProviderModels'
@@ -23,6 +23,15 @@ interface InputBarProps {
   placeholder?: string
   workMode?: WorkMode
   worktreeBranch?: string | null
+}
+
+interface SlashMenuItem {
+  id: string
+  label: string
+  description: string
+  searchText: string
+  insertText: string
+  kind: 'command' | 'skill'
 }
 
 let imageIdCounter = 0
@@ -49,12 +58,19 @@ export function InputBar({
   // Branch picker state
   const [modelPickerOpen, setModelPickerOpen] = useState(false)
   const modelPickerRef = useRef<HTMLDivElement>(null)
+  const [skillsResult, setSkillsResult] = useState<SkillScanResult | null>(null)
+  const [skillsLoading, setSkillsLoading] = useState(false)
   const [branchPickerOpen, setBranchPickerOpen] = useState(false)
   const [branches, setBranches] = useState<GitBranch[]>([])
   const [branchFilter, setBranchFilter] = useState('')
   const [branchLoading, setBranchLoading] = useState(false)
   const branchPickerRef = useRef<HTMLDivElement>(null)
   const branchFilterRef = useRef<HTMLInputElement>(null)
+  const [cursorPosition, setCursorPosition] = useState(0)
+  const [slashSelectedIndex, setSlashSelectedIndex] = useState(0)
+  const [promptHistory, setPromptHistory] = useState<string[]>([])
+  const [historyIndex, setHistoryIndex] = useState<number | null>(null)
+  const [historyDraft, setHistoryDraft] = useState('')
 
   useEffect(() => {
     if (!previewImage) return
@@ -87,6 +103,45 @@ export function InputBar({
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [modelPickerOpen])
+
+  const refreshSkills = useCallback(async () => {
+    setSkillsLoading(true)
+    try {
+      const result = await window.hydra.scanSkills()
+      setSkillsResult(result)
+    } catch {
+      setSkillsResult(null)
+    } finally {
+      setSkillsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!provider) return
+    void refreshSkills()
+  }, [provider, refreshSkills])
+
+  const providerSkills = useMemo<SkillInfo[]>(() => {
+    if (!provider || !skillsResult) return []
+    return skillsResult[provider] ?? []
+  }, [provider, skillsResult])
+
+  const slashContext = useMemo(
+    () => getSlashContext(value, cursorPosition),
+    [value, cursorPosition]
+  )
+  const slashMenuItems = useMemo(() => {
+    if (!provider || !slashContext) return []
+    const items = buildSlashMenuItems(provider, providerSkills)
+    const query = slashContext.query.toLowerCase()
+    if (!query) return items
+    return items.filter((item) => item.searchText.includes(query))
+  }, [provider, providerSkills, slashContext])
+  const slashMenuOpen = Boolean(slashContext) && slashMenuItems.length > 0
+
+  useEffect(() => {
+    setSlashSelectedIndex(0)
+  }, [slashContext?.query, provider])
 
   const openBranchPicker = useCallback(async () => {
     if (!projectDir) return
@@ -129,14 +184,125 @@ export function InputBar({
     const trimmed = value.trim()
     if ((!trimmed && images.length === 0) || disabled) return
     onSend(trimmed, images.length > 0 ? images : undefined)
+    if (trimmed) {
+      setPromptHistory((prev) => {
+        const next = prev[prev.length - 1] === trimmed ? prev : [...prev, trimmed]
+        return next.slice(-50)
+      })
+    }
+    setHistoryIndex(null)
+    setHistoryDraft('')
     setValue('')
     setImages([])
+    setCursorPosition(0)
     if (inputRef.current) {
       inputRef.current.style.height = 'auto'
     }
   }, [value, images, disabled, onSend])
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleSelectSlashItem = useCallback((item: SlashMenuItem) => {
+    if (!slashContext || !inputRef.current) return
+
+    const nextValue = `${value.slice(0, slashContext.start)}${item.insertText}${value.slice(slashContext.end)}`
+    const nextCursor = slashContext.start + item.insertText.length
+
+    setValue(nextValue)
+    setCursorPosition(nextCursor)
+
+    requestAnimationFrame(() => {
+      inputRef.current?.focus()
+      inputRef.current?.setSelectionRange(nextCursor, nextCursor)
+      if (inputRef.current) {
+        inputRef.current.style.height = 'auto'
+        inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + 'px'
+      }
+    })
+  }, [slashContext, value])
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (slashMenuOpen) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setSlashSelectedIndex((prev) => (prev + 1) % slashMenuItems.length)
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setSlashSelectedIndex((prev) => (prev - 1 + slashMenuItems.length) % slashMenuItems.length)
+        return
+      }
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        handleSelectSlashItem(slashMenuItems[slashSelectedIndex] ?? slashMenuItems[0])
+        return
+      }
+      if (e.key === 'Tab') {
+        e.preventDefault()
+        handleSelectSlashItem(slashMenuItems[slashSelectedIndex] ?? slashMenuItems[0])
+        return
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setCursorPosition(-1)
+        return
+      }
+    }
+
+    if (e.key === 'ArrowUp' && shouldUseHistoryNavigation(e.currentTarget, 'up')) {
+      e.preventDefault()
+      if (promptHistory.length === 0) return
+      setHistoryIndex((prev) => {
+        const nextIndex = prev === null ? promptHistory.length - 1 : Math.max(0, prev - 1)
+        const nextValue = promptHistory[nextIndex] ?? ''
+        if (prev === null) setHistoryDraft(value)
+        setValue(nextValue)
+        setCursorPosition(nextValue.length)
+        requestAnimationFrame(() => {
+          inputRef.current?.setSelectionRange(nextValue.length, nextValue.length)
+          if (inputRef.current) {
+            inputRef.current.style.height = 'auto'
+            inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + 'px'
+          }
+        })
+        return nextIndex
+      })
+      return
+    }
+
+    if (e.key === 'ArrowDown' && shouldUseHistoryNavigation(e.currentTarget, 'down')) {
+      e.preventDefault()
+      if (promptHistory.length === 0) return
+      setHistoryIndex((prev) => {
+        if (prev === null) return null
+        const nextIndex = prev + 1
+        if (nextIndex >= promptHistory.length) {
+          setValue(historyDraft)
+          setCursorPosition(historyDraft.length)
+          requestAnimationFrame(() => {
+            inputRef.current?.setSelectionRange(historyDraft.length, historyDraft.length)
+            if (inputRef.current) {
+              inputRef.current.style.height = 'auto'
+              inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + 'px'
+            }
+          })
+          return null
+        }
+
+        const nextValue = promptHistory[nextIndex] ?? ''
+        setValue(nextValue)
+        setCursorPosition(nextValue.length)
+        requestAnimationFrame(() => {
+          inputRef.current?.setSelectionRange(nextValue.length, nextValue.length)
+          if (inputRef.current) {
+            inputRef.current.style.height = 'auto'
+            inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + 'px'
+          }
+        })
+        return nextIndex
+      })
+      return
+    }
+
     if (e.key === 'Enter') {
       if (e.shiftKey) return
       e.preventDefault()
@@ -146,6 +312,9 @@ export function InputBar({
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setValue(e.target.value)
+    setCursorPosition(e.target.selectionStart ?? e.target.value.length)
+    setHistoryIndex(null)
+    setHistoryDraft('')
     const el = e.target
     el.style.height = 'auto'
     el.style.height = Math.min(el.scrollHeight, 120) + 'px'
@@ -293,10 +462,20 @@ export function InputBar({
           onChange={handleInput}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
+          onClick={(e) => setCursorPosition(e.currentTarget.selectionStart ?? value.length)}
+          onKeyUp={(e) => setCursorPosition(e.currentTarget.selectionStart ?? value.length)}
+          onSelect={(e) => setCursorPosition(e.currentTarget.selectionStart ?? value.length)}
           placeholder={placeholder}
           disabled={disabled}
           rows={1}
         />
+        {slashMenuOpen && (
+          <SlashMenu
+            items={slashMenuItems}
+            selectedIndex={slashSelectedIndex}
+            onSelect={handleSelectSlashItem}
+          />
+        )}
         <div className={styles.toolbar}>
           {model && (
             <div className={styles.modelPickerAnchor} ref={modelPickerRef}>
@@ -604,4 +783,123 @@ function ModelPickerDropdown({
       })}
     </div>
   )
+}
+
+function SlashMenu({
+  items,
+  selectedIndex,
+  onSelect
+}: {
+  items: SlashMenuItem[]
+  selectedIndex: number
+  onSelect: (item: SlashMenuItem) => void
+}) {
+  return (
+    <div className={styles.slashMenu}>
+      {items.map((item, index) => (
+        <button
+          key={item.id}
+          type="button"
+          className={`${styles.slashItem} ${index === selectedIndex ? styles.slashItemActive : ''}`}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => onSelect(item)}
+        >
+          <span className={styles.slashItemLabel}>
+            <span className={styles.slashItemPrefix}>{item.kind === 'command' ? '/' : 'Skill'}</span>
+            {item.label}
+          </span>
+          <span className={styles.slashItemDescription}>{item.description}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function getSlashContext(value: string, cursorPosition: number): { start: number; end: number; query: string } | null {
+  if (cursorPosition < 0) return null
+  const cursor = Math.min(cursorPosition, value.length)
+  const prefix = value.slice(0, cursor)
+  const slashIndex = prefix.lastIndexOf('/')
+  if (slashIndex === -1) return null
+  if (slashIndex > 0 && !/\s/.test(prefix[slashIndex - 1])) return null
+
+  const token = prefix.slice(slashIndex)
+  if (/\s/.test(token)) return null
+
+  return {
+    start: slashIndex,
+    end: cursor,
+    query: token.slice(1)
+  }
+}
+
+function shouldUseHistoryNavigation(
+  textarea: HTMLTextAreaElement,
+  direction: 'up' | 'down'
+): boolean {
+  const selectionStart = textarea.selectionStart ?? 0
+  const selectionEnd = textarea.selectionEnd ?? 0
+  if (selectionStart !== selectionEnd) return false
+  if (!textarea.value.includes('\n')) return true
+
+  if (direction === 'up') {
+    return selectionStart === 0
+  }
+
+  return selectionEnd === textarea.value.length
+}
+
+function buildSlashMenuItems(provider: ProviderId, skills: SkillInfo[]): SlashMenuItem[] {
+  const commandItems = getProviderCommandItems(provider)
+  const skillItems = skills
+    .filter((skill) => skill.enabled)
+    .map<SlashMenuItem>((skill) => ({
+      id: `skill:${skill.id}`,
+      label: skill.name,
+      description: skill.description || `Use the ${skill.name} skill`,
+      searchText: `${skill.id} ${skill.name} ${skill.description} ${skill.group}`.toLowerCase(),
+      insertText: `Use the "${skill.name}" skill for this task. `,
+      kind: 'skill'
+    }))
+
+  return [...commandItems, ...skillItems]
+}
+
+function getProviderCommandItems(provider: ProviderId): SlashMenuItem[] {
+  const common: SlashMenuItem[] = [
+    {
+      id: 'command:clear',
+      label: 'clear',
+      description: 'Clear the current CLI conversation context',
+      searchText: 'clear reset conversation context',
+      insertText: '/clear ',
+      kind: 'command'
+    }
+  ]
+
+  if (provider === 'codex') {
+    return [
+      {
+        id: 'command:model',
+        label: 'model',
+        description: 'Open the Codex model picker in-session',
+        searchText: 'model switch codex',
+        insertText: '/model ',
+        kind: 'command'
+      },
+      ...common
+    ]
+  }
+
+  return [
+    {
+      id: 'command:rename',
+      label: 'rename',
+      description: 'Rename the current Claude session',
+      searchText: 'rename title session claude',
+      insertText: '/rename ',
+      kind: 'command'
+    },
+    ...common
+  ]
 }
