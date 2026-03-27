@@ -59,7 +59,7 @@ export function InputBar({
   const [modelPickerOpen, setModelPickerOpen] = useState(false)
   const modelPickerRef = useRef<HTMLDivElement>(null)
   const [skillsResult, setSkillsResult] = useState<SkillScanResult | null>(null)
-  const [skillsLoading, setSkillsLoading] = useState(false)
+  const [, setSkillsLoading] = useState(false)
   const [branchPickerOpen, setBranchPickerOpen] = useState(false)
   const [branches, setBranches] = useState<GitBranch[]>([])
   const [branchFilter, setBranchFilter] = useState('')
@@ -69,7 +69,7 @@ export function InputBar({
   const [cursorPosition, setCursorPosition] = useState(0)
   const [slashSelectedIndex, setSlashSelectedIndex] = useState(0)
   const [promptHistory, setPromptHistory] = useState<string[]>([])
-  const [historyIndex, setHistoryIndex] = useState<number | null>(null)
+  const [, setHistoryIndex] = useState<number | null>(null)
   const [historyDraft, setHistoryDraft] = useState('')
 
   useEffect(() => {

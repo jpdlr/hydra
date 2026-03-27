@@ -499,3 +499,11 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Mistake**: Passing Codex's alternate-screen enter/exit sequences straight through to xterm put Hydra into full-screen TUI buffer behavior that does not preserve scrollback/replay the way users expect inside the app.
 
 **Fix**: Strip Codex alternate-screen control sequences (`?47`, `?1047`, `?1049`) from the PTY stream before buffering/emitting so Hydra keeps Codex in the normal scrollback buffer.
+
+### CI lint catches control-regex literals and hook callback ordering
+
+**Context**: Release CI failed after the Codex terminal patch even though targeted tests and typecheck passed locally.
+
+**Mistake**: Using a regex literal with `\x1b` triggered ESLint `no-control-regex`, and a closure used inside `useEffect` before its declaration triggered `react-hooks/immutability`.
+
+**Fix**: Build control-sequence regexes with `new RegExp(...)` string escapes, and declare memoized callbacks like `handleClose` before effects that capture them.

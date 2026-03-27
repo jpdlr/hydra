@@ -11,6 +11,10 @@ export function PreflightTestModal({ onClose, onRetryPreflight }: PreflightTestM
   const [rawOutput, setRawOutput] = useState('')
   const [exited, setExited] = useState(false)
   const spawnedRef = useRef(false)
+  const handleClose = useCallback(() => {
+    onRetryPreflight()
+    onClose()
+  }, [onClose, onRetryPreflight])
 
   useEffect(() => {
     if (spawnedRef.current) return
@@ -49,11 +53,6 @@ export function PreflightTestModal({ onClose, onRetryPreflight }: PreflightTestM
   const handleResize = useCallback((cols: number, rows: number) => {
     window.hydra.resizeTestTerminal(cols, rows)
   }, [])
-
-  const handleClose = () => {
-    onRetryPreflight()
-    onClose()
-  }
 
   return (
     <div className={styles.overlay} onClick={handleClose}>

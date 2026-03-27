@@ -50,7 +50,8 @@ const IDLE_DETECTION_MS = 5000
 const IDLE_RESTART_WAKE_DELAY_MS = 350
 type SpawnOutcome = 'spawned' | 'capped' | 'errored'
 
-const CODEX_ALT_SCREEN_SEQUENCE = /\x1b\[\?(?:47|1047|1049)[hl]/g
+// eslint-disable-next-line no-control-regex
+const CODEX_ALT_SCREEN_SEQUENCE = /\u001b\[\?(?:47|1047|1049)[hl]/g
 
 function normalizeTerminalOutput(provider: ProviderId, data: string): string {
   if (provider !== 'codex' || !data) return data
