@@ -515,3 +515,11 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Mistake**: Main startup assumed `daemonClient` existed even after daemon connection failed, and the daemon launcher discarded child stdout/stderr with `stdio: 'ignore'`, hiding the real startup failure cause.
 
 **Fix**: Let IPC registration and window startup tolerate a missing daemon, and on Windows route daemon stdout/stderr to a persistent `daemon.log` under the user-data directory for post-mortem debugging.
+
+### Cross-platform daemon lifecycle tests must not inherit host `process.platform`
+
+**Context**: The `v0.2.20` Windows release workflow failed even though local lint, typecheck, and targeted daemon tests passed on macOS.
+
+**Mistake**: A stale-lock respawn test asserted `stdio: 'ignore'` without pinning `process.platform`, so it silently encoded macOS behavior and broke on Windows where daemon output is redirected to `daemon.log`.
+
+**Fix**: Explicitly mock `process.platform` inside daemon lifecycle tests whenever the expected `spawn(...)` options are platform-specific, and keep separate Windows assertions for log redirection behavior.

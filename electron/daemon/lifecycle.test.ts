@@ -129,6 +129,8 @@ describe('daemon lifecycle', () => {
   })
 
   it('respawns daemon when lock file is stale and sets node-mode env flag', async () => {
+    vi.spyOn(process, 'platform', 'get').mockReturnValue('darwin')
+
     const lock: DaemonLockData = {
       pid: 2222,
       socketPath: '/tmp/stale.sock',
