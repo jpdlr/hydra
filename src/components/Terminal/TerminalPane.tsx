@@ -13,6 +13,7 @@ interface TerminalPaneProps {
   fontSize?: number
   lineHeight?: number
   autoFocus?: boolean
+  isVisible?: boolean
 }
 
 function getTerminalTheme(): Record<string, string> {
@@ -53,14 +54,19 @@ export function TerminalPane({
   className,
   fontSize = 12,
   lineHeight = 1.35,
-  autoFocus = true
+  autoFocus = true,
+  isVisible = true
 }: TerminalPaneProps) {
   const wrapperRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const terminalRef = useRef<Terminal | null>(null)
+  const fitAddonRef = useRef<FitAddon | null>(null)
+  const fitAndNotifyRef = useRef<(() => void) | null>(null)
   const onDataRef = useRef(onData)
   const onResizeRef = useRef(onResize)
   const writtenLengthRef = useRef(0)
+  const targetOutputRef = useRef(rawOutput)
+  const writeInFlightRef = useRef(false)
   const lastSizeRef = useRef<{ cols: number; rows: number } | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
   const dragCounterRef = useRef(0)
@@ -91,6 +97,7 @@ export function TerminalPane({
     })
 
     const fitAddon = new FitAddon()
+    fitAddonRef.current = fitAddon
     const imageAddon = new ImageAddon()
     const webLinksAddon = new WebLinksAddon()
     terminal.loadAddon(fitAddon)
@@ -114,6 +121,7 @@ export function TerminalPane({
         onResizeRef.current?.(cols, rows)
       }
     }
+    fitAndNotifyRef.current = fitAndNotify
 
     // Fit after a microtask to allow layout, then optionally focus.
     requestAnimationFrame(() => {
@@ -151,6 +159,7 @@ export function TerminalPane({
 
     terminalRef.current = terminal
     writtenLengthRef.current = 0
+    writeInFlightRef.current = false
 
     // Handle resize
     const observer = new ResizeObserver(() => {
@@ -239,30 +248,53 @@ export function TerminalPane({
       wrapper.removeEventListener('drop', handleDrop, true)
       terminal.dispose()
       terminalRef.current = null
+      fitAddonRef.current = null
+      fitAndNotifyRef.current = null
     }
   }, [autoFocus, fontSize, lineHeight])
 
+  useEffect(() => {
+    if (!isVisible) return
+    requestAnimationFrame(() => {
+      fitAndNotifyRef.current?.()
+      if (autoFocus) {
+        terminalRef.current?.focus()
+      }
+    })
+  }, [autoFocus, isVisible])
+
   // Write new output incrementally
   useEffect(() => {
-    const terminal = terminalRef.current
-    if (!terminal) return
+    targetOutputRef.current = rawOutput
 
-    // When agent output is reset (restart/switch), clear terminal and replay.
-    if (rawOutput.length < writtenLengthRef.current) {
-      terminal.reset()
-      writtenLengthRef.current = 0
-    }
+    const flushPendingOutput = () => {
+      const terminal = terminalRef.current
+      if (!terminal || writeInFlightRef.current) return
 
-    if (rawOutput.length > writtenLengthRef.current) {
-      const newData = rawOutput.slice(writtenLengthRef.current)
+      const targetOutput = targetOutputRef.current
+      if (targetOutput.length < writtenLengthRef.current) {
+        terminal.reset()
+        writtenLengthRef.current = 0
+      }
+
+      if (targetOutput.length <= writtenLengthRef.current) return
+
+      const newData = targetOutput.slice(writtenLengthRef.current)
+      writeInFlightRef.current = true
       terminal.write(newData, () => {
+        writtenLengthRef.current += newData.length
+        writeInFlightRef.current = false
+
         // After xterm finishes writing, re-check scroll position.
         // New output may have pushed past viewport if user scrolled up.
         const buf = terminal.buffer.active
         setIsScrolledUp(buf.viewportY < buf.baseY)
+
+        flushPendingOutput()
       })
-      writtenLengthRef.current = rawOutput.length
     }
+
+    flushPendingOutput()
   }, [rawOutput])
 
   return (

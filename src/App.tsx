@@ -604,6 +604,10 @@ export default function App() {
             <ChatView
               agent={selectedAgent?.state || null}
               rawOutput={selectedAgent?.rawOutput || ''}
+              agentTerminals={agentList.map((agent) => ({
+                id: agent.id,
+                rawOutput: agents.get(agent.id)?.rawOutput || ''
+              }))}
               onSendInput={(input, images) => {
                 if (selectedAgentId) {
                   void handleSendInput(selectedAgentId, input, images)

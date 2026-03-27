@@ -18,6 +18,16 @@ function bufferToText(chunks: string[]): string {
   return chunks.length > 0 ? chunks.join('') : ''
 }
 
+function mergeBufferedOutput(existing: string, snapshot: string): string {
+  if (!existing) return snapshot
+  if (!snapshot) return existing
+  if (snapshot.length >= existing.length && snapshot.endsWith(existing)) return snapshot
+  if (existing.length >= snapshot.length && existing.endsWith(snapshot)) return existing
+  if (snapshot.startsWith(existing)) return snapshot
+  if (existing.startsWith(snapshot)) return existing
+  return existing
+}
+
 const OUTPUT_FLUSH_INTERVAL_MS = 16
 
 export function useAgents(initialSelectedAgentId: string | null = null) {
@@ -47,16 +57,20 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
       flushTimerRef.current = null
       const pending = pendingOutputRef.current
       if (pending.size === 0) return
-      pendingOutputRef.current = new Map()
 
       setAgents((prev) => {
         let changed = false
         const next = new Map(prev)
+        const remaining = new Map<string, string>()
         const now = Date.now()
 
         for (const [agentId, chunk] of pending.entries()) {
           const data = next.get(agentId)
-          if (!data || !chunk) continue
+          if (!chunk) continue
+          if (!data) {
+            remaining.set(agentId, chunk)
+            continue
+          }
           const prevActivity = Date.parse(data.state.lastActivityAt)
           const stale = now - prevActivity > 60_000
           next.set(agentId, {
@@ -70,6 +84,11 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
             rawOutput: data.rawOutput + chunk
           })
           changed = true
+        }
+
+        pendingOutputRef.current = remaining
+        if (remaining.size > 0) {
+          scheduleFlush()
         }
 
         return changed ? next : prev
@@ -135,7 +154,22 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
         map.set(state.id, { state, rawOutput })
       }
 
-      setAgents(map)
+      setAgents((prev) => {
+        const next = new Map(prev)
+        for (const [agentId, data] of map.entries()) {
+          const existing = next.get(agentId)
+          const pendingChunk = pendingOutputRef.current.get(agentId) || ''
+          if (pendingChunk) pendingOutputRef.current.delete(agentId)
+          next.set(agentId, {
+            state: data.state,
+            rawOutput: mergeBufferedOutput(
+              existing ? mergeBufferedOutput(existing.rawOutput, pendingChunk) : pendingChunk,
+              data.rawOutput
+            )
+          })
+        }
+        return next
+      })
       const preferredId = selectedAgentIdRef.current
       if (preferredId && map.has(preferredId)) {
         setSelectedAgentId(preferredId)
@@ -162,17 +196,29 @@ export function useAgents(initialSelectedAgentId: string | null = null) {
       meta: { model: payload.model, yolo: payload.yolo }
     })
     const state = await window.hydra.createAgent(payload)
-    const rawOutput = await readAgentBufferText(state.id)
-    const data: AgentData = {
-      state,
-      rawOutput
-    }
     setAgents((prev) => {
       const next = new Map(prev)
-      next.set(state.id, data)
+      const existing = next.get(state.id)
+      const pendingChunk = pendingOutputRef.current.get(state.id) || ''
+      if (pendingChunk) pendingOutputRef.current.delete(state.id)
+      next.set(state.id, {
+        state,
+        rawOutput: existing ? mergeBufferedOutput(existing.rawOutput, pendingChunk) : pendingChunk
+      })
       return next
     })
     setSelectedAgentId(state.id)
+    const rawOutput = await readAgentBufferText(state.id)
+    setAgents((prev) => {
+      const next = new Map(prev)
+      const existing = next.get(state.id)
+      if (!existing) return prev
+      next.set(state.id, {
+        ...existing,
+        rawOutput: mergeBufferedOutput(existing.rawOutput, rawOutput)
+      })
+      return next
+    })
     return state
   }, [readAgentBufferText])
 

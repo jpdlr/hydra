@@ -462,3 +462,40 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Context**: Hydra Remote kept showing an older Codex thread even after the mobile app refreshed correctly and the live desktop terminal had moved on.
 **Mistake**: Treating the first discovered Codex `sessionId` as final meant a bad catalog match could stick forever; remote transcript lookups then faithfully read the wrong JSONL session even though the active PTY was the right one.
 **Fix**: Let Codex session discovery continue after spawn when the current session id looks stale relative to the agent start time, and allow catalog probing to replace the current session id with a fresher project-local candidate.
+
+### Standalone slash mode commands should switch composer state client-side
+**Date**: 2026-03-27
+**Context**: Added chat-vs-terminal input modes using a `t3code`-style slash-command flow.
+**Mistake**: Treating `/terminal` and `/chat` like normal submissions would send them into the agent PTY instead of changing the composer mode.
+**Fix**: Parse completed standalone slash commands in the input bar before submit and update local composer mode without sending them to the backend.
+### TerminalPane must serialize xterm writes under bursty output
+
+**Context**: Hydra terminals sometimes failed to render the full PTY stream when output arrived faster than React/xterm write callbacks settled.
+
+**Mistake**: Advancing the local written-length cursor immediately after calling `terminal.write(...)` assumed xterm had already consumed that chunk, which can desync incremental slicing under rapid back-to-back updates.
+
+**Fix**: Treat xterm writes as an async queue. Only advance the rendered cursor in the `write` callback, keep the latest target output separately, and flush any remaining tail once the in-flight write completes.
+
+### Codex startup output can be lost if buffer backfill overwrites live stream
+
+**Context**: Codex emits substantial terminal UI immediately on startup, so live PTY output can arrive before `createAgent()` or initial agent-load buffer reads finish in the renderer.
+
+**Mistake**: Replacing renderer `rawOutput` with the later daemon buffer snapshot discarded already-streamed Codex frames when the snapshot was older or less complete.
+
+**Fix**: Merge snapshot backfills with any existing live output and prefer the longer/newer tail-compatible stream instead of blindly overwriting renderer state.
+
+### Codex TUI panes should stay mounted across chat-agent switches
+
+**Context**: Codex uses a full-screen, cursor-driven terminal UI. Replaying raw PTY output into a fresh xterm instance after switching agents can fail to reconstruct the exact current screen.
+
+**Mistake**: Mounting only the selected chat terminal meant Hydra disposed the live xterm state whenever the user switched to another agent, then tried to rebuild Codex from buffered bytes alone.
+
+**Fix**: Keep chat-view terminal panes mounted per agent, hide inactive panes instead of unmounting them, and refit/focus the pane when it becomes visible again.
+
+### Codex alternate-screen sequences degrade Hydra scrollback and replay
+
+**Context**: Even with persistent xterm instances, Codex output could still appear truncated or unstable when switching back to an agent or scrolling around the current session.
+
+**Mistake**: Passing Codex's alternate-screen enter/exit sequences straight through to xterm put Hydra into full-screen TUI buffer behavior that does not preserve scrollback/replay the way users expect inside the app.
+
+**Fix**: Strip Codex alternate-screen control sequences (`?47`, `?1047`, `?1049`) from the PTY stream before buffering/emitting so Hydra keeps Codex in the normal scrollback buffer.

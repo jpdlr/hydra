@@ -144,4 +144,47 @@ describe('useAgents', () => {
 
     expect(result.current.agents.get(created.id)?.rawOutput).toBe('line one\nline two')
   })
+
+  it('preserves live output that arrives before create buffer backfill resolves', async () => {
+    const created = makeAgent('created-1', { status: 'running', provider: 'codex', model: 'gpt-5.4' })
+    createAgent.mockResolvedValue(created)
+
+    let resolveBuffer: ((value: string[]) => void) | null = null
+    getAgentBuffer.mockImplementation(
+      () =>
+        new Promise<string[]>((resolve) => {
+          resolveBuffer = resolve
+        })
+    )
+
+    const { result } = renderHook(() => useAgents())
+
+    let createPromise: Promise<AgentState> | null = null
+    act(() => {
+      createPromise = result.current.createAgent({
+        name: 'Created',
+        projectDir: '/tmp/project',
+        provider: 'codex',
+        model: 'gpt-5.4',
+        yolo: false,
+        initialPrompt: '',
+        resumeSessionId: null
+      })
+    })
+
+    act(() => {
+      outputHandler?.({ agentId: created.id, data: 'live codex frame' })
+    })
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 25))
+    })
+
+    await act(async () => {
+      resolveBuffer?.(['older snapshot'])
+      await createPromise
+    })
+
+    expect(result.current.agents.get(created.id)?.rawOutput).toBe('live codex frame')
+  })
 })

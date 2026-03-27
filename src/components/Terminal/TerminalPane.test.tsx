@@ -9,6 +9,7 @@ const { terminalState } = vi.hoisted(() => ({
     instances: [] as Array<{
       options: Record<string, unknown>
       write: ReturnType<typeof vi.fn>
+      writeCallbacks: Array<() => void>
       reset: ReturnType<typeof vi.fn>
       dispose: ReturnType<typeof vi.fn>
       loadAddon: ReturnType<typeof vi.fn>
@@ -25,7 +26,10 @@ vi.mock('@xterm/xterm', () => ({
     cols = 80
     rows = 24
     options: Record<string, unknown>
-    write = vi.fn()
+    writeCallbacks: Array<() => void> = []
+    write = vi.fn((_: string, callback?: () => void) => {
+      if (callback) this.writeCallbacks.push(callback)
+    })
     reset = vi.fn()
     dispose = vi.fn()
     loadAddon = vi.fn()
@@ -87,13 +91,28 @@ describe('TerminalPane', () => {
     const term = terminalState.instances[0]
 
     expect(term.write).toHaveBeenCalledWith('hello', expect.any(Function))
+    term.writeCallbacks.shift()?.()
 
     rerender(<TerminalPane rawOutput="hello world" />)
     expect(term.write).toHaveBeenLastCalledWith(' world', expect.any(Function))
+    term.writeCallbacks.shift()?.()
 
     rerender(<TerminalPane rawOutput="x" />)
     expect(term.reset).toHaveBeenCalledTimes(1)
     expect(term.write).toHaveBeenLastCalledWith('x', expect.any(Function))
+  })
+
+  it('queues later output until the active xterm write finishes', () => {
+    const { rerender } = render(<TerminalPane rawOutput="hello" />)
+    const term = terminalState.instances[0]
+
+    expect(term.write).toHaveBeenCalledTimes(1)
+    rerender(<TerminalPane rawOutput="hello world" />)
+    expect(term.write).toHaveBeenCalledTimes(1)
+
+    term.writeCallbacks.shift()?.()
+    expect(term.write).toHaveBeenCalledTimes(2)
+    expect(term.write).toHaveBeenLastCalledWith(' world', expect.any(Function))
   })
 
   it('forwards terminal keystrokes through onData', () => {

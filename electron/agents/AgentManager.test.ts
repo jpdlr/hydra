@@ -178,6 +178,25 @@ describe('AgentManager', () => {
     expect(models).toContain('gpt-5.4')
   })
 
+  it('strips codex alternate-screen control sequences before buffering output', async () => {
+    const manager = new AgentManager()
+    const created = await manager.create({
+      ...basePayload,
+      provider: 'codex',
+      model: 'gpt-5.4'
+    })
+    const outputs: string[] = []
+
+    manager.on('output', (payload: { agentId: string; data: string }) => {
+      if (payload.agentId === created.id) outputs.push(payload.data)
+    })
+
+    createdPtys[0].emitData('\u001b[?1049hhello\u001b[?1049l')
+
+    expect(outputs).toEqual(['hello'])
+    expect(manager.getBuffer(created.id)).toEqual(['hello'])
+  })
+
   it('discovers codex session ids and uses codex resume on restart', async () => {
     const fakeClaudeCatalog = {
       listSessions: vi.fn().mockReturnValue([])

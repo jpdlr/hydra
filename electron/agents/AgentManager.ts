@@ -50,6 +50,13 @@ const IDLE_DETECTION_MS = 5000
 const IDLE_RESTART_WAKE_DELAY_MS = 350
 type SpawnOutcome = 'spawned' | 'capped' | 'errored'
 
+const CODEX_ALT_SCREEN_SEQUENCE = /\x1b\[\?(?:47|1047|1049)[hl]/g
+
+function normalizeTerminalOutput(provider: ProviderId, data: string): string {
+  if (provider !== 'codex' || !data) return data
+  return data.replace(CODEX_ALT_SCREEN_SEQUENCE, '')
+}
+
 export class AgentManager extends EventEmitter {
   private agents: Map<string, ManagedAgent> = new Map()
   private providerPaths: Map<ProviderId, string> = new Map()
@@ -400,10 +407,12 @@ export class AgentManager extends EventEmitter {
       pty.onData((data: string) => {
         if (managed.pty !== pty) return
         this.captureSessionIdFromOutput(managed, data)
+        const normalizedData = normalizeTerminalOutput(managed.state.provider, data)
+        if (!normalizedData) return
 
         // Buffer raw output (no splitting — preserves escape sequences)
-        managed.outputBuffer.push(data)
-        managed.outputBufferLen += data.length
+        managed.outputBuffer.push(normalizedData)
+        managed.outputBufferLen += normalizedData.length
         if (managed.outputBufferLen > MAX_BUFFER_CHARS) {
           // Compact: concatenate and trim from the front
           const full = managed.outputBuffer.join('')
@@ -414,7 +423,7 @@ export class AgentManager extends EventEmitter {
 
         this.captureModelFromOutput(managed)
 
-        this.emit('output', { agentId: managed.state.id, data })
+        this.emit('output', { agentId: managed.state.id, data: normalizedData })
 
         // Track last output time for activity polling
         managed.lastOutputAt = Date.now()

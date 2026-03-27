@@ -14,6 +14,10 @@ import styles from './ChatView.module.css'
 interface ChatViewProps {
   agent: AgentState | null
   rawOutput: string
+  agentTerminals?: Array<{
+    id: string
+    rawOutput: string
+  }>
   onSendInput: (input: string, images?: AttachedImage[]) => void
   onSwitchModel?: (model: string) => void
   onTerminalData: (data: string) => void
@@ -44,6 +48,7 @@ interface ChatViewProps {
 export function ChatView({
   agent,
   rawOutput,
+  agentTerminals = [],
   onSendInput,
   onSwitchModel,
   onTerminalData,
@@ -243,12 +248,26 @@ export function ChatView({
         </div>
       ) : (
         <div className={styles.terminalWrapper}>
-          <TerminalPane
-            key={agent.id}
-            rawOutput={rawOutput}
-            onData={onTerminalData}
-            onResize={onTerminalResize}
-          />
+          <div className={styles.terminalStack}>
+            {agentTerminals
+              .filter((entry) => entry.rawOutput.length > 0 || entry.id === agent.id)
+              .map((entry) => {
+                const active = entry.id === agent.id
+                return (
+                  <div
+                    key={entry.id}
+                    className={`${styles.terminalLayer} ${active ? styles.terminalLayerActive : styles.terminalLayerHidden}`}
+                  >
+                    <TerminalPane
+                      rawOutput={entry.rawOutput}
+                      onData={active ? onTerminalData : undefined}
+                      onResize={active ? onTerminalResize : undefined}
+                      isVisible={active}
+                    />
+                  </div>
+                )
+              })}
+          </div>
         </div>
       )}
 
