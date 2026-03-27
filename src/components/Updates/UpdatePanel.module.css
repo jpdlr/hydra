@@ -106,14 +106,52 @@
   color: var(--color-text-primary);
 }
 
-.notes pre {
-  margin: 0;
+.notesBody {
   padding: var(--space-3);
-  white-space: pre-wrap;
-  word-break: break-word;
   font-family: var(--font-ui);
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.notesBody h2 {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.notesBody h2:first-child {
+  margin-top: 0;
+}
+
+.notesBody ul {
+  margin: 0 0 var(--space-2);
+  padding-left: var(--space-4);
+}
+
+.notesBody li {
+  margin-bottom: var(--space-1);
+}
+
+.notesBody a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.notesBody a:hover {
+  text-decoration: underline;
+}
+
+.notesBody p {
+  margin: 0 0 var(--space-2);
+}
+
+.notesBody tt, .notesBody code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--color-surface-hover);
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
 }
 
 .actions {

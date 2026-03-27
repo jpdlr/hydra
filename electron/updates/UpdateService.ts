@@ -64,15 +64,15 @@ export class UpdateService extends EventEmitter {
       })
     })
 
-    autoUpdater.on('update-not-available', () => {
+    autoUpdater.on('update-not-available', (info) => {
       this.patch({
         checking: false,
         available: false,
         downloaded: false,
         downloading: false,
-        latestVersion: null,
-        releaseDate: null,
-        releaseNotes: null,
+        latestVersion: info.version ?? null,
+        releaseDate: info.releaseDate ?? null,
+        releaseNotes: normalizeReleaseNotes(info.releaseNotes),
         error: null
       })
     })

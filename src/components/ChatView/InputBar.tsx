@@ -11,11 +11,6 @@ export interface AttachedImage {
   name: string
 }
 
-export interface AttachedFile {
-  id: string
-  path: string
-  name: string
-}
 
 interface InputBarProps {
   onSend: (input: string, images?: AttachedImage[]) => void
@@ -41,7 +36,6 @@ interface SlashMenuItem {
 }
 
 let imageIdCounter = 0
-let fileIdCounter = 0
 
 export function InputBar({
   onSend,
@@ -58,7 +52,6 @@ export function InputBar({
 }: InputBarProps) {
   const [value, setValue] = useState('')
   const [images, setImages] = useState<AttachedImage[]>([])
-  const [files, setFiles] = useState<AttachedFile[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const dragCounterRef = useRef(0)
   const [previewImage, setPreviewImage] = useState<AttachedImage | null>(null)
@@ -190,20 +183,13 @@ export function InputBar({
     onModelChange(nextModel)
   }, [model, onModelChange])
 
-  const removeFile = useCallback((id: string) => {
-    setFiles((prev) => prev.filter((f) => f.id !== id))
-  }, [])
-
   const handleSubmit = useCallback(() => {
     const trimmed = value.trim()
-    if ((!trimmed && images.length === 0 && files.length === 0) || disabled) return
-    // Prepend file paths to the message text
-    const filePaths = files.map((f) => f.path).join(' ')
-    const fullInput = filePaths ? (trimmed ? `${filePaths} ${trimmed}` : filePaths) : trimmed
-    onSend(fullInput, images.length > 0 ? images : undefined)
-    if (fullInput) {
+    if ((!trimmed && images.length === 0) || disabled) return
+    onSend(trimmed, images.length > 0 ? images : undefined)
+    if (trimmed) {
       setPromptHistory((prev) => {
-        const next = prev[prev.length - 1] === fullInput ? prev : [...prev, fullInput]
+        const next = prev[prev.length - 1] === trimmed ? prev : [...prev, trimmed]
         return next.slice(-50)
       })
     }
@@ -211,12 +197,11 @@ export function InputBar({
     setHistoryDraft('')
     setValue('')
     setImages([])
-    setFiles([])
     setCursorPosition(0)
     if (inputRef.current) {
       inputRef.current.style.height = 'auto'
     }
-  }, [value, images, files, disabled, onSend])
+  }, [value, images, disabled, onSend])
 
   const handleSelectSlashItem = useCallback((item: SlashMenuItem) => {
     if (!slashContext || !inputRef.current) return
@@ -407,22 +392,21 @@ export function InputBar({
       const imageFiles = droppedFiles.filter((f) => f.type.startsWith('image/'))
       const nonImageFiles = droppedFiles.filter((f) => !f.type.startsWith('image/'))
 
-      // Attach images as before
+      // Attach images as visual chips
       if (imageFiles.length > 0) {
         addImagesFromFiles(imageFiles)
       }
 
-      // Attach non-image files as file chips
+      // Insert non-image file paths directly into the text input
       if (nonImageFiles.length > 0) {
-        const newFiles: AttachedFile[] = nonImageFiles
+        const paths = nonImageFiles
           .filter((f) => f.path)
-          .map((f) => ({
-            id: `file-${fileIdCounter++}`,
-            path: f.path,
-            name: f.name
-          }))
-        if (newFiles.length > 0) {
-          setFiles((prev) => [...prev, ...newFiles])
+          .map((f) => f.path)
+        if (paths.length > 0) {
+          setValue((prev) => {
+            const prefix = prev.length > 0 && !prev.endsWith('\n') && !prev.endsWith(' ') ? ' ' : ''
+            return prev + prefix + paths.join(' ')
+          })
         }
         return
       }
@@ -481,23 +465,6 @@ export function InputBar({
                   className={styles.imageRemove}
                   onClick={() => removeImage(img.id)}
                   title="Remove image"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-        {files.length > 0 && (
-          <div className={styles.fileStrip}>
-            {files.map((file) => (
-              <div key={file.id} className={styles.fileChip}>
-                <FileIcon />
-                <span className={styles.fileName}>{file.name}</span>
-                <button
-                  className={styles.fileRemove}
-                  onClick={() => removeFile(file.id)}
-                  title="Remove file"
                 >
                   ×
                 </button>
@@ -598,7 +565,7 @@ export function InputBar({
           <button
             className={styles.sendBtn}
             onClick={handleSubmit}
-            disabled={disabled || (!value.trim() && images.length === 0 && files.length === 0)}
+            disabled={disabled || (!value.trim() && images.length === 0)}
             title="Send (Enter)"
           >
             <SendIcon />
@@ -606,15 +573,6 @@ export function InputBar({
         </div>
       </div>
     </div>
-  )
-}
-
-function FileIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
-    </svg>
   )
 }
 

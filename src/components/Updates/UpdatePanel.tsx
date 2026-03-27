@@ -76,7 +76,10 @@ export function UpdatePanel({ state, onCheck, onDownload, onInstall, onClose }: 
             {state.releaseNotes && (
               <div className={styles.notes}>
                 <h3>Release Notes</h3>
-                <pre>{state.releaseNotes}</pre>
+                <div
+                  className={styles.notesBody}
+                  dangerouslySetInnerHTML={{ __html: state.releaseNotes }}
+                />
               </div>
             )}
 
