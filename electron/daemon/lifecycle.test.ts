@@ -99,6 +99,7 @@ describe('daemon lifecycle', () => {
   })
 
   it('builds daemon paths from userDataPath', async () => {
+    vi.spyOn(process, 'platform', 'get').mockReturnValue('linux')
     const { getDaemonPaths } = await import('./lifecycle')
     const paths = getDaemonPaths('/tmp/hydra-user-data')
     expect(paths).toEqual({
