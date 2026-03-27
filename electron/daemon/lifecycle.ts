@@ -1,5 +1,6 @@
 import { spawn } from 'child_process'
 import { join } from 'path'
+import { closeSync, openSync } from 'fs'
 import { DaemonClient } from './DaemonClient'
 import { readLockFile, removeLockFile } from './lock'
 
@@ -10,6 +11,7 @@ const STARTUP_POLL_INTERVAL = 200
 export interface DaemonPaths {
   socketPath: string
   lockPath: string
+  logPath: string
   userDataPath: string
 }
 
@@ -23,6 +25,7 @@ export function getDaemonPaths(userDataPath: string): DaemonPaths {
   return {
     socketPath: joinByInputPathStyle(userDataPath, 'daemon.sock'),
     lockPath: joinByInputPathStyle(userDataPath, 'daemon.lock'),
+    logPath: joinByInputPathStyle(userDataPath, 'daemon.log'),
     userDataPath
   }
 }
@@ -75,27 +78,38 @@ function spawnDaemon(paths: DaemonPaths): Promise<void> {
 
     // Critical for packaged builds: run the child Electron binary as plain Node.
     // Without this, spawning the daemon can recursively launch full Hydra app instances.
-    const child = spawn(process.execPath, [daemonScript,
-      '--socket-path', paths.socketPath,
-      '--user-data', paths.userDataPath
-    ], {
-      detached: true,
-      stdio: 'ignore',
-      env: {
-        ...process.env,
-        ELECTRON_RUN_AS_NODE: '1'
+    let logFd: number | null = null
+    try {
+      if (process.platform === 'win32') {
+        logFd = openSync(paths.logPath, 'a')
       }
-    })
 
-    child.unref()
+      const child = spawn(process.execPath, [daemonScript,
+        '--socket-path', paths.socketPath,
+        '--user-data', paths.userDataPath
+      ], {
+        detached: true,
+        stdio: logFd === null ? 'ignore' : ['ignore', logFd, logFd],
+        env: {
+          ...process.env,
+          ELECTRON_RUN_AS_NODE: '1'
+        }
+      })
 
-    child.on('error', (err) => {
-      reject(new Error(`Failed to spawn daemon: ${err.message}`))
-    })
+      child.unref()
 
-    // Don't wait for exit — the daemon runs forever
-    // Give it a moment to start up
-    setTimeout(resolve, 300)
+      child.on('error', (err) => {
+        reject(new Error(`Failed to spawn daemon: ${err.message}`))
+      })
+
+      // Don't wait for exit — the daemon runs forever
+      // Give it a moment to start up
+      setTimeout(resolve, 300)
+    } finally {
+      if (logFd !== null) {
+        closeSync(logFd)
+      }
+    }
   })
 }
 

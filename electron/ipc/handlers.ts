@@ -159,7 +159,7 @@ interface ObservabilityHandlers {
 }
 
 export function registerIpcHandlers(
-  daemonClient: DaemonClient,
+  daemonClient: DaemonClient | null,
   configStore: ConfigStore,
   updateService: UpdateService,
   observability: ObservabilityHandlers,
@@ -170,12 +170,23 @@ export function registerIpcHandlers(
   remoteControlService?: RemoteControlService | null
 ): void {
   const providerModelCatalog = new ProviderModelCatalog()
+  const getDaemonClient = (): DaemonClient => {
+    if (daemonClient) return daemonClient
+    throw new Error('Hydra daemon is unavailable. Restart Hydra to retry.')
+  }
+  const logDaemonUnavailable = (event: string): void => {
+    observability.logMainEvent?.({
+      level: 'warn',
+      event,
+      message: 'Hydra daemon is unavailable'
+    })
+  }
 
   // ── Preflight ────────────────────────────────────────────────────────────
 
   ipcMain.handle(IPC.PREFLIGHT_CHECK, async (_event, provider?: string) => {
     const providerId = providerSchema.catch('claude').parse(provider ?? 'claude')
-    return daemonClient.preflight(providerId)
+    return getDaemonClient().preflight(providerId)
   })
 
   ipcMain.handle(IPC.PROVIDER_MODELS_LIST, async (_event, provider?: string) => {
@@ -193,9 +204,11 @@ export function registerIpcHandlers(
       meta: { isManager: payload?.isManager }
     })
 
+    const client = getDaemonClient()
+
     // Manager agent: inject workspace path
     if (payload?.isManager) {
-      const status = await daemonClient.getMcpStatus()
+      const status = await client.getMcpStatus()
       if (!status?.running || !status.managerWorkspace) {
         throw new Error('MCP server is not running — cannot create manager agent')
       }
@@ -203,7 +216,7 @@ export function registerIpcHandlers(
     }
 
     const parsedPayload = createAgentPayloadSchema.parse(payload)
-    return daemonClient.create(parsedPayload)
+    return client.create(parsedPayload)
   })
 
   ipcMain.handle(IPC.AGENT_KILL, async (_event, agentId: string) => {
@@ -212,7 +225,7 @@ export function registerIpcHandlers(
       event: 'agent.kill.request',
       agentId
     })
-    return daemonClient.kill(agentIdSchema.parse(agentId))
+    return getDaemonClient().kill(agentIdSchema.parse(agentId))
   })
 
   ipcMain.handle(IPC.AGENT_REMOVE, async (_event, agentId: string) => {
@@ -221,7 +234,7 @@ export function registerIpcHandlers(
       event: 'agent.remove.request',
       agentId
     })
-    return daemonClient.remove(agentIdSchema.parse(agentId))
+    return getDaemonClient().remove(agentIdSchema.parse(agentId))
   })
 
   ipcMain.handle(IPC.AGENT_RESTART, async (_event, agentId: string) => {
@@ -230,27 +243,27 @@ export function registerIpcHandlers(
       event: 'agent.restart.request',
       agentId
     })
-    return daemonClient.restart(agentIdSchema.parse(agentId))
+    return getDaemonClient().restart(agentIdSchema.parse(agentId))
   })
 
   ipcMain.handle(IPC.AGENT_LIST, async () => {
-    return daemonClient.list()
+    return daemonClient ? daemonClient.list() : []
   })
 
   ipcMain.handle(IPC.AGENT_YOLO_TOGGLE, async (_event, agentId: string, yolo: boolean) => {
-    return daemonClient.toggleYolo(agentIdSchema.parse(agentId), z.boolean().parse(yolo))
+    return getDaemonClient().toggleYolo(agentIdSchema.parse(agentId), z.boolean().parse(yolo))
   })
 
   ipcMain.handle(IPC.AGENT_RENAME, async (_event, agentId: string, name: string) => {
-    return daemonClient.renameAgent(agentIdSchema.parse(agentId), z.string().min(1).parse(name))
+    return getDaemonClient().renameAgent(agentIdSchema.parse(agentId), z.string().min(1).parse(name))
   })
 
   ipcMain.handle(IPC.AGENT_MODEL_SET, async (_event, agentId: string, model: string) => {
-    return daemonClient.setAgentModel(agentIdSchema.parse(agentId), modelSchema.parse(model))
+    return getDaemonClient().setAgentModel(agentIdSchema.parse(agentId), modelSchema.parse(model))
   })
 
   ipcMain.handle(IPC.AGENT_GET_BUFFER, async (_event, agentId: string) => {
-    return daemonClient.getBuffer(agentIdSchema.parse(agentId))
+    return daemonClient ? daemonClient.getBuffer(agentIdSchema.parse(agentId)) : []
   })
 
   // ── Agent I/O ────────────────────────────────────────────────────────────
@@ -263,16 +276,28 @@ export function registerIpcHandlers(
       message: 'Submitted user input'
     })
     const parsed = inputSchema.parse({ agentId, input })
+    if (!daemonClient) {
+      logDaemonUnavailable('agent.input.skipped')
+      return
+    }
     daemonClient.sendInput(parsed.agentId, parsed.input)
   })
 
   ipcMain.on(IPC.AGENT_INPUT_RAW, (_event, agentId: string, data: string) => {
     const parsed = rawInputSchema.parse({ agentId, data })
+    if (!daemonClient) {
+      logDaemonUnavailable('agent.raw-input.skipped')
+      return
+    }
     daemonClient.sendRawInput(parsed.agentId, parsed.data)
   })
 
   ipcMain.on(IPC.AGENT_RESIZE, (_event, agentId: string, cols: number, rows: number) => {
     const parsed = resizeSchema.parse({ agentId, cols, rows })
+    if (!daemonClient) {
+      logDaemonUnavailable('agent.resize.skipped')
+      return
+    }
     daemonClient.resize(parsed.agentId, parsed.cols, parsed.rows)
   })
 
@@ -284,14 +309,14 @@ export function registerIpcHandlers(
       message: 'Broadcast prompt submitted'
     })
     const parsed = broadcastSchema.parse({ projectDir, input })
-    return daemonClient.broadcast(parsed.projectDir, parsed.input)
+    return getDaemonClient().broadcast(parsed.projectDir, parsed.input)
   })
 
   // ── Sessions ────────────────────────────────────────────────────────────
 
   ipcMain.handle(IPC.SESSIONS_LIST, async (_event, options?: unknown) => {
     const parsedOptions = sessionListOptionsSchema.parse(options)
-    return daemonClient.listSessions(parsedOptions)
+    return getDaemonClient().listSessions(parsedOptions)
   })
 
   // ── Headless runs ────────────────────────────────────────────────────────
@@ -301,15 +326,15 @@ export function registerIpcHandlers(
       level: 'info',
       event: 'headless.start.request'
     })
-    return daemonClient.startHeadlessRun(headlessStartSchema.parse(payload))
+    return getDaemonClient().startHeadlessRun(headlessStartSchema.parse(payload))
   })
 
   ipcMain.handle(IPC.HEADLESS_RUN_LIST, async (_event, options?: unknown) => {
-    return daemonClient.listHeadlessRuns(headlessListOptionsSchema.parse(options))
+    return getDaemonClient().listHeadlessRuns(headlessListOptionsSchema.parse(options))
   })
 
   ipcMain.handle(IPC.HEADLESS_RUN_GET, async (_event, runId: string) => {
-    return daemonClient.getHeadlessRun(agentIdSchema.parse(runId))
+    return getDaemonClient().getHeadlessRun(agentIdSchema.parse(runId))
   })
 
   ipcMain.handle(IPC.HEADLESS_RUN_CANCEL, async (_event, runId: string) => {
@@ -318,11 +343,11 @@ export function registerIpcHandlers(
       event: 'headless.cancel.request',
       sessionId: runId
     })
-    return daemonClient.cancelHeadlessRun(agentIdSchema.parse(runId))
+    return getDaemonClient().cancelHeadlessRun(agentIdSchema.parse(runId))
   })
 
   ipcMain.handle(IPC.HEADLESS_RUN_GET_LOG, async (_event, runId: string, options?: unknown) => {
-    return daemonClient.getHeadlessRunLog(
+    return getDaemonClient().getHeadlessRunLog(
       agentIdSchema.parse(runId),
       headlessLogOptionsSchema.parse(options)
     )
@@ -353,7 +378,9 @@ export function registerIpcHandlers(
     })
     // Also update daemon-side config
     try {
-      await daemonClient.setConfig(validated)
+      if (daemonClient) {
+        await daemonClient.setConfig(validated)
+      }
     } catch {
       // Best-effort sync to daemon
     }
@@ -371,6 +398,13 @@ export function registerIpcHandlers(
     configStore.set({ globalYolo: toggle })
 
     // Toggle all agents via daemon
+    if (!daemonClient) {
+      logDaemonUnavailable('config.global-yolo.skipped')
+      BrowserWindow.getAllWindows().forEach((win) => {
+        win.webContents.send(IPC.CONFIG_ON_CHANGE, configStore.get())
+      })
+      return []
+    }
     const agents = await daemonClient.list()
     const results: string[] = []
     for (const agent of agents) {
@@ -649,6 +683,7 @@ export function registerIpcHandlers(
 
   ipcMain.handle(IPC.MCP_SERVER_STATUS, async () => {
     try {
+      if (!daemonClient) return { running: false, port: null, error: 'Hydra daemon unavailable', managerWorkspace: null }
       return await daemonClient.getMcpStatus()
     } catch {
       return { running: false, port: null, error: null, managerWorkspace: null }
@@ -661,7 +696,7 @@ export function registerIpcHandlers(
     ipcMain.handle(IPC.FS_READ_DIR, async (_event, agentId: string, dirPath: string) => {
       const id = agentIdSchema.parse(agentId)
       const path = fsPathSchema.parse(dirPath)
-      const agent = await daemonClient.get(id)
+      const agent = await getDaemonClient().get(id)
       if (!agent) throw new Error(`Agent ${id} not found`)
       return fileSystemService.readDir(path, agent.projectDir)
     })
@@ -669,7 +704,7 @@ export function registerIpcHandlers(
     ipcMain.handle(IPC.FS_READ_FILE, async (_event, agentId: string, filePath: string) => {
       const id = agentIdSchema.parse(agentId)
       const path = fsPathSchema.parse(filePath)
-      const agent = await daemonClient.get(id)
+      const agent = await getDaemonClient().get(id)
       if (!agent) throw new Error(`Agent ${id} not found`)
       return fileSystemService.readFile(path, agent.projectDir)
     })
@@ -680,7 +715,7 @@ export function registerIpcHandlers(
         const id = agentIdSchema.parse(agentId)
         const path = fsPathSchema.parse(filePath)
         const body = fsWriteContentSchema.parse(content)
-        const agent = await daemonClient.get(id)
+        const agent = await getDaemonClient().get(id)
         if (!agent) throw new Error(`Agent ${id} not found`)
         await fileSystemService.writeFile(path, body, agent.projectDir)
         return true
@@ -689,7 +724,7 @@ export function registerIpcHandlers(
 
     ipcMain.on(IPC.FS_WATCH_START, async (_event, agentId: string) => {
       const id = agentIdSchema.parse(agentId)
-      const agent = await daemonClient.get(id)
+      const agent = await getDaemonClient().get(id)
       if (!agent) return
       fileSystemService.startWatch(id, agent.projectDir, (payload) => {
         BrowserWindow.getAllWindows().forEach((win) => {
@@ -709,7 +744,7 @@ export function registerIpcHandlers(
         const id = agentIdSchema.parse(agentId)
         const q = z.string().max(500).parse(query)
         const limit = z.number().int().min(1).max(500).optional().parse(maxResults)
-        const agent = await daemonClient.get(id)
+        const agent = await getDaemonClient().get(id)
         if (!agent) throw new Error(`Agent ${id} not found`)
         return fileSystemService.searchFiles(q, agent.projectDir, limit)
       }
@@ -868,70 +903,88 @@ export function registerIpcHandlers(
   // ── Skills ───────────────────────────────────────────────────────────────
 
   ipcMain.handle(IPC.SKILLS_SCAN, async () => {
-    return daemonClient.scanSkills()
+    return getDaemonClient().scanSkills()
   })
 
   ipcMain.handle(IPC.SKILLS_TOGGLE, async (_event, payload: unknown) => {
-    return daemonClient.toggleSkill(skillToggleSchema.parse(payload))
+    return getDaemonClient().toggleSkill(skillToggleSchema.parse(payload))
   })
 
   // ── Test Terminal (preflight) ───────────────────────────────────────────
 
-  daemonClient.on('test-terminal:output', (data: string) => {
+  daemonClient?.on('test-terminal:output', (data: string) => {
     BrowserWindow.getAllWindows().forEach((win) => {
       win.webContents.send(IPC.TEST_TERMINAL_OUTPUT, data)
     })
   })
 
-  daemonClient.on('test-terminal:exit', (exitCode: number) => {
+  daemonClient?.on('test-terminal:exit', (exitCode: number) => {
     BrowserWindow.getAllWindows().forEach((win) => {
       win.webContents.send(IPC.TEST_TERMINAL_EXIT, exitCode)
     })
   })
 
   ipcMain.handle(IPC.TEST_TERMINAL_SPAWN, async () => {
-    await daemonClient.spawnTestTerminal()
+    await getDaemonClient().spawnTestTerminal()
   })
 
   ipcMain.on(IPC.TEST_TERMINAL_INPUT, (_event, data: string) => {
+    if (!daemonClient) {
+      logDaemonUnavailable('test-terminal.input.skipped')
+      return
+    }
     daemonClient.sendTestTerminalInput(data)
   })
 
   ipcMain.on(IPC.TEST_TERMINAL_RESIZE, (_event, cols: number, rows: number) => {
+    if (!daemonClient) {
+      logDaemonUnavailable('test-terminal.resize.skipped')
+      return
+    }
     daemonClient.resizeTestTerminal(cols, rows)
   })
 
   ipcMain.on(IPC.TEST_TERMINAL_KILL, () => {
+    if (!daemonClient) return
     daemonClient.killTestTerminal()
   })
 
   // ── Free Terminal (integrated shell) ────────────────────────────────────
 
-  daemonClient.on('free-terminal:output', (data: string) => {
+  daemonClient?.on('free-terminal:output', (data: string) => {
     BrowserWindow.getAllWindows().forEach((win) => {
       win.webContents.send(IPC.FREE_TERMINAL_OUTPUT, data)
     })
   })
 
-  daemonClient.on('free-terminal:exit', (exitCode: number) => {
+  daemonClient?.on('free-terminal:exit', (exitCode: number) => {
     BrowserWindow.getAllWindows().forEach((win) => {
       win.webContents.send(IPC.FREE_TERMINAL_EXIT, exitCode)
     })
   })
 
   ipcMain.handle(IPC.FREE_TERMINAL_SPAWN, async (_event, cwd?: string) => {
-    await daemonClient.spawnFreeTerminal(cwd)
+    await getDaemonClient().spawnFreeTerminal(cwd)
   })
 
   ipcMain.on(IPC.FREE_TERMINAL_INPUT, (_event, data: string) => {
+    if (!daemonClient) {
+      logDaemonUnavailable('free-terminal.input.skipped')
+      return
+    }
     daemonClient.sendFreeTerminalInput(data)
   })
 
   ipcMain.on(IPC.FREE_TERMINAL_RESIZE, (_event, cols: number, rows: number) => {
+    if (!daemonClient) {
+      logDaemonUnavailable('free-terminal.resize.skipped')
+      return
+    }
     daemonClient.resizeFreeTerminal(cols, rows)
   })
 
   ipcMain.on(IPC.FREE_TERMINAL_KILL, () => {
+    if (!daemonClient) return
     daemonClient.killFreeTerminal()
   })
 }

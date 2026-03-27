@@ -180,7 +180,8 @@ app.whenReady().then(async () => {
     observability.logMain({
       level: 'error',
       event: 'daemon.connect-failed',
-      message: `Failed to connect to daemon: ${err instanceof Error ? err.message : String(err)}`
+      message: `Failed to connect to daemon: ${err instanceof Error ? err.message : String(err)}`,
+      meta: { daemonLogPath: daemonPaths.logPath }
     })
     // Still create the window — user can retry
   }
@@ -251,7 +252,7 @@ app.whenReady().then(async () => {
   })
 
   registerIpcHandlers(
-    daemonClient!,
+    daemonClient,
     configStore,
     updateService,
     {
@@ -269,6 +270,14 @@ app.whenReady().then(async () => {
     gitService,
     remoteControlService
   )
+  if (!daemonClient) {
+    observability.logMain({
+      level: 'warn',
+      event: 'daemon.unavailable',
+      message: 'Hydra started without a daemon connection',
+      meta: { daemonLogPath: daemonPaths.logPath }
+    })
+  }
   createWindow()
 
   if (!is.dev) {

@@ -507,3 +507,11 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Mistake**: Using a regex literal with `\x1b` triggered ESLint `no-control-regex`, and a closure used inside `useEffect` before its declaration triggered `react-hooks/immutability`.
 
 **Fix**: Build control-sequence regexes with `new RegExp(...)` string escapes, and declare memoized callbacks like `handleClose` before effects that capture them.
+
+### Windows packaged startup needs daemon fallback and daemon-side file logging
+
+**Context**: A Windows device log showed repeated `daemon.connect-failed` timeouts followed by a main-process `Cannot read properties of null (reading 'on')`, leaving Hydra unable to open.
+
+**Mistake**: Main startup assumed `daemonClient` existed even after daemon connection failed, and the daemon launcher discarded child stdout/stderr with `stdio: 'ignore'`, hiding the real startup failure cause.
+
+**Fix**: Let IPC registration and window startup tolerate a missing daemon, and on Windows route daemon stdout/stderr to a persistent `daemon.log` under the user-data directory for post-mortem debugging.

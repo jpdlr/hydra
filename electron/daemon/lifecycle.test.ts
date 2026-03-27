@@ -10,6 +10,8 @@ interface MockChildProcess {
 
 const mockState = vi.hoisted(() => ({
   spawnMock: vi.fn(),
+  openSyncMock: vi.fn(),
+  closeSyncMock: vi.fn(),
   readLockFileMock: vi.fn(),
   removeLockFileMock: vi.fn(),
   connectMock: vi.fn(),
@@ -20,6 +22,11 @@ const mockState = vi.hoisted(() => ({
 
 vi.mock('child_process', () => ({
   spawn: mockState.spawnMock
+}))
+
+vi.mock('fs', () => ({
+  openSync: mockState.openSyncMock,
+  closeSync: mockState.closeSyncMock
 }))
 
 vi.mock('./lock', () => ({
@@ -65,6 +72,8 @@ describe('daemon lifecycle', () => {
     vi.setSystemTime(new Date('2026-02-28T00:00:00.000Z'))
 
     mockState.spawnMock.mockReset()
+    mockState.openSyncMock.mockReset()
+    mockState.closeSyncMock.mockReset()
     mockState.readLockFileMock.mockReset()
     mockState.removeLockFileMock.mockReset()
     mockState.connectMock.mockReset()
@@ -73,6 +82,7 @@ describe('daemon lifecycle', () => {
     mockState.daemonClientConstructedSockets.length = 0
 
     mockState.spawnMock.mockImplementation(() => buildChildProcessMock())
+    mockState.openSyncMock.mockReturnValue(99)
     mockState.readLockFileMock.mockReturnValue(null)
     mockState.connectMock.mockResolvedValue(undefined)
     mockState.healthMock.mockResolvedValue(undefined)
@@ -90,6 +100,7 @@ describe('daemon lifecycle', () => {
     expect(paths).toEqual({
       socketPath: '/tmp/hydra-user-data/daemon.sock',
       lockPath: '/tmp/hydra-user-data/daemon.lock',
+      logPath: '/tmp/hydra-user-data/daemon.log',
       userDataPath: '/tmp/hydra-user-data'
     })
   })
@@ -106,6 +117,7 @@ describe('daemon lifecycle', () => {
     const paths = {
       socketPath: '/tmp/fallback.sock',
       lockPath: '/tmp/daemon.lock',
+      logPath: '/tmp/daemon.log',
       userDataPath: '/tmp'
     }
 
@@ -131,6 +143,7 @@ describe('daemon lifecycle', () => {
     const paths = {
       socketPath: '/tmp/new.sock',
       lockPath: '/tmp/daemon.lock',
+      logPath: '/tmp/hydra/daemon.log',
       userDataPath: '/tmp/hydra'
     }
 
@@ -161,6 +174,28 @@ describe('daemon lifecycle', () => {
     })
   })
 
+  it('captures daemon stdout and stderr to a log file on windows', async () => {
+    vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+
+    const { ensureDaemon } = await import('./lifecycle')
+    const paths = {
+      socketPath: 'C:\\Hydra\\daemon.sock',
+      lockPath: 'C:\\Hydra\\daemon.lock',
+      logPath: 'C:\\Hydra\\daemon.log',
+      userDataPath: 'C:\\Hydra'
+    }
+
+    const pending = ensureDaemon(paths)
+    await vi.advanceTimersByTimeAsync(300)
+    await expect(pending).resolves.toBeDefined()
+
+    expect(mockState.openSyncMock).toHaveBeenCalledWith('C:\\Hydra\\daemon.log', 'a')
+    expect(mockState.closeSyncMock).toHaveBeenCalledWith(99)
+    expect(mockState.spawnMock.mock.calls[0][2]).toMatchObject({
+      stdio: ['ignore', 99, 99]
+    })
+  })
+
   it('throws when spawned daemon never becomes connectable', async () => {
     mockState.connectMock.mockRejectedValue(new Error('still down'))
 
@@ -168,6 +203,7 @@ describe('daemon lifecycle', () => {
     const paths = {
       socketPath: '/tmp/new.sock',
       lockPath: '/tmp/daemon.lock',
+      logPath: '/tmp/hydra/daemon.log',
       userDataPath: '/tmp/hydra'
     }
 
@@ -187,6 +223,7 @@ describe('daemon lifecycle', () => {
     const paths = {
       socketPath: '/tmp/new.sock',
       lockPath: '/tmp/daemon.lock',
+      logPath: '/tmp/hydra/daemon.log',
       userDataPath: '/tmp/hydra'
     }
 
@@ -205,6 +242,7 @@ describe('daemon lifecycle', () => {
     const paths = {
       socketPath: '/tmp/new.sock',
       lockPath: '/tmp/daemon.lock',
+      logPath: '/tmp/hydra/daemon.log',
       userDataPath: '/tmp/hydra'
     }
 
@@ -226,6 +264,7 @@ describe('daemon lifecycle', () => {
     const paths = {
       socketPath: '/tmp/new.sock',
       lockPath: '/tmp/daemon.lock',
+      logPath: '/tmp/hydra/daemon.log',
       userDataPath: '/tmp/hydra'
     }
 
@@ -248,6 +287,7 @@ describe('daemon lifecycle', () => {
     const paths = {
       socketPath: '/tmp/new.sock',
       lockPath: '/tmp/daemon.lock',
+      logPath: '/tmp/hydra/daemon.log',
       userDataPath: '/tmp/hydra'
     }
 
@@ -271,6 +311,7 @@ describe('daemon lifecycle', () => {
       {
         socketPath: '/tmp/new.sock',
         lockPath: '/tmp/daemon.lock',
+        logPath: '/tmp/hydra/daemon.log',
         userDataPath: '/tmp/hydra'
       },
       onReconnected,
@@ -295,6 +336,7 @@ describe('daemon lifecycle', () => {
       {
         socketPath: '/tmp/new.sock',
         lockPath: '/tmp/daemon.lock',
+        logPath: '/tmp/hydra/daemon.log',
         userDataPath: '/tmp/hydra'
       }
     )
