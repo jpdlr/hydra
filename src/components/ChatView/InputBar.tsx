@@ -11,6 +11,12 @@ export interface AttachedImage {
   name: string
 }
 
+export interface AttachedFile {
+  id: string
+  path: string
+  name: string
+}
+
 interface InputBarProps {
   onSend: (input: string, images?: AttachedImage[]) => void
   onModelChange?: (model: ModelId) => void
@@ -35,6 +41,7 @@ interface SlashMenuItem {
 }
 
 let imageIdCounter = 0
+let fileIdCounter = 0
 
 export function InputBar({
   onSend,
@@ -51,6 +58,9 @@ export function InputBar({
 }: InputBarProps) {
   const [value, setValue] = useState('')
   const [images, setImages] = useState<AttachedImage[]>([])
+  const [files, setFiles] = useState<AttachedFile[]>([])
+  const [isDragging, setIsDragging] = useState(false)
+  const dragCounterRef = useRef(0)
   const [previewImage, setPreviewImage] = useState<AttachedImage | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const { providerModels, getModelOption } = useRuntimeProviderModels()
@@ -180,13 +190,20 @@ export function InputBar({
     onModelChange(nextModel)
   }, [model, onModelChange])
 
+  const removeFile = useCallback((id: string) => {
+    setFiles((prev) => prev.filter((f) => f.id !== id))
+  }, [])
+
   const handleSubmit = useCallback(() => {
     const trimmed = value.trim()
-    if ((!trimmed && images.length === 0) || disabled) return
-    onSend(trimmed, images.length > 0 ? images : undefined)
-    if (trimmed) {
+    if ((!trimmed && images.length === 0 && files.length === 0) || disabled) return
+    // Prepend file paths to the message text
+    const filePaths = files.map((f) => f.path).join(' ')
+    const fullInput = filePaths ? (trimmed ? `${filePaths} ${trimmed}` : filePaths) : trimmed
+    onSend(fullInput, images.length > 0 ? images : undefined)
+    if (fullInput) {
       setPromptHistory((prev) => {
-        const next = prev[prev.length - 1] === trimmed ? prev : [...prev, trimmed]
+        const next = prev[prev.length - 1] === fullInput ? prev : [...prev, fullInput]
         return next.slice(-50)
       })
     }
@@ -194,11 +211,12 @@ export function InputBar({
     setHistoryDraft('')
     setValue('')
     setImages([])
+    setFiles([])
     setCursorPosition(0)
     if (inputRef.current) {
       inputRef.current.style.height = 'auto'
     }
-  }, [value, images, disabled, onSend])
+  }, [value, images, files, disabled, onSend])
 
   const handleSelectSlashItem = useCallback((item: SlashMenuItem) => {
     if (!slashContext || !inputRef.current) return
@@ -363,48 +381,61 @@ export function InputBar({
     setImages((prev) => prev.filter((img) => img.id !== id))
   }, [])
 
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounterRef.current++
+    if (dragCounterRef.current === 1) {
+      setIsDragging(true)
+    }
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounterRef.current--
+    if (dragCounterRef.current === 0) {
+      setIsDragging(false)
+    }
+  }, [])
+
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault()
+      dragCounterRef.current = 0
+      setIsDragging(false)
 
-      // Check for image files first
-      const files = Array.from(e.dataTransfer.files)
-      const imageFiles = files.filter((f) => f.type.startsWith('image/'))
+      const droppedFiles = Array.from(e.dataTransfer.files)
+      const imageFiles = droppedFiles.filter((f) => f.type.startsWith('image/'))
+      const nonImageFiles = droppedFiles.filter((f) => !f.type.startsWith('image/'))
+
+      // Attach images as before
       if (imageFiles.length > 0) {
         addImagesFromFiles(imageFiles)
-        // Also add non-image file paths
-        const nonImagePaths = files
-          .filter((f) => !f.type.startsWith('image/'))
-          .map((f) => f.path)
-          .filter(Boolean)
-        if (nonImagePaths.length > 0) {
-          const text = nonImagePaths.join(' ')
-          setValue((prev) => {
-            const prefix = prev.length > 0 && !prev.endsWith(' ') ? ' ' : ''
-            return prev + prefix + text
-          })
+      }
+
+      // Attach non-image files as file chips
+      if (nonImageFiles.length > 0) {
+        const newFiles: AttachedFile[] = nonImageFiles
+          .filter((f) => f.path)
+          .map((f) => ({
+            id: `file-${fileIdCounter++}`,
+            path: f.path,
+            name: f.name
+          }))
+        if (newFiles.length > 0) {
+          setFiles((prev) => [...prev, ...newFiles])
         }
         return
       }
 
-      // OS file drops (non-image)
-      const osPaths = files.map((f) => f.path).filter(Boolean)
-      if (osPaths.length > 0) {
-        const text = osPaths.join(' ')
-        setValue((prev) => {
-          const prefix = prev.length > 0 && !prev.endsWith(' ') ? ' ' : ''
-          return prev + prefix + text
-        })
-        return
-      }
-
-      // Internal editor drag (text/plain with file path)
-      const textData = e.dataTransfer.getData('text/plain')
-      if (textData) {
-        setValue((prev) => {
-          const prefix = prev.length > 0 && !prev.endsWith(' ') ? ' ' : ''
-          return prev + prefix + textData
-        })
+      // If no OS files at all, check for text/plain (internal drag)
+      if (droppedFiles.length === 0) {
+        const textData = e.dataTransfer.getData('text/plain')
+        if (textData) {
+          setValue((prev) => {
+            const prefix = prev.length > 0 && !prev.endsWith(' ') ? ' ' : ''
+            return prev + prefix + textData
+          })
+        }
       }
     },
     [addImagesFromFiles]
@@ -412,11 +443,13 @@ export function InputBar({
 
   return (
     <div
-      className={styles.bar}
+      className={`${styles.bar} ${isDragging ? styles.barDragging : ''}`}
       onDragOver={(e) => {
         e.preventDefault()
         e.dataTransfer.dropEffect = 'copy'
       }}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
       {previewImage && (
@@ -448,6 +481,23 @@ export function InputBar({
                   className={styles.imageRemove}
                   onClick={() => removeImage(img.id)}
                   title="Remove image"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {files.length > 0 && (
+          <div className={styles.fileStrip}>
+            {files.map((file) => (
+              <div key={file.id} className={styles.fileChip}>
+                <FileIcon />
+                <span className={styles.fileName}>{file.name}</span>
+                <button
+                  className={styles.fileRemove}
+                  onClick={() => removeFile(file.id)}
+                  title="Remove file"
                 >
                   ×
                 </button>
@@ -548,7 +598,7 @@ export function InputBar({
           <button
             className={styles.sendBtn}
             onClick={handleSubmit}
-            disabled={disabled || (!value.trim() && images.length === 0)}
+            disabled={disabled || (!value.trim() && images.length === 0 && files.length === 0)}
             title="Send (Enter)"
           >
             <SendIcon />
@@ -556,6 +606,15 @@ export function InputBar({
         </div>
       </div>
     </div>
+  )
+}
+
+function FileIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+    </svg>
   )
 }
 

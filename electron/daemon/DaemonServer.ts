@@ -74,8 +74,8 @@ export class DaemonServer {
   }
 
   async start(): Promise<void> {
-    // Remove stale socket file
-    if (existsSync(this.socketPath)) {
+    // Remove stale socket file (not needed for Windows named pipes)
+    if (!this.socketPath.startsWith('\\\\.\\pipe\\') && existsSync(this.socketPath)) {
       try { unlinkSync(this.socketPath) } catch { /* ignore */ }
     }
 
@@ -156,8 +156,8 @@ export class DaemonServer {
       this.server.close()
       this.server = null
     }
-    // Clean up socket file
-    if (existsSync(this.socketPath)) {
+    // Clean up socket file (named pipes on Windows don't leave files)
+    if (!this.socketPath.startsWith('\\\\.\\pipe\\') && existsSync(this.socketPath)) {
       try { unlinkSync(this.socketPath) } catch { /* ignore */ }
     }
   }

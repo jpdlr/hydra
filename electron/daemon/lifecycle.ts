@@ -22,8 +22,14 @@ function joinByInputPathStyle(basePath: string, filename: string): string {
 }
 
 export function getDaemonPaths(userDataPath: string): DaemonPaths {
+  // Windows: use named pipes for reliable IPC (AF_UNIX sockets are unreliable).
+  // Derive a stable pipe name from the userDataPath so multiple installs don't collide.
+  const socketPath = process.platform === 'win32'
+    ? `\\\\.\\pipe\\hydra-daemon-${userDataPath.replace(/[^a-zA-Z0-9]/g, '_')}`
+    : joinByInputPathStyle(userDataPath, 'daemon.sock')
+
   return {
-    socketPath: joinByInputPathStyle(userDataPath, 'daemon.sock'),
+    socketPath,
     lockPath: joinByInputPathStyle(userDataPath, 'daemon.lock'),
     logPath: joinByInputPathStyle(userDataPath, 'daemon.log'),
     userDataPath
@@ -98,13 +104,35 @@ function spawnDaemon(paths: DaemonPaths): Promise<void> {
 
       child.unref()
 
+      let settled = false
+
       child.on('error', (err) => {
-        reject(new Error(`Failed to spawn daemon: ${err.message}`))
+        if (!settled) {
+          settled = true
+          reject(new Error(`Failed to spawn daemon: ${err.message}`))
+        }
+      })
+
+      // Detect immediate crashes — if the child exits before the startup
+      // grace period, report the failure instead of waiting for the timeout.
+      child.on('exit', (code) => {
+        if (!settled) {
+          settled = true
+          reject(new Error(
+            `Daemon exited immediately with code ${code}. ` +
+            `Check ${paths.logPath} for details.`
+          ))
+        }
       })
 
       // Don't wait for exit — the daemon runs forever
       // Give it a moment to start up
-      setTimeout(resolve, 300)
+      setTimeout(() => {
+        if (!settled) {
+          settled = true
+          resolve()
+        }
+      }, 300)
     } finally {
       if (logFd !== null) {
         closeSync(logFd)

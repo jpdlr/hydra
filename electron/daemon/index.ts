@@ -43,7 +43,9 @@ function parseArgs(): { socketPath: string; userDataPath: string; lockPath: stri
   }
 
   if (!socketPath) {
-    socketPath = join(userDataPath, 'daemon.sock')
+    socketPath = process.platform === 'win32'
+      ? `\\\\.\\pipe\\hydra-daemon-${userDataPath.replace(/[^a-zA-Z0-9]/g, '_')}`
+      : join(userDataPath, 'daemon.sock')
   }
 
   const lockPath = join(userDataPath, 'daemon.lock')

@@ -108,12 +108,18 @@
   background: rgba(0, 0, 0, 0.8);
 }
 
+/* Drop zone highlight */
+.barDragging .inputCard {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 6%, var(--color-sidebar-hover) 94%);
+}
+
 .inputCard {
   background: var(--color-sidebar-hover);
   border: 1px solid var(--color-input-border);
   border-radius: 16px;
   padding: var(--space-3) var(--space-4);
-  transition: border-color var(--transition-fast);
+  transition: border-color var(--transition-fast), background var(--transition-fast);
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -121,6 +127,59 @@
 
 .inputCard:focus-within {
   border-color: var(--color-input-focus);
+}
+
+/* File chips */
+.fileStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.fileChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 6px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  max-width: 240px;
+}
+
+.fileChip svg {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+.fileName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileRemove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.fileRemove:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
 }
 
 .input {

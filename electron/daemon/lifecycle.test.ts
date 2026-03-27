@@ -6,6 +6,7 @@ interface MockChildProcess {
   unref: ReturnType<typeof vi.fn>
   on: ReturnType<typeof vi.fn>
   emitError: (error: Error) => void
+  emitExit: (code: number | null) => void
 }
 
 const mockState = vi.hoisted(() => ({
@@ -61,6 +62,9 @@ function buildChildProcessMock(): MockChildProcess {
     }),
     emitError: (error: Error) => {
       emitter.emit('error', error)
+    },
+    emitExit: (code: number | null) => {
+      emitter.emit('exit', code)
     }
   }
   return child
@@ -103,6 +107,16 @@ describe('daemon lifecycle', () => {
       logPath: '/tmp/hydra-user-data/daemon.log',
       userDataPath: '/tmp/hydra-user-data'
     })
+  })
+
+  it('uses named pipe socket path on Windows', async () => {
+    vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+    const { getDaemonPaths } = await import('./lifecycle')
+    const paths = getDaemonPaths('C:\\Users\\user\\AppData\\Roaming\\hydra')
+    expect(paths.socketPath).toBe(
+      '\\\\.\\pipe\\hydra-daemon-C__Users_user_AppData_Roaming_hydra'
+    )
+    expect(paths.lockPath).toBe('C:\\Users\\user\\AppData\\Roaming\\hydra\\daemon.lock')
   })
 
   it('connects to existing daemon when lock file is healthy', async () => {
@@ -233,6 +247,25 @@ describe('daemon lifecycle', () => {
       'Failed to spawn daemon: spawn failed'
     )
     failingChild.emitError(new Error('spawn failed'))
+    await pending
+  })
+
+  it('rejects immediately when daemon exits before startup grace period', async () => {
+    const crashingChild = buildChildProcessMock()
+    mockState.spawnMock.mockReturnValue(crashingChild)
+
+    const { ensureDaemon } = await import('./lifecycle')
+    const paths = {
+      socketPath: '/tmp/new.sock',
+      lockPath: '/tmp/daemon.lock',
+      logPath: '/tmp/hydra/daemon.log',
+      userDataPath: '/tmp/hydra'
+    }
+
+    const pending = expect(ensureDaemon(paths)).rejects.toThrow(
+      'Daemon exited immediately with code 1'
+    )
+    crashingChild.emitExit(1)
     await pending
   })
 
