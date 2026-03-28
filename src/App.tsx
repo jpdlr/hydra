@@ -122,6 +122,10 @@ export default function App() {
   const { viewMode, setViewMode, toggleViewMode } = useViewMode(
     persistedUi.viewMode ?? config.defaultViewMode
   )
+  const [renderedViewMode, setRenderedViewMode] = useState<ViewMode>(
+    persistedUi.viewMode ?? config.defaultViewMode
+  )
+  const [isViewSwitchPending, setIsViewSwitchPending] = useState(false)
 
   const editorPanel = useEditorPanel(selectedAgentId, selectedAgent?.state.projectDir)
 
@@ -192,6 +196,33 @@ export default function App() {
       setQuitConfirmRunningCount(runningCount)
     })
   }, [])
+
+  useEffect(() => {
+    if (renderedViewMode === viewMode) {
+      setIsViewSwitchPending(false)
+      return
+    }
+
+    setIsViewSwitchPending(true)
+    let cancelled = false
+    let rafA = 0
+    let rafB = 0
+
+    // Let the lightweight loading shell paint before mounting the heavy view subtree.
+    rafA = requestAnimationFrame(() => {
+      rafB = requestAnimationFrame(() => {
+        if (cancelled) return
+        setRenderedViewMode(viewMode)
+        setIsViewSwitchPending(false)
+      })
+    })
+
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(rafA)
+      cancelAnimationFrame(rafB)
+    }
+  }, [renderedViewMode, viewMode])
 
   const handleOpenNewAgent = useCallback(async () => {
     if (await ensurePreflightReady()) {
@@ -576,6 +607,17 @@ export default function App() {
 
       <div className={styles.body}>
         {viewMode === 'chat' && (
+          isViewSwitchPending ? (
+            <aside className={styles.sidebarLoading} aria-hidden="true">
+              <div className={styles.sidebarLoadingSearch} />
+              <div className={styles.sidebarLoadingSection} />
+              <div className={styles.sidebarLoadingList}>
+                <div className={styles.sidebarLoadingItem} />
+                <div className={styles.sidebarLoadingItem} />
+                <div className={styles.sidebarLoadingItem} />
+              </div>
+            </aside>
+          ) : (
             <Sidebar
               projectGroups={projectGroups}
               selectedAgentId={selectedAgentId}
@@ -597,17 +639,16 @@ export default function App() {
               sessionMaxAgeDays={config.sessionMaxAgeDays}
               defaultEditor={config.defaultEditor}
             />
-          )}
+          )
+        )}
 
         <main className={styles.main}>
-          {viewMode === 'chat' ? (
+          {isViewSwitchPending ? (
+            <ViewSwitchLoadingState targetMode={viewMode} />
+          ) : renderedViewMode === 'chat' ? (
             <ChatView
               agent={selectedAgent?.state || null}
               rawOutput={selectedAgent?.rawOutput || ''}
-              agentTerminals={agentList.map((agent) => ({
-                id: agent.id,
-                rawOutput: agents.get(agent.id)?.rawOutput || ''
-              }))}
               onSendInput={(input, images) => {
                 if (selectedAgentId) {
                   void handleSendInput(selectedAgentId, input, images)
@@ -911,6 +952,22 @@ export default function App() {
       )}
 
       <NotificationToast notifications={notifications} onDismiss={dismissNotification} />
+    </div>
+  )
+}
+
+function ViewSwitchLoadingState({ targetMode }: { targetMode: ViewMode }) {
+  return (
+    <div className={styles.viewLoading}>
+      <div className={styles.viewLoadingSpinner} aria-hidden="true" />
+      <div className={styles.viewLoadingText}>
+        <span className={styles.viewLoadingTitle}>
+          Opening {targetMode === 'chat' ? 'chat' : 'grid'} view
+        </span>
+        <span className={styles.viewLoadingSubtitle}>
+          Rendering the interface for this workspace.
+        </span>
+      </div>
     </div>
   )
 }

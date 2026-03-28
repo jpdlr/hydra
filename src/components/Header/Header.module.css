@@ -17,6 +17,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  flex: 1;
+  min-width: 0;
 }
 
 .logoMark {
@@ -62,12 +64,16 @@
 .center {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .right {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
 }
 
 /* ── Shared header button base ────────────────────── */

@@ -1,5 +1,7 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
 import type { AgentState } from '@shared/types'
+import claudeIcon from '@/assets/claude-icon.png'
+import codexIcon from '@/assets/codex-icon.png'
 import styles from './AgentItem.module.css'
 
 interface AgentItemProps {
@@ -124,9 +126,12 @@ export function AgentItem({ agent, isSelected, onSelect, onRename, onRemove }: A
         ) : (
           <span className={styles.name}>{agent.name}</span>
         )}
-        {agent.provider === 'codex' && <span className={styles.providerBadge}>CDX</span>}
+        <img
+          src={agent.provider === 'codex' ? codexIcon : claudeIcon}
+          alt={agent.provider === 'codex' ? 'Codex' : 'Claude'}
+          className={styles.providerIcon}
+        />
         {agent.isManager && <span className={styles.managerBadge}>MGR</span>}
-        {agent.yolo && <span className={styles.yoloBadge}>Y</span>}
         <span className={styles.age}>{age}</span>
       </button>
 

@@ -39,16 +39,12 @@
   white-space: nowrap;
 }
 
-.providerBadge {
-  font-size: 9px;
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-tertiary);
-  background: var(--color-surface-elevated);
-  border: 1px solid var(--color-border);
-  padding: 0 3px;
-  border-radius: var(--radius-sm);
-  line-height: 1.4;
-  opacity: 0.8;
+.providerIcon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  opacity: 0.7;
+  border-radius: 3px;
 }
 
 .managerBadge {

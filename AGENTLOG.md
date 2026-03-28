@@ -218,6 +218,18 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Mistake**: Including a non-existent target directory (`app`) made `rg` exit non-zero and obscured whether results were complete.
 **Fix**: Scope `rg` targets to known existing roots (for this repo: `src`, `electron`, `hydra-remote`, `shared`) or run from repo root without extra path args.
 
+### Chat view should not mount hidden terminals for every agent
+**Date**: 2026-03-28
+**Context**: Investigated Windows hitches when switching from grid view to chat view.
+**Mistake**: Chat view mounted a `TerminalPane` for every agent with output, even when only one agent was selected. Each hidden pane still initialized xterm, addons, observers, and resize work.
+**Fix**: In chat view, mount only the selected agent's terminal. If faster agent-to-agent switching is needed later, add an explicit lightweight cache instead of keeping many live hidden xterms mounted.
+
+### Heavy view switches should paint a loading shell before mounting the full subtree
+**Date**: 2026-03-28
+**Context**: Grid/chat switching on Windows still felt hitchy even after reducing terminal mounts.
+**Mistake**: Toggling directly from one heavy view subtree to the other can make the mode switch itself feel blocked because React commits the expensive children in the same turn.
+**Fix**: Split view switching into two phases: update the target mode immediately, paint a lightweight loading shell, then mount the target subtree on the next paint cycle.
+
 ### Hydra session picker is provider-specific even though the IPC name is generic
 **Date**: 2026-03-08
 **Context**: Codex resume looked broken from the New Agent dialog.
