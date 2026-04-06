@@ -37,6 +37,7 @@ const mockScanResult: SkillScanResult = {
       path: '/home/user/.codex/vendor_imports/skills/skills/.curated/pdf/SKILL.md'
     }
   ],
+  opencode: [],
   scannedAt: '2026-03-06T00:00:00.000Z'
 }
 

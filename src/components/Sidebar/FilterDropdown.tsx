@@ -19,6 +19,7 @@ const STATUSES: { value: AgentStatus; label: string }[] = [
 const PROVIDERS: { value: ProviderId; label: string }[] = [
   { value: 'claude', label: 'Claude' },
   { value: 'codex', label: 'Codex' },
+  { value: 'opencode', label: 'OpenCode' },
 ]
 
 const AGE_OPTIONS: { value: number; label: string }[] = [

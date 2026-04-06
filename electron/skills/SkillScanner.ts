@@ -86,7 +86,7 @@ export class SkillScanner {
   scan(): SkillScanResult {
     const claude = this.scanClaude()
     const codex = this.scanCodex()
-    return { claude, codex, scannedAt: new Date().toISOString() }
+    return { claude, codex, opencode: [], scannedAt: new Date().toISOString() }
   }
 
   toggle(payload: SkillTogglePayload): boolean {

@@ -144,11 +144,39 @@ const codexProvider: ProviderConfig = {
   }
 }
 
+// ── OpenCode Provider ──────────────────────────────────────────────────────
+
+const opencodeProvider: ProviderConfig = {
+  id: 'opencode',
+  command: 'opencode',
+  supportsResume: true,
+  yoloFlag: null,
+  sessionIdRegex: /session(?:[_\s-]?id)?[:=\s]+([a-z0-9-]{8,})/i,
+
+  buildArgs(state: AgentState): string[] {
+    const args: string[] = []
+    args.push('--model', state.model)
+    if (state.sessionId) args.push('--session', state.sessionId)
+    return args
+  },
+
+  buildHeadlessArgs(model: ModelId, prompt: string, resumeSessionId: string | null, _reasoningEffort?: string): string[] {
+    const args = ['-p', prompt, '--output-format', 'text', '--model', model]
+    if (resumeSessionId) args.push('--session', resumeSessionId)
+    return args
+  },
+
+  async preflight() {
+    return runPreflight('opencode', 'OpenCode CLI not found. Install it from https://opencode.ai')
+  }
+}
+
 // ── Registry ────────────────────────────────────────────────────────────────
 
 const PROVIDERS: Record<ProviderId, ProviderConfig> = {
   claude: claudeProvider,
-  codex: codexProvider
+  codex: codexProvider,
+  opencode: opencodeProvider
 }
 
 export function getProvider(id: ProviderId): ProviderConfig {

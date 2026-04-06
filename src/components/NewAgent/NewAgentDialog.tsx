@@ -4,9 +4,12 @@ import { PROVIDER_LABELS, CODEX_REASONING_LEVELS } from '@shared/types'
 import { useRuntimeProviderModels } from '../../hooks/useRuntimeProviderModels'
 import claudeIcon from '../../assets/claude-icon.png'
 import codexIcon from '../../assets/codex-icon.png'
+import opencodeIcon from '../../assets/opencode-icon.png'
+
+const PROVIDER_ICONS: Record<ProviderId, string> = { claude: claudeIcon, codex: codexIcon, opencode: opencodeIcon }
 import styles from './NewAgentDialog.module.css'
 
-const PROVIDERS: ProviderId[] = ['claude', 'codex']
+const PROVIDERS: ProviderId[] = ['claude', 'codex', 'opencode']
 
 interface NewAgentDialogProps {
   defaultProvider: ProviderId
@@ -251,7 +254,7 @@ export function NewAgentDialog({
                   }}
                 >
                   <img
-                    src={p === 'codex' ? codexIcon : claudeIcon}
+                    src={PROVIDER_ICONS[p]}
                     alt=""
                     width={16}
                     height={16}
@@ -377,9 +380,7 @@ export function NewAgentDialog({
                 />
                 <span>Resume existing {PROVIDER_LABELS[provider]} session</span>
                 <span className={styles.hint}>
-                  {provider === 'codex'
-                    ? 'Import from your Codex sessions directory'
-                    : 'Import from your Claude sessions directory'}
+                  Import from your {PROVIDER_LABELS[provider]} sessions directory
                 </span>
               </label>
             </div>

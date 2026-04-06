@@ -386,7 +386,7 @@ export class HeadlessOrchestrator extends EventEmitter {
       run.status === 'errored' ||
       run.status === 'canceled'
 
-    const validProviders = ['claude', 'codex']
+    const validProviders = ['claude', 'codex', 'opencode']
     const validProvider = run.provider === undefined || validProviders.includes(run.provider as string)
 
     return (

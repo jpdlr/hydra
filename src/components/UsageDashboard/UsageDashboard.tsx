@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { CcusageDailyEntry, CcusageSnapshot, ProviderId } from '@shared/types'
+import { PROVIDER_LABELS } from '@shared/types'
 import styles from './UsageDashboard.module.css'
 
 interface UsageDashboardProps {
@@ -8,7 +9,7 @@ interface UsageDashboardProps {
 
 const DAY_LIMIT = 30
 const TREND_WINDOWS = [7, 30] as const
-const USAGE_PROVIDERS: ProviderId[] = ['claude', 'codex']
+const USAGE_PROVIDERS: ProviderId[] = ['claude', 'codex', 'opencode']
 type TrendWindow = (typeof TREND_WINDOWS)[number]
 
 interface TrendPoint {
@@ -81,14 +82,11 @@ export function UsageDashboard({ onClose }: UsageDashboardProps) {
     >
   }, [snapshot, selectedDate])
 
-  const subtitle = 'Token usage and costs from local Claude Code and Codex logs via ccusage'
-  const providerInstallTitle = selectedProvider === 'codex' ? 'Codex usage support is not installed' : 'ccusage is not installed'
-  const providerInstallDescription = selectedProvider === 'codex'
-    ? 'Hydra uses the Codex companion for ccusage to analyze your local Codex usage logs.'
-    : 'Hydra uses ccusage to analyze your Claude Code usage from local log files.'
-  const providerEmptyDescription = selectedProvider === 'codex'
-    ? 'No usage data found. Start using Codex to generate usage logs.'
-    : 'No usage data found. Start using Claude Code to generate usage logs.'
+  const providerName = PROVIDER_LABELS[selectedProvider]
+  const subtitle = 'Token usage and costs from local agent logs via ccusage'
+  const providerInstallTitle = `${providerName} usage support is not installed`
+  const providerInstallDescription = `Hydra uses ccusage to analyze your local ${providerName} usage logs.`
+  const providerEmptyDescription = `No usage data found. Start using ${providerName} to generate usage logs.`
 
   // Not installed state
   if (!isLoading && snapshot && !snapshot.available) {
@@ -115,7 +113,7 @@ export function UsageDashboard({ onClose }: UsageDashboardProps) {
                     type="button"
                     onClick={() => setSelectedProvider(provider)}
                   >
-                    {provider === 'codex' ? 'Codex' : 'Claude'}
+                    {PROVIDER_LABELS[provider]}
                   </button>
                 ))}
               </div>
@@ -186,7 +184,7 @@ export function UsageDashboard({ onClose }: UsageDashboardProps) {
                       type="button"
                       onClick={() => setSelectedProvider(provider)}
                     >
-                      {provider === 'codex' ? 'Codex' : 'Claude'}
+                      {PROVIDER_LABELS[provider]}
                     </button>
                   ))}
                 </div>
