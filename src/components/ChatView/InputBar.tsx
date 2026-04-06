@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import type { ModelId, ProviderId, GitBranch, WorkMode, SkillInfo, SkillScanResult } from '@shared/types'
 import claudeIcon from '@/assets/claude-icon.png'
 import codexIcon from '@/assets/codex-icon.png'
+import opencodeIcon from '@/assets/opencode-icon.png'
 import { useRuntimeProviderModels } from '../../hooks/useRuntimeProviderModels'
 import styles from './InputBar.module.css'
 
@@ -517,10 +518,10 @@ export function InputBar({
               >
                 <ProviderIcon provider={provider} />
                 {formatModelLabel(provider, getModelOption(provider ?? 'claude', model)?.label ?? model)}
-                {onModelChange && provider === 'claude' && <ChevronIcon open={modelPickerOpen} />}
+                {onModelChange && provider !== 'codex' && <ChevronIcon open={modelPickerOpen} />}
                 {onModelChange && provider === 'codex' && <OpenChevronIcon />}
               </button>
-              {modelPickerOpen && provider === 'claude' && (
+              {modelPickerOpen && provider !== 'codex' && provider && (
                 <ModelPickerDropdown
                   models={providerModels[provider]}
                   currentModel={model}
@@ -585,13 +586,14 @@ function SendIcon() {
   )
 }
 
+const PROVIDER_ICONS: Record<ProviderId, string> = { claude: claudeIcon, codex: codexIcon, opencode: opencodeIcon }
+
 function ProviderIcon({ provider }: { provider?: ProviderId }) {
-  const src = provider === 'codex' ? codexIcon : claudeIcon
-  const alt = provider === 'codex' ? 'Codex' : 'Claude'
+  const p = provider ?? 'claude'
   return (
     <img
-      src={src}
-      alt={alt}
+      src={PROVIDER_ICONS[p]}
+      alt={p}
       width={14}
       height={14}
       className={styles.providerIcon}
@@ -908,15 +910,19 @@ function getProviderCommandItems(provider: ProviderId): SlashMenuItem[] {
     ]
   }
 
-  return [
-    {
-      id: 'command:rename',
-      label: 'rename',
-      description: 'Rename the current Claude session',
-      searchText: 'rename title session claude',
-      insertText: '/rename ',
-      kind: 'command'
-    },
-    ...common
-  ]
+  if (provider === 'claude') {
+    return [
+      {
+        id: 'command:rename',
+        label: 'rename',
+        description: 'Rename the current Claude session',
+        searchText: 'rename title session claude',
+        insertText: '/rename ',
+        kind: 'command'
+      },
+      ...common
+    ]
+  }
+
+  return common
 }

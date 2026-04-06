@@ -3,7 +3,7 @@ import type { ProviderId, SkillInfo, SkillScanResult } from '@shared/types'
 import { PROVIDER_LABELS } from '@shared/types'
 import styles from './SkillsTab.module.css'
 
-const PROVIDERS: ProviderId[] = ['claude', 'codex']
+const PROVIDERS: ProviderId[] = ['claude', 'codex', 'opencode']
 
 function groupSkills(skills: SkillInfo[]): Map<string, SkillInfo[]> {
   const groups = new Map<string, SkillInfo[]>()
@@ -304,7 +304,7 @@ export function SkillsTab() {
     const newEnabled = !skill.enabled
     setResult((prev) => {
       if (!prev) return prev
-      const key = skill.provider === 'claude' ? 'claude' : 'codex'
+      const key = skill.provider
       return {
         ...prev,
         [key]: prev[key].map((s) => {
@@ -332,7 +332,7 @@ export function SkillsTab() {
 
     setResult((prev) => {
       if (!prev) return prev
-      const key = provider === 'claude' ? 'claude' : 'codex'
+      const key = provider
       return {
         ...prev,
         [key]: prev[key].map((s) => (s.group === group ? { ...s, enabled: newEnabled } : s))

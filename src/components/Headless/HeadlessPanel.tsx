@@ -10,7 +10,7 @@ import { PROVIDER_LABELS, CODEX_REASONING_LEVELS } from '@shared/types'
 import { useRuntimeProviderModels } from '../../hooks/useRuntimeProviderModels'
 import styles from './HeadlessPanel.module.css'
 
-const PROVIDERS: ProviderId[] = ['claude', 'codex']
+const PROVIDERS: ProviderId[] = ['claude', 'codex', 'opencode']
 
 interface HeadlessPanelProps {
   defaultProjectDir: string

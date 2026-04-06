@@ -28,7 +28,7 @@ import { z } from 'zod'
 const editorIdSchema = z.enum(['vscode', 'cursor', 'windsurf', 'antigravity', 'zed', 'finder', 'terminal'])
 const agentIdSchema = z.string().trim().min(1).max(128)
 const projectDirSchema = z.string().trim().min(1).max(4096)
-const providerSchema = z.enum(['claude', 'codex'])
+const providerSchema = z.enum(['claude', 'codex', 'opencode'])
 const modelSchema = z.string().trim().min(1).max(128)
 const reasoningEffortSchema = z.string().trim().max(32).optional()
 const workModeSchema = z.enum(['local', 'worktree']).optional()

@@ -31,7 +31,7 @@ export interface AgentState extends AgentConfig {
 
 // ── Providers ────────────────────────────────────────────────────────────────
 
-export type ProviderId = 'claude' | 'codex'
+export type ProviderId = 'claude' | 'codex' | 'opencode'
 
 /** Free-form model identifier — any string accepted so new models work without code changes. */
 export type ModelId = string
@@ -59,6 +59,13 @@ export const PROVIDER_MODELS: Record<ProviderId, ProviderModelOption[]> = {
     { id: 'gpt-5.1-codex-max', label: 'GPT-5.1 Codex Max' },
     { id: 'gpt-5.2', label: 'GPT-5.2' },
     { id: 'gpt-5.1-codex-mini', label: 'GPT-5.1 Codex Mini' }
+  ],
+  opencode: [
+    { id: 'opencode/big-pickle', label: 'Big Pickle', isDefault: true },
+    { id: 'opencode/gpt-5-nano', label: 'GPT-5 Nano' },
+    { id: 'opencode/qwen3.6-plus-free', label: 'Qwen3.6 Plus Free' },
+    { id: 'opencode/nemotron-3-super-free', label: 'Nemotron 3 Super Free' },
+    { id: 'opencode/minimax-m2.5-free', label: 'MiniMax M2.5 Free' }
   ]
 }
 
@@ -67,7 +74,8 @@ export type CodexReasoningLevel = (typeof CODEX_REASONING_LEVELS)[number]
 
 export const PROVIDER_LABELS: Record<ProviderId, string> = {
   claude: 'Claude',
-  codex: 'Codex'
+  codex: 'Codex',
+  opencode: 'OpenCode'
 }
 
 export function getDefaultModelForProvider(provider: ProviderId): ModelId {
@@ -578,6 +586,7 @@ export interface SkillInfo {
 export interface SkillScanResult {
   claude: SkillInfo[]
   codex: SkillInfo[]
+  opencode: SkillInfo[]
   scannedAt: string
 }
 

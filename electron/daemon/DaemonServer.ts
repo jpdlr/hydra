@@ -21,7 +21,8 @@ import type {
   HydraNotification,
   CreateAgentPayload,
   AppConfig,
-  StartHeadlessRunPayload
+  StartHeadlessRunPayload,
+  ProviderId
 } from '@shared/types'
 
 interface DaemonServerOptions {
@@ -388,7 +389,7 @@ export class DaemonServer {
       // ── Preflight ───────────────────────────────────────────────────────
       if (method === 'POST' && path === '/preflight') {
         const body = await this.readBody<{ provider?: string }>(req)
-        const provider = (body.provider as 'claude' | 'codex') || 'claude'
+        const provider = (body.provider as ProviderId) || 'claude'
         const result = await this.agentManager.preflight(provider)
         return this.json(res, 200, result)
       }
@@ -396,7 +397,8 @@ export class DaemonServer {
       // ── Sessions ────────────────────────────────────────────────────────
       if (method === 'GET' && path === '/sessions') {
         const config = this.configStore.get()
-        const provider = url.searchParams.get('provider') === 'codex' ? 'codex' : 'claude'
+        const providerParam = url.searchParams.get('provider')
+        const provider: ProviderId = providerParam === 'codex' ? 'codex' : providerParam === 'opencode' ? 'opencode' : 'claude'
         const limit = parseInt(url.searchParams.get('limit') || '0') || (config.sessionImportLimit > 0 ? config.sessionImportLimit : undefined)
         const maxAgeDays = parseInt(url.searchParams.get('maxAgeDays') || '0') || (config.sessionMaxAgeDays > 0 ? config.sessionMaxAgeDays : undefined)
         const projectPathPrefix = url.searchParams.get('projectPathPrefix') || config.sessionImportProjectPrefix || undefined
@@ -469,7 +471,7 @@ export class DaemonServer {
       if (method === 'POST' && path === '/skills/toggle') {
         const body = await this.readBody<{ provider: string; id: string; enabled: boolean }>(req)
         const success = this.skillScanner.toggle({
-          provider: body.provider as 'claude' | 'codex',
+          provider: body.provider as ProviderId,
           id: body.id,
           enabled: body.enabled
         })

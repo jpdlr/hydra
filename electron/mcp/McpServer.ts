@@ -212,7 +212,7 @@ export class HydraMcpServer {
       {
         name: z.string().min(1).max(120).describe('Agent name'),
         projectDir: z.string().min(1).max(4096).describe('Absolute path to the project directory'),
-        provider: z.enum(['claude', 'codex']).default('claude').describe('CLI provider to use (claude or codex)'),
+        provider: z.enum(['claude', 'codex', 'opencode']).default('claude').describe('CLI provider to use (claude, codex, or opencode)'),
         model: z.string().min(1).max(128).describe('Model to use (e.g. opus, sonnet, haiku, gpt-5.3-codex)'),
         reasoningEffort: z.string().max(32).optional().describe('Reasoning effort level for Codex (low, medium, high, extra_high)'),
         initialPrompt: z.string().max(20000).default('').describe('Initial prompt to send after startup'),

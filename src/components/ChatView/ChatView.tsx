@@ -9,6 +9,7 @@ import type { AgentState, ProviderId } from '@shared/types'
 import type { EditorTab } from '../EditorPanel/TabBar'
 import claudeIcon from '@/assets/claude-icon.png'
 import codexIcon from '@/assets/codex-icon.png'
+import opencodeIcon from '@/assets/opencode-icon.png'
 import styles from './ChatView.module.css'
 
 interface ChatViewProps {
@@ -384,14 +385,14 @@ function LockIcon({ unlocked }: { unlocked: boolean }) {
   )
 }
 
+const PROVIDER_ICONS: Record<ProviderId, string> = { claude: claudeIcon, codex: codexIcon, opencode: opencodeIcon }
+
 function ProviderModelPill({ provider, model }: { provider: ProviderId; model: string }) {
-  const src = provider === 'codex' ? codexIcon : claudeIcon
-  const alt = provider === 'codex' ? 'Codex' : 'Claude'
   return (
     <span className={styles.modelPill}>
       <img
-        src={src}
-        alt={alt}
+        src={PROVIDER_ICONS[provider]}
+        alt={provider}
         width={14}
         height={14}
         className={styles.providerIcon}

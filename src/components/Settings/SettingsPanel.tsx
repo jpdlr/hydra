@@ -10,7 +10,7 @@ import { ShortcutsTab } from './ShortcutsTab'
 import { SkillsTab } from './SkillsTab'
 import styles from './SettingsPanel.module.css'
 
-const PROVIDERS: ProviderId[] = ['claude', 'codex']
+const PROVIDERS: ProviderId[] = ['claude', 'codex', 'opencode']
 const THEMES: Array<{ id: ThemeId; label: string; description: string; swatches: [string, string] }> = [
   {
     id: 'dark',
@@ -173,7 +173,7 @@ export function SettingsPanel({
           </div>}
 
           {/* ── Agent Defaults ─────────────────────────────────── */}
-          {matchesSearch(searchQuery, 'agent', 'provider', 'model', 'claude', 'codex', 'concurrent', 'max', 'yolo', 'project', 'directory') && <div className={styles.section}>
+          {matchesSearch(searchQuery, 'agent', 'provider', 'model', 'claude', 'codex', 'opencode', 'concurrent', 'max', 'yolo', 'project', 'directory') && <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Agent Defaults</h3>
 
             <div className={styles.field}>
