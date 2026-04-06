@@ -143,6 +143,7 @@ Built-in structured logging and diagnostics for debugging and monitoring.
 
 - **macOS** (x86_64 or Apple Silicon) or **Windows** (x64)
 - **Node.js 20+**
+- **npm** or **[Bun](https://bun.sh)** — either package manager works
 - **Claude Code CLI** available on PATH as `claude`
 - **OpenAI Codex CLI** (optional) available on PATH as `codex` for Codex provider support
 
@@ -151,6 +152,8 @@ Built-in structured logging and diagnostics for debugging and monitoring.
 Download the latest release from [GitHub Releases](https://github.com/jpdlr/hydra/releases), or build from source.
 
 ### Building from Source
+
+Using **npm**:
 
 ```bash
 git clone git@github.com:jpdlr/hydra.git
@@ -161,10 +164,23 @@ npm run dist:mac    # Package macOS build
 npm run dist:win    # Package Windows installer (.exe)
 ```
 
+Using **bun**:
+
+```bash
+git clone git@github.com:jpdlr/hydra.git
+cd hydra
+bun install
+bun run build
+bun run dist:mac    # Package macOS build
+bun run dist:win    # Package Windows installer (.exe)
+```
+
 For development with hot reload:
 
 ```bash
 npm run dev
+# or
+bun run dev
 ```
 
 ## Documentation
@@ -212,6 +228,8 @@ For release workflows, configure these repository-level variables or secrets:
 - `HYDRA_FIREBASE_MEASUREMENT_ID` (optional)
 
 ### Scripts
+
+All scripts work with both `npm` and `bun` — substitute `bun run` for `npm run` as needed.
 
 | Command | Description |
 |---------|-------------|
@@ -287,6 +305,8 @@ Contributions are welcome. Please read the [Code of Conduct](CODE_OF_CONDUCT.md)
 3. Run quality checks before submitting:
    ```bash
    npm run lint && npm run typecheck && npm test
+   # or with bun
+   bun run lint && bun run typecheck && bun run test
    ```
 4. Open a pull request against `main`
 
