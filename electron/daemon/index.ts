@@ -22,6 +22,7 @@ import { DaemonServer } from './DaemonServer'
 import { writeLockFile, removeLockFile } from './lock'
 import { HydraMcpServer } from '../mcp/McpServer'
 import { SkillScanner } from '../skills/SkillScanner'
+import { getDefaultModelForProvider } from '@shared/types'
 
 // ── Parse CLI args ────────────────────────────────────────────────────────────
 
@@ -81,20 +82,42 @@ async function main(): Promise<void> {
     console.log(`[daemon] Restored ${restored} workspace agents`)
   }
 
-  // Import sessions
+  // Import sessions — each catalog dictates its own provider, so sessions
+  // are always resumed with the CLI that originally created them (never
+  // stamped with the user's defaultProvider, which would cause resume failures).
   if (config.importSessionsOnStartup) {
+    const listOptions = {
+      limit: config.sessionImportLimit > 0 ? config.sessionImportLimit : undefined,
+      projectPathPrefix: config.sessionImportProjectPrefix || undefined,
+      hiddenSessionIds: config.hiddenSessionIds
+    }
+
     try {
-      const sessions = sessionCatalog.listSessions({
-        limit: config.sessionImportLimit > 0 ? config.sessionImportLimit : undefined,
-        projectPathPrefix: config.sessionImportProjectPrefix || undefined,
-        hiddenSessionIds: config.hiddenSessionIds
-      })
-      const imported = agentManager.importSessions(sessions, config.defaultModel, config.defaultProvider)
-      if (imported > 0) {
-        console.log(`[daemon] Imported ${imported} Claude sessions`)
+      const claudeSessions = sessionCatalog.listSessions(listOptions)
+      const importedClaude = agentManager.importSessions(
+        claudeSessions,
+        getDefaultModelForProvider('claude'),
+        'claude'
+      )
+      if (importedClaude > 0) {
+        console.log(`[daemon] Imported ${importedClaude} Claude sessions`)
       }
     } catch (err) {
-      console.warn('[daemon] Failed to import sessions:', err)
+      console.warn('[daemon] Failed to import Claude sessions:', err)
+    }
+
+    try {
+      const codexSessions = codexSessionCatalog.listSessions(listOptions)
+      const importedCodex = agentManager.importSessions(
+        codexSessions,
+        getDefaultModelForProvider('codex'),
+        'codex'
+      )
+      if (importedCodex > 0) {
+        console.log(`[daemon] Imported ${importedCodex} Codex sessions`)
+      }
+    } catch (err) {
+      console.warn('[daemon] Failed to import Codex sessions:', err)
     }
   }
   workspaceStore.setAgents(agentManager.exportWorkspaceAgents())
