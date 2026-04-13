@@ -23,6 +23,7 @@ import { writeLockFile, removeLockFile } from './lock'
 import { HydraMcpServer } from '../mcp/McpServer'
 import { SkillScanner } from '../skills/SkillScanner'
 import { getDefaultModelForProvider } from '@shared/types'
+import { fixPath } from '../util/fix-path'
 
 // ── Parse CLI args ────────────────────────────────────────────────────────────
 
@@ -61,9 +62,14 @@ async function main(): Promise<void> {
 
   mkdirSync(userDataPath, { recursive: true })
 
+  // Fix PATH before anything tries to resolve CLI tools
+  fixPath()
+
   console.log(`[daemon] Starting — PID ${process.pid}`)
+  console.log(`[daemon] platform: ${process.platform}`)
   console.log(`[daemon] userDataPath: ${userDataPath}`)
   console.log(`[daemon] socketPath:   ${socketPath}`)
+  console.log(`[daemon] PATH: ${process.env.PATH}`)
 
   // ── Instantiate services ────────────────────────────────────────────────
 

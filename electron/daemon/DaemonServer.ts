@@ -25,6 +25,18 @@ import type {
   ProviderId
 } from '@shared/types'
 
+/** Return the appropriate shell and args for the current platform. */
+function getShellConfig(): { shell: string; shellArgs: string[] } {
+  if (process.platform === 'win32') {
+    const shell = process.env.COMSPEC || 'powershell.exe'
+    // PowerShell uses -NoExit; cmd.exe uses /k — detect which one we have
+    const isPowerShell = /powershell|pwsh/i.test(shell)
+    return { shell, shellArgs: isPowerShell ? ['-NoExit'] : ['/k'] }
+  }
+  const shell = process.env.SHELL || '/bin/bash'
+  return { shell, shellArgs: ['-l', '-i'] }
+}
+
 interface DaemonServerOptions {
   socketPath: string
   agentManager: AgentManager
@@ -481,10 +493,10 @@ export class DaemonServer {
       // ── Test Terminal ──────────────────────────────────────────────────
       if (method === 'POST' && path === '/test-terminal/spawn') {
         this.killTestPty()
-        const shellPath = process.env.SHELL || (process.platform === 'win32' ? 'powershell.exe' : '/bin/bash')
+        const { shell, shellArgs } = getShellConfig()
         const env: Record<string, string> = { ...process.env as Record<string, string>, TERM: 'xterm-256color', FORCE_COLOR: '1' }
         delete env.ELECTRON_RUN_AS_NODE
-        this.testPty = ptySpawn(shellPath, ['-l', '-i'], {
+        this.testPty = ptySpawn(shell, shellArgs, {
           name: 'xterm-256color',
           cols: 80,
           rows: 24,
@@ -522,10 +534,10 @@ export class DaemonServer {
       if (method === 'POST' && path === '/free-terminal/spawn') {
         this.killFreePty()
         const body = await this.readBody<{ cwd?: string }>(req)
-        const shellPath = process.env.SHELL || (process.platform === 'win32' ? 'powershell.exe' : '/bin/bash')
+        const { shell, shellArgs } = getShellConfig()
         const env: Record<string, string> = { ...process.env as Record<string, string>, TERM: 'xterm-256color', FORCE_COLOR: '1' }
         delete env.ELECTRON_RUN_AS_NODE
-        this.freePty = ptySpawn(shellPath, ['-l', '-i'], {
+        this.freePty = ptySpawn(shell, shellArgs, {
           name: 'xterm-256color',
           cols: 80,
           rows: 24,

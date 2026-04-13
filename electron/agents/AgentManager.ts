@@ -108,6 +108,9 @@ export class AgentManager extends EventEmitter {
     const result = await provider.preflight()
     if (result.ok && result.path) {
       this.providerPaths.set(providerId, result.path)
+      console.log(`[preflight] ${providerId}: resolved to "${result.path}" (version: ${result.version ?? 'unknown'})`)
+    } else {
+      console.warn(`[preflight] ${providerId}: not found — ${result.error}`)
     }
     return {
       ok: result.ok,
@@ -385,19 +388,47 @@ export class AgentManager extends EventEmitter {
     const cmd = this.providerPaths.get(managed.state.provider) || provider.command
     const args = this.buildArgs(managed.state)
 
-    try {
-      const pty = ptySpawn(cmd, args, {
-        name: 'xterm-256color',
-        cols: managed.cols,
-        rows: managed.rows,
-        cwd: managed.state.projectDir,
-        env: {
-          ...process.env,
-          TERM: 'xterm-256color',
-          FORCE_COLOR: '1'
-        }
-      })
+    const ptyEnv = {
+      ...process.env,
+      TERM: 'xterm-256color',
+      FORCE_COLOR: '1'
+    }
 
+    const ptyOptions = {
+      name: 'xterm-256color',
+      cols: managed.cols,
+      rows: managed.rows,
+      cwd: managed.state.projectDir,
+      env: ptyEnv
+    }
+
+    console.log(`[spawn] agent=${managed.state.id} provider=${managed.state.provider} cmd="${cmd}" args=${JSON.stringify(args)} cwd="${managed.state.projectDir}" platform=${process.platform}`)
+
+    let pty: ReturnType<typeof ptySpawn>
+    try {
+      pty = ptySpawn(cmd, args, ptyOptions)
+      console.log(`[spawn] agent=${managed.state.id} direct spawn succeeded (pid=${pty.pid})`)
+    } catch (directErr) {
+      // On some Windows machines, CLI tools are .cmd batch wrappers that
+      // node-pty cannot execute directly (error 193 / "File not found").
+      // Fall back to spawning through cmd.exe which handles .cmd natively.
+      if (process.platform !== 'win32') {
+        console.error(`[spawn] agent=${managed.state.id} failed:`, directErr)
+        this.updateStatus(managed.state.id, 'errored')
+        return 'errored'
+      }
+      console.warn(`[spawn] agent=${managed.state.id} direct spawn failed, retrying via cmd.exe:`, directErr instanceof Error ? directErr.message : directErr)
+      try {
+        pty = ptySpawn('cmd.exe', ['/c', cmd, ...args], ptyOptions)
+        console.log(`[spawn] agent=${managed.state.id} cmd.exe fallback succeeded (pid=${pty.pid})`)
+      } catch (fallbackErr) {
+        console.error(`[spawn] agent=${managed.state.id} cmd.exe fallback also failed:`, fallbackErr)
+        this.updateStatus(managed.state.id, 'errored')
+        return 'errored'
+      }
+    }
+
+    try {
       managed.pty = pty
       managed.stopRequested = false
       managed.state.pid = pty.pid

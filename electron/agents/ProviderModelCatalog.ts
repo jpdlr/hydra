@@ -1,4 +1,4 @@
-import { spawn } from 'child_process'
+import { spawn, type SpawnOptions } from 'child_process'
 import { PROVIDER_MODELS, type ProviderId, type ProviderModelOption } from '@shared/types'
 
 const MODEL_CACHE_TTL_MS = 5 * 60 * 1000
@@ -108,7 +108,7 @@ export class ProviderModelCatalog {
 
   private fetchCodexModels(): Promise<ProviderModelOption[]> {
     return new Promise((resolve, reject) => {
-      const child = spawn('codex', ['app-server', '--listen', 'stdio://'], {
+      const child = spawnCli('codex', ['app-server', '--listen', 'stdio://'], {
         stdio: ['pipe', 'pipe', 'pipe']
       })
 
@@ -121,7 +121,7 @@ export class ProviderModelCatalog {
         if (settled) return
         settled = true
         clearTimeout(timeout)
-        child.kill('SIGTERM')
+        killChild(child)
         fn()
       }
 
@@ -130,7 +130,7 @@ export class ProviderModelCatalog {
       }, CODEX_APP_SERVER_TIMEOUT_MS)
 
       const send = (payload: object): void => {
-        child.stdin.write(`${JSON.stringify(payload)}\n`)
+        child.stdin!.write(`${JSON.stringify(payload)}\n`)
       }
 
       child.on('error', (error) => {
@@ -143,11 +143,11 @@ export class ProviderModelCatalog {
         finish(() => reject(new Error(`Codex app-server exited before returning models (${detail})`)))
       })
 
-      child.stderr.on('data', (chunk) => {
+      child.stderr!.on('data', (chunk) => {
         stderrBuffer += chunk.toString()
       })
 
-      child.stdout.on('data', (chunk) => {
+      child.stdout!.on('data', (chunk) => {
         stdoutBuffer += chunk.toString()
         let newlineIndex = stdoutBuffer.indexOf('\n')
         while (newlineIndex >= 0) {
@@ -224,7 +224,7 @@ export class ProviderModelCatalog {
 
   private fetchOpenCodeModels(): Promise<ProviderModelOption[]> {
     return new Promise((resolve, reject) => {
-      const child = spawn('opencode', ['models', '--verbose'], {
+      const child = spawnCli('opencode', ['models', '--verbose'], {
         stdio: ['ignore', 'pipe', 'pipe']
       })
 
@@ -239,7 +239,7 @@ export class ProviderModelCatalog {
       }
 
       const timeout = setTimeout(() => {
-        child.kill('SIGTERM')
+        killChild(child)
         finish(() => reject(new Error('Timed out querying OpenCode model catalog')))
       }, OPENCODE_TIMEOUT_MS)
 
@@ -247,7 +247,7 @@ export class ProviderModelCatalog {
         finish(() => reject(error))
       })
 
-      child.stdout.on('data', (chunk: Buffer) => {
+      child.stdout!.on('data', (chunk: Buffer) => {
         stdoutBuffer += chunk.toString()
       })
 
@@ -306,6 +306,25 @@ function parseOpenCodeVerboseOutput(output: string): ProviderModelOption[] {
   }
 
   return models
+}
+
+/** Spawn a CLI command, using cmd.exe on Windows to handle .cmd wrappers. */
+function spawnCli(command: string, args: string[], options: SpawnOptions) {
+  if (process.platform === 'win32') {
+    return spawn('cmd.exe', ['/c', command, ...args], options)
+  }
+  return spawn(command, args, options)
+}
+
+/** Kill a child process portably (Windows doesn't support SIGTERM). */
+function killChild(child: ReturnType<typeof spawn>): void {
+  try {
+    if (process.platform === 'win32') {
+      child.kill()
+    } else {
+      child.kill('SIGTERM')
+    }
+  } catch { /* already dead */ }
 }
 
 function cloneModels(models: ProviderModelOption[]): ProviderModelOption[] {

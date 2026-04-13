@@ -184,7 +184,7 @@ describe('daemon lifecycle', () => {
     )
     expect(spawnCall[2]).toMatchObject({
       detached: true,
-      stdio: 'ignore',
+      stdio: ['ignore', expect.any(Number), expect.any(Number)],
       env: expect.objectContaining({
         ELECTRON_RUN_AS_NODE: '1'
       })
@@ -328,7 +328,7 @@ describe('daemon lifecycle', () => {
     }
 
     await stopDaemon(paths)
-    expect(killSpy).toHaveBeenCalledWith(4444, 'SIGTERM')
+    expect(killSpy).toHaveBeenCalledWith(4444)
     expect(mockState.removeLockFileMock).toHaveBeenCalledWith('/tmp/daemon.lock')
   })
 

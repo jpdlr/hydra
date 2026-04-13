@@ -27,9 +27,26 @@ export function fixPath(): void {
   if (process.platform === 'win32') {
     const userHome = process.env.USERPROFILE || process.env.HOME
     appendPathEntries([
+      // npm global installs
       process.env.APPDATA ? join(process.env.APPDATA, 'npm') : null,
+      // Node.js install dir
       process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, 'Programs', 'nodejs') : null,
-      userHome ? join(userHome, '.local', 'bin') : null
+      // Scoop installs (common on dev machines)
+      userHome ? join(userHome, 'scoop', 'shims') : null,
+      // Bun global installs
+      userHome ? join(userHome, '.bun', 'bin') : null,
+      // Cargo / Rust tools
+      userHome ? join(userHome, '.cargo', 'bin') : null,
+      // General local bin
+      userHome ? join(userHome, '.local', 'bin') : null,
+      // fnm / nvm-windows node versions
+      process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, 'fnm_multishells') : null,
+      // Chocolatey
+      'C:\\ProgramData\\chocolatey\\bin',
+      // WinGet / App Installer
+      process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, 'Microsoft', 'WinGet', 'Links') : null,
+      // Program Files Node.js
+      'C:\\Program Files\\nodejs'
     ])
     return
   }

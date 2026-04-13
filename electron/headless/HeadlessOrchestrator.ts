@@ -88,7 +88,10 @@ export class HeadlessOrchestrator extends EventEmitter {
     const args = provider.buildHeadlessArgs(payload.model, payload.prompt, payload.resumeSessionId ?? null, payload.reasoningEffort)
 
     try {
-      const child = spawn(provider.command, args, {
+      // On Windows, CLI tools may be .cmd wrappers — spawn through cmd.exe
+      const spawnCmd = process.platform === 'win32' ? 'cmd.exe' : provider.command
+      const spawnArgs = process.platform === 'win32' ? ['/c', provider.command, ...args] : args
+      const child = spawn(spawnCmd, spawnArgs, {
         cwd: payload.projectDir,
         env: {
           ...process.env,

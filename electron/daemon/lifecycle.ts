@@ -86,9 +86,7 @@ function spawnDaemon(paths: DaemonPaths): Promise<void> {
     // Without this, spawning the daemon can recursively launch full Hydra app instances.
     let logFd: number | null = null
     try {
-      if (process.platform === 'win32') {
-        logFd = openSync(paths.logPath, 'a')
-      }
+      logFd = openSync(paths.logPath, 'a')
 
       const child = spawn(process.execPath, [daemonScript,
         '--socket-path', paths.socketPath,
@@ -157,7 +155,7 @@ export async function stopDaemon(paths: DaemonPaths): Promise<void> {
   } catch {
     // Daemon unresponsive — kill by PID
     try {
-      process.kill(lock.pid, 'SIGTERM')
+      process.kill(lock.pid)
     } catch {
       // Already dead
     }
