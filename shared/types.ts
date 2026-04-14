@@ -213,6 +213,7 @@ export const IPC = {
   OPEN_IN_EDITOR: 'shell:open-in-editor',
   OPEN_IN_APP: 'shell:open-in-app',
   OPEN_PATH: 'shell:open-path',
+  OPEN_EXTERNAL: 'shell:open-external',
   GET_INSTALLED_EDITORS: 'shell:get-installed-editors',
 
   // Broadcast

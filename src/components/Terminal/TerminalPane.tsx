@@ -99,7 +99,10 @@ export function TerminalPane({
     const fitAddon = new FitAddon()
     fitAddonRef.current = fitAddon
     const imageAddon = new ImageAddon()
-    const webLinksAddon = new WebLinksAddon()
+    const webLinksAddon = new WebLinksAddon((event, uri) => {
+      event.preventDefault()
+      window.hydra.openExternal(uri).catch(() => {})
+    })
     terminal.loadAddon(fitAddon)
     terminal.loadAddon(imageAddon)
     terminal.loadAddon(webLinksAddon)

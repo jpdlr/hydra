@@ -137,6 +137,8 @@ const hydraApi = {
     ipcRenderer.invoke(IPC.OPEN_IN_APP, editorId, dir),
   openPath: (targetPath: string): Promise<boolean> =>
     ipcRenderer.invoke(IPC.OPEN_PATH, targetPath),
+  openExternal: (url: string): Promise<boolean> =>
+    ipcRenderer.invoke(IPC.OPEN_EXTERNAL, url),
   getInstalledEditors: (): Promise<EditorId[]> =>
     ipcRenderer.invoke(IPC.GET_INSTALLED_EDITORS),
 

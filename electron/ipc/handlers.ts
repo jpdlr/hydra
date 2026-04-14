@@ -526,6 +526,18 @@ export function registerIpcHandlers(
     return runOpenPath(validated)
   })
 
+  ipcMain.handle(IPC.OPEN_EXTERNAL, async (_event, url: unknown) => {
+    if (typeof url !== 'string') return false
+    try {
+      const parsed = new URL(url)
+      if (!['http:', 'https:', 'mailto:'].includes(parsed.protocol)) return false
+      await shell.openExternal(parsed.toString())
+      return true
+    } catch {
+      return false
+    }
+  })
+
   ipcMain.handle(IPC.GET_INSTALLED_EDITORS, async () => {
     const installed: EditorId[] = []
     for (const editor of EDITOR_REGISTRY) {
