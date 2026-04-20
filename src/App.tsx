@@ -167,7 +167,7 @@ export default function App() {
         ok: false,
         claudePath: null,
         version: null,
-        error: error instanceof Error ? error.message : 'Failed to run Claude preflight check'
+        error: error instanceof Error ? error.message : 'Failed to run CLI preflight check'
       }
       setPreflight(failed)
       setShowPreflightGate(true)
@@ -844,10 +844,11 @@ export default function App() {
         <div className={styles.confirmOverlay} onClick={() => setShowPreflightGate(false)}>
           <div className={styles.confirmDialog} onClick={(e) => e.stopPropagation()}>
             <div className={styles.confirmIcon}>⚙️</div>
-            <h3>CLI Not Found</h3>
+            <h3>No Supported CLI Found</h3>
             <p>
-              Hydra could not find the CLI in your shell environment. Make sure it is installed
-              and added to your <code>PATH</code> so the command is available from any terminal.
+              Hydra could not find Claude, Codex, or OpenCode in your shell environment. Install at
+              least one and make sure it is on your <code>PATH</code> so the command is available
+              from any terminal.
             </p>
             <p className={styles.preflightMeta}>
               {preflight?.error || 'Preflight check has not completed yet.'}

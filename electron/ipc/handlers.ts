@@ -185,7 +185,10 @@ export function registerIpcHandlers(
   // ── Preflight ────────────────────────────────────────────────────────────
 
   ipcMain.handle(IPC.PREFLIGHT_CHECK, async (_event, provider?: string) => {
-    const providerId = providerSchema.catch('claude').parse(provider ?? 'claude')
+    if (!provider) {
+      return getDaemonClient().preflight()
+    }
+    const providerId = providerSchema.catch('claude').parse(provider)
     return getDaemonClient().preflight(providerId)
   })
 

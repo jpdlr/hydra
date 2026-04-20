@@ -42,7 +42,9 @@ export function UpdatePanel({ state, onCheck, onDownload, onInstall, onClose }: 
 
         {!state.supported ? (
           <div className={styles.message}>
-            Automatic in-app updates are currently enabled for Windows only. macOS support is planned.
+            Automatic in-app updates are available on Windows and Linux (AppImage only). macOS and
+            Linux .deb support is planned — install the latest build manually from the releases
+            page for now.
           </div>
         ) : (
           <>

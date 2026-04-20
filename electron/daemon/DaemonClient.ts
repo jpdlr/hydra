@@ -229,8 +229,8 @@ export class DaemonClient extends EventEmitter {
 
   // ── Preflight ───────────────────────────────────────────────────────────
 
-  async preflight(provider: ProviderId = 'claude'): Promise<PreflightResult> {
-    return this.post('/preflight', { provider })
+  async preflight(provider?: ProviderId): Promise<PreflightResult> {
+    return this.post('/preflight', provider ? { provider } : {})
   }
 
   // ── Config ──────────────────────────────────────────────────────────────

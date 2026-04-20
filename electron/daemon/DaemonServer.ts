@@ -401,8 +401,9 @@ export class DaemonServer {
       // ── Preflight ───────────────────────────────────────────────────────
       if (method === 'POST' && path === '/preflight') {
         const body = await this.readBody<{ provider?: string }>(req)
-        const provider = (body.provider as ProviderId) || 'claude'
-        const result = await this.agentManager.preflight(provider)
+        const result = body.provider
+          ? await this.agentManager.preflight(body.provider as ProviderId)
+          : await this.agentManager.preflightAny()
         return this.json(res, 200, result)
       }
 

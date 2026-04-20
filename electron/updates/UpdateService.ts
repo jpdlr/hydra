@@ -27,7 +27,9 @@ export class UpdateService extends EventEmitter {
 
   constructor() {
     super()
-    const supported = process.platform === 'win32'
+    const supported =
+      process.platform === 'win32' ||
+      (process.platform === 'linux' && Boolean(process.env.APPIMAGE))
 
     this.state = {
       supported,

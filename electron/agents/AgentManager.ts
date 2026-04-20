@@ -5,7 +5,7 @@ import { basename } from 'path'
 import { GitService } from '../git/GitService'
 import { SessionCatalog } from '../sessions/SessionCatalog'
 import { CodexSessionCatalog } from '../sessions/CodexSessionCatalog'
-import { getProvider } from './providers'
+import { getProvider, getAllProviders } from './providers'
 import { MAX_CONCURRENT_AGENTS_HARD_LIMIT } from '@shared/types'
 import { detectLatestModelFromTerminalOutput } from '@shared/terminalModelDetection'
 import type { PersistedWorkspaceAgent } from '../workspace/WorkspaceStore'
@@ -117,6 +117,43 @@ export class AgentManager extends EventEmitter {
       claudePath: result.path,
       version: result.version,
       error: result.error
+    }
+  }
+
+  async preflightAny(): Promise<{
+    ok: boolean
+    claudePath: string | null
+    version: string | null
+    error: string | null
+  }> {
+    const providers = getAllProviders()
+    const results = await Promise.all(
+      providers.map(async (p) => ({ id: p.id, result: await p.preflight() }))
+    )
+    for (const { id, result } of results) {
+      if (result.ok && result.path) {
+        this.providerPaths.set(id, result.path)
+      }
+    }
+    const first = results.find((r) => r.result.ok && r.result.path)
+    if (first) {
+      console.log(
+        `[preflight] any: found ${first.id} at "${first.result.path}" (version: ${first.result.version ?? 'unknown'})`
+      )
+      return {
+        ok: true,
+        claudePath: first.result.path,
+        version: first.result.version,
+        error: null
+      }
+    }
+    console.warn('[preflight] any: no supported CLI found')
+    return {
+      ok: false,
+      claudePath: null,
+      version: null,
+      error:
+        'No supported CLI found. Install Claude (https://claude.ai/download), Codex (npm install -g @openai/codex), or OpenCode (https://opencode.ai).'
     }
   }
 
