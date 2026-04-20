@@ -33,6 +33,13 @@ win:
   target:
     - nsis
   artifactName: ${name}-${version}-${arch}.${ext}
+linux:
+  icon: build/icon.png
+  category: Development
+  target:
+    - AppImage
+    - deb
+  artifactName: ${name}-${version}-${arch}.${ext}
 nsis:
   oneClick: false
   perMachine: false

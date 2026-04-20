@@ -4,6 +4,11 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 
 ---
 
+### Electron fails to launch on Linux distros without setuid `chrome-sandbox`
+**Date**: 2026-04-20
+**Mistake**: On Arch-based distros (e.g. CachyOS) `electron-vite dev` silently fails to open the Electron window because the bundled `chrome-sandbox` helper is not setuid root. Users end up opening `localhost:5173` directly in Chrome and see `window.hydra is undefined` errors (no preload).
+**Fix**: In `electron/main.ts`, append `--no-sandbox` and `--disable-setuid-sandbox` when `process.platform === 'linux'`. Safe because we already run with `sandbox: false` in `webPreferences`. Also added `linux` target (AppImage + deb) to `electron-builder.yml`.
+
 ### `npm start` does not exist
 **Date**: 2026-02-10
 **Mistake**: Tried `npm start` to run the app locally.

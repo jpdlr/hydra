@@ -245,3 +245,127 @@ jobs:
             dist/*.exe
             dist/*.blockmap
             dist/latest*.yml
+
+  linux-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      MAIN_VITE_HYDRA_FIREBASE_API_KEY: ${{ vars.HYDRA_FIREBASE_API_KEY || secrets.HYDRA_FIREBASE_API_KEY }}
+      MAIN_VITE_HYDRA_FIREBASE_AUTH_DOMAIN: ${{ vars.HYDRA_FIREBASE_AUTH_DOMAIN || secrets.HYDRA_FIREBASE_AUTH_DOMAIN }}
+      MAIN_VITE_HYDRA_FIREBASE_PROJECT_ID: ${{ vars.HYDRA_FIREBASE_PROJECT_ID || secrets.HYDRA_FIREBASE_PROJECT_ID }}
+      MAIN_VITE_HYDRA_FIREBASE_STORAGE_BUCKET: ${{ vars.HYDRA_FIREBASE_STORAGE_BUCKET || secrets.HYDRA_FIREBASE_STORAGE_BUCKET }}
+      MAIN_VITE_HYDRA_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.HYDRA_FIREBASE_MESSAGING_SENDER_ID || secrets.HYDRA_FIREBASE_MESSAGING_SENDER_ID }}
+      MAIN_VITE_HYDRA_FIREBASE_APP_ID: ${{ vars.HYDRA_FIREBASE_APP_ID || secrets.HYDRA_FIREBASE_APP_ID }}
+      MAIN_VITE_HYDRA_FIREBASE_MEASUREMENT_ID: ${{ vars.HYDRA_FIREBASE_MEASUREMENT_ID || secrets.HYDRA_FIREBASE_MEASUREMENT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libarchive-tools rpm fakeroot dpkg
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check Firebase release env
+        shell: bash
+        run: |
+          missing=0
+          for key in \
+            MAIN_VITE_HYDRA_FIREBASE_API_KEY \
+            MAIN_VITE_HYDRA_FIREBASE_AUTH_DOMAIN \
+            MAIN_VITE_HYDRA_FIREBASE_PROJECT_ID \
+            MAIN_VITE_HYDRA_FIREBASE_STORAGE_BUCKET \
+            MAIN_VITE_HYDRA_FIREBASE_MESSAGING_SENDER_ID \
+            MAIN_VITE_HYDRA_FIREBASE_APP_ID; do
+            if [ -z "${!key}" ]; then
+              echo "Missing $key"
+              missing=1
+            fi
+          done
+          if [ "$missing" -eq 1 ]; then
+            echo "Set repository vars/secrets HYDRA_FIREBASE_* before building a release."
+            exit 1
+          fi
+
+      - name: Validate
+        run: |
+          npm run lint
+          npm run typecheck
+          npm test -- --run
+
+      - name: Build Linux Artifacts (dry run)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: npm run dist:linux:dry-run
+
+      - name: Build Linux Artifacts
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        run: npm run dist:linux:dry-run
+
+      - name: Resolve release tag (Linux)
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        id: release-tag
+        shell: bash
+        run: |
+          tag=""
+          tag_from_sha=$(git tag --points-at "$GITHUB_SHA" | head -n1)
+          if [ -n "$tag_from_sha" ]; then
+            tag="$tag_from_sha"
+          fi
+          if [ -z "$tag" ] && [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            tag="${GITHUB_REF#refs/tags/}"
+          fi
+          if [ -z "$tag" ]; then
+            echo "Unable to resolve release tag. GITHUB_REF=$GITHUB_REF GITHUB_SHA=$GITHUB_SHA"
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Resolved release tag: $tag"
+
+      - name: Ensure published release with generated notes (Linux)
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        shell: bash
+        run: |
+          tag="${{ steps.release-tag.outputs.tag }}"
+          npm run release:notes -- upsert "$tag" --repo "$GITHUB_REPOSITORY"
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json id,isDraft,isPrerelease,url
+
+      - name: Upload release assets (Linux)
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        shell: bash
+        run: |
+          tag="${{ steps.release-tag.outputs.tag }}"
+          shopt -s nullglob
+          assets=(dist/*.AppImage dist/*.deb dist/*.blockmap dist/latest-linux*.yml)
+          if [ ${#assets[@]} -eq 0 ]; then
+            echo "No Linux artifacts found in dist/"
+            ls -la dist/ || true
+            exit 1
+          fi
+          gh release upload "$tag" "${assets[@]}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+      - name: Upload workflow artifact (Linux)
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-installer-${{ steps.release-tag.outputs.tag }}
+          path: |
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.blockmap
+            dist/latest-linux*.yml

@@ -7,6 +7,16 @@ loadProjectEnvFiles()
 
 import { app, BrowserWindow, shell, ipcMain } from 'electron'
 import { join } from 'path'
+
+// On Linux, the setuid `chrome-sandbox` helper is often missing or lacks the
+// required permissions (e.g. Arch/CachyOS, unpacked dev builds, AppImages on
+// kernels without unprivileged user namespaces). Disable it so Electron can
+// launch. We already run the renderer with `sandbox: false` below, so this
+// does not change our effective security posture.
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('no-sandbox')
+  app.commandLine.appendSwitch('disable-setuid-sandbox')
+}
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { DaemonClient } from './daemon/DaemonClient'
 import { ensureDaemon, stopDaemon, getDaemonPaths } from './daemon/lifecycle'

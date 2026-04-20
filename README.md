@@ -4,7 +4,7 @@
 
 **Orchestrate Claude Code and OpenAI Codex agents in parallel from a single desktop app.**
 
-Hydra is a cross-platform desktop application (macOS + Windows) that lets you run, monitor, and coordinate multiple Claude Code and OpenAI Codex CLI sessions side by side — with live terminals, session resume, headless runs, and a built-in MCP orchestration layer.
+Hydra is a cross-platform desktop application (macOS, Windows, and Linux) that lets you run, monitor, and coordinate multiple Claude Code and OpenAI Codex CLI sessions side by side — with live terminals, session resume, headless runs, and a built-in MCP orchestration layer.
 
 [Getting Started](#getting-started) | [Features](#features) | [Documentation](#documentation) | [Contributing](#contributing)
 
@@ -141,7 +141,7 @@ Built-in structured logging and diagnostics for debugging and monitoring.
 
 ### Prerequisites
 
-- **macOS** (x86_64 or Apple Silicon) or **Windows** (x64)
+- **macOS** (x86_64 or Apple Silicon), **Windows** (x64), or **Linux** (x64)
 - **Node.js 20+**
 - **npm** or **[Bun](https://bun.sh)** — either package manager works
 - **Claude Code CLI** available on PATH as `claude`
@@ -150,6 +150,24 @@ Built-in structured logging and diagnostics for debugging and monitoring.
 ### Installation
 
 Download the latest release from [GitHub Releases](https://github.com/jpdlr/hydra/releases), or build from source.
+
+**macOS** — download the `.dmg` and drag Hydra to Applications.
+
+**Windows** — download and run the `.exe` installer.
+
+**Linux** — two options:
+
+- **AppImage** (portable, works on any distro):
+  ```bash
+  chmod +x Hydra-*.AppImage
+  ./Hydra-*.AppImage
+  ```
+- **Debian/Ubuntu** (`.deb`):
+  ```bash
+  sudo apt install ./hydra-*-amd64.deb
+  ```
+
+> On some distros (Arch, CachyOS, certain hardened kernels) the bundled `chrome-sandbox` helper cannot run unless it is setuid root. Hydra detects Linux and launches with `--no-sandbox` automatically, so no extra flags are needed.
 
 ### Building from Source
 
@@ -160,8 +178,9 @@ git clone git@github.com:jpdlr/hydra.git
 cd hydra
 npm install
 npm run build
-npm run dist:mac    # Package macOS build
-npm run dist:win    # Package Windows installer (.exe)
+npm run dist:mac      # Package macOS build
+npm run dist:win      # Package Windows installer (.exe)
+npm run dist:linux    # Package Linux AppImage + .deb
 ```
 
 Using **bun**:
@@ -171,8 +190,9 @@ git clone git@github.com:jpdlr/hydra.git
 cd hydra
 bun install
 bun run build
-bun run dist:mac    # Package macOS build
-bun run dist:win    # Package Windows installer (.exe)
+bun run dist:mac      # Package macOS build
+bun run dist:win      # Package Windows installer (.exe)
+bun run dist:linux    # Package Linux AppImage + .deb
 ```
 
 For development with hot reload:
@@ -241,9 +261,11 @@ All scripts work with both `npm` and `bun` — substitute `bun run` for `npm run
 | `npm run dist` | Package with electron-builder |
 | `npm run dist:mac` | Build macOS artifacts |
 | `npm run dist:win` | Build Windows installer artifacts |
+| `npm run dist:linux` | Build Linux AppImage + `.deb` artifacts |
 | `npm run dist:dry-run` | Signed build without publishing |
 | `npm run dist:mac:dry-run` | macOS dry run without publishing |
 | `npm run dist:win:dry-run` | Windows dry run without publishing |
+| `npm run dist:linux:dry-run` | Linux dry run without publishing |
 | `npm run release:preflight` | Verify signing/notarization environment |
 | `npm run deploy` | Run local release deployment script (typecheck, test, build, package, install) |
 | `npm run firebase:deploy:hosting` | Build/deploy Hydra Remote PWA hosting |
@@ -253,11 +275,11 @@ All scripts work with both `npm` and `bun` — substitute `bun run` for `npm run
 GitHub Actions runs on every push and pull request:
 
 - **CI** (`.github/workflows/ci.yml`) — Lint, typecheck, and test on Ubuntu + Windows with Node.js 20
-- **Release** (`.github/workflows/release.yml`) — macOS signed/notarized builds plus Windows installer builds on `v*` tags or manual dispatch
+- **Release** (`.github/workflows/release.yml`) — macOS signed/notarized builds, Windows installer builds, and Linux AppImage + `.deb` builds on `v*` tags or manual dispatch
 
 ### Release
 
-Releases are published as GitHub draft releases with signed/notarized macOS binaries and Windows installer artifacts.
+Releases are published as GitHub draft releases with signed/notarized macOS binaries, Windows installer artifacts, and Linux AppImage + `.deb` packages.
 
 ```bash
 # Tag a release
