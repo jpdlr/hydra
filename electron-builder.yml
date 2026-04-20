@@ -36,6 +36,7 @@ win:
 linux:
   icon: build/icon.png
   category: Development
+  maintainer: jpdlr <jpdlr@users.noreply.github.com>
   target:
     - AppImage
     - deb
