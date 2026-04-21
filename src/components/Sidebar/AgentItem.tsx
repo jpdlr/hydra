@@ -130,12 +130,12 @@ export function AgentItem({ agent, isSelected, onSelect, onRename, onRemove }: A
         ) : (
           <span className={styles.name}>{agent.name}</span>
         )}
+        {agent.isManager && <span className={styles.managerBadge}>MGR</span>}
         <img
           src={PROVIDER_ICONS[agent.provider] ?? claudeIcon}
           alt={agent.provider}
           className={styles.providerIcon}
         />
-        {agent.isManager && <span className={styles.managerBadge}>MGR</span>}
         <span className={styles.age}>{age}</span>
       </button>
 
