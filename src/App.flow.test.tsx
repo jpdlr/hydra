@@ -273,6 +273,7 @@ describe('App flow behavior', () => {
       quitBackground: vi.fn().mockResolvedValue(true),
       getKeybindings: vi.fn().mockResolvedValue(DEFAULT_KEYBINDINGS),
       getKeybindingsPath: vi.fn().mockResolvedValue('/tmp/keybindings.json'),
+      getConfigPath: vi.fn().mockResolvedValue('/tmp/config.json'),
       onKeybindingsChange: vi.fn().mockReturnValue(() => undefined)
     }
   })

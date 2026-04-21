@@ -378,6 +378,10 @@ export function registerIpcHandlers(
     return keybindingStore?.getPath() ?? ''
   })
 
+  ipcMain.handle(IPC.CONFIG_PATH_GET, () => {
+    return configStore.getPath()
+  })
+
   ipcMain.handle(IPC.CONFIG_SET, async (_event, partial: Partial<AppConfig>) => {
     const validated = appConfigPatchSchema.parse(partial)
     const updated = configStore.set(validated)

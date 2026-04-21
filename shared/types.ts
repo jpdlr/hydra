@@ -243,6 +243,7 @@ export const IPC = {
   CONFIG_ON_CHANGE: 'config:on-change',
   KEYBINDINGS_GET: 'keybindings:get',
   KEYBINDINGS_PATH_GET: 'keybindings:path-get',
+  CONFIG_PATH_GET: 'config:path-get',
   KEYBINDINGS_ON_CHANGE: 'keybindings:on-change',
 
   // Global YOLO

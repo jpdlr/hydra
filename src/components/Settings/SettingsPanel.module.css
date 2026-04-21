@@ -9,7 +9,9 @@
 }
 
 .panel {
-  width: 640px;
+  width: 880px;
+  max-width: 94vw;
+  height: 80vh;
   max-height: 80vh;
   background: var(--color-surface);
   border-radius: var(--radius-xl);
@@ -18,6 +20,96 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  flex: 1;
+  min-height: 0;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 92%, var(--color-text-primary) 2%);
+  min-height: 0;
+}
+
+.sidebarNav {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-3);
+  gap: 2px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.sidebarItem {
+  text-align: left;
+  padding: 8px var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast), color var(--transition-fast);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebarItem:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.sidebarItemActive {
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+}
+
+.sidebarItemActive:hover {
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+}
+
+.sidebarItemMatch {
+  background: color-mix(in srgb, var(--color-accent-subtle) 60%, transparent);
+  color: var(--color-text-primary);
+}
+
+.sidebarFooter {
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-3);
+}
+
+.sidebarFooterBtn {
+  width: 100%;
+  padding: 8px var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.sidebarFooterBtn:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.sidebarFooterBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
 }
 
 .header {

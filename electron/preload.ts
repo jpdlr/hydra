@@ -112,6 +112,7 @@ const hydraApi = {
   },
   getKeybindings: (): Promise<KeybindingRule[]> => ipcRenderer.invoke(IPC.KEYBINDINGS_GET),
   getKeybindingsPath: (): Promise<string> => ipcRenderer.invoke(IPC.KEYBINDINGS_PATH_GET),
+  getConfigPath: (): Promise<string> => ipcRenderer.invoke(IPC.CONFIG_PATH_GET),
   onKeybindingsChange: (callback: (bindings: KeybindingRule[]) => void): (() => void) => {
     const handler = (_event: Electron.IpcRendererEvent, bindings: KeybindingRule[]) =>
       callback(bindings)

@@ -1,16 +1,29 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs'
+import { existsSync, mkdirSync, readFileSync, watchFile, writeFileSync } from 'fs'
 import { join } from 'path'
 import type { AppConfig } from '@shared/types'
 import { DEFAULT_CONFIG, MAX_CONCURRENT_AGENTS_HARD_LIMIT } from '@shared/types'
 
 export class ConfigStore {
-  private configPath: string
+  private readonly configPath: string
   private config: AppConfig
+  private lastSerialized: string
+  private listeners = new Set<(config: AppConfig) => void>()
 
-  constructor(userDataPath: string) {
+  constructor(userDataPath: string, options: { watch?: boolean } = {}) {
     mkdirSync(userDataPath, { recursive: true })
     this.configPath = join(userDataPath, 'config.json')
     this.config = this.load()
+    this.lastSerialized = JSON.stringify(this.config)
+    if (options.watch) {
+      watchFile(this.configPath, { interval: 500 }, () => {
+        const next = this.load()
+        const serialized = JSON.stringify(next)
+        if (serialized === this.lastSerialized) return
+        this.config = next
+        this.lastSerialized = serialized
+        this.emit()
+      })
+    }
   }
 
   private load(): AppConfig {
@@ -31,10 +44,25 @@ export class ConfigStore {
     return { ...this.config }
   }
 
+  getPath(): string {
+    return this.configPath
+  }
+
   set(partial: Partial<AppConfig>): AppConfig {
     this.config = this.sanitize({ ...this.config, ...partial })
+    this.lastSerialized = JSON.stringify(this.config)
     this.save(this.config)
     return this.get()
+  }
+
+  subscribe(listener: (config: AppConfig) => void): () => void {
+    this.listeners.add(listener)
+    return () => { this.listeners.delete(listener) }
+  }
+
+  private emit(): void {
+    const snapshot = this.get()
+    for (const listener of this.listeners) listener(snapshot)
   }
 
   private sanitize(config: AppConfig): AppConfig {

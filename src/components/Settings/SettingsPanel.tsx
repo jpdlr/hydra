@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type {
   AppConfig,
   FreeTerminalLifecyclePolicy,
@@ -17,6 +17,27 @@ import { useRuntimeProviderModels } from '../../hooks/useRuntimeProviderModels'
 import { ShortcutsTab } from './ShortcutsTab'
 import { SkillsTab } from './SkillsTab'
 import styles from './SettingsPanel.module.css'
+
+type SectionId =
+  | 'appearance'
+  | 'agents'
+  | 'sessions'
+  | 'remote'
+  | 'terminal'
+  | 'observability'
+  | 'shortcuts'
+  | 'skills'
+
+const SECTIONS: Array<{ id: SectionId; label: string; keywords: string[] }> = [
+  { id: 'appearance', label: 'Appearance', keywords: ['appearance', 'theme', 'color', 'view', 'chat', 'grid', 'sound', 'dark', 'light', 'midnight', 'terracotta'] },
+  { id: 'agents', label: 'Agent Defaults', keywords: ['agent', 'provider', 'model', 'claude', 'codex', 'opencode', 'concurrent', 'max', 'yolo', 'project', 'directory'] },
+  { id: 'sessions', label: 'Session Import', keywords: ['session', 'import', 'limit', 'age', 'prefix', 'hidden'] },
+  { id: 'remote', label: 'Remote Control', keywords: ['remote', 'control', 'timeout'] },
+  { id: 'terminal', label: 'Terminal', keywords: ['terminal', 'shell', 'bash', 'zsh', 'pwsh', 'powershell', 'font', 'cursor', 'webgl', 'path', 'scrollback', 'background', 'lru', 'idle', 'lifecycle', 'cmd+j'] },
+  { id: 'observability', label: 'Observability', keywords: ['observability', 'error', 'reporting', 'diagnostics', 'sensitive', 'endpoint'] },
+  { id: 'shortcuts', label: 'Shortcuts', keywords: ['shortcut', 'keybinding', 'hotkey', 'keys'] },
+  { id: 'skills', label: 'Skills', keywords: ['skill', 'prompt'] }
+]
 
 const PROVIDERS: ProviderId[] = ['claude', 'codex', 'opencode']
 const THEMES: Array<{ id: ThemeId; label: string; description: string; swatches: [string, string] }> = [
@@ -50,8 +71,6 @@ interface SettingsPanelProps {
   onToggleGlobalYolo: () => void
 }
 
-type SettingsTab = 'general' | 'shortcuts' | 'skills'
-
 function matchesSearch(query: string, ...keywords: string[]): boolean {
   if (!query) return true
   const q = query.toLowerCase()
@@ -68,9 +87,26 @@ export function SettingsPanel({
   onToggleGlobalYolo
 }: SettingsPanelProps) {
   const [exportState, setExportState] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<SettingsTab>('general')
+  const [activeSection, setActiveSection] = useState<SectionId>('appearance')
   const [searchQuery, setSearchQuery] = useState('')
+  const [configPath, setConfigPath] = useState('')
   const { providerModels, getDefaultModel } = useRuntimeProviderModels()
+
+  useEffect(() => {
+    window.hydra.getConfigPath().then(setConfigPath).catch(() => { /* ignore */ })
+  }, [])
+
+  const searching = searchQuery.trim().length > 0
+  const visibleSectionIds = useMemo<Set<SectionId>>(() => {
+    if (!searching) return new Set([activeSection])
+    const matched = SECTIONS.filter((s) => matchesSearch(searchQuery, ...s.keywords)).map((s) => s.id)
+    return new Set(matched)
+  }, [searching, searchQuery, activeSection])
+  const isVisible = (id: SectionId) => visibleSectionIds.has(id)
+
+  const openConfigJson = () => {
+    if (configPath) void window.hydra.openPath(configPath)
+  }
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -82,49 +118,45 @@ export function SettingsPanel({
           </button>
         </div>
 
-        <div className={styles.tabBar}>
-          <div className={styles.segmented}>
-            <button
-              className={`${styles.segment} ${activeTab === 'general' ? styles.active : ''}`}
-              onClick={() => setActiveTab('general')}
-            >
-              General
-            </button>
-            <button
-              className={`${styles.segment} ${activeTab === 'shortcuts' ? styles.active : ''}`}
-              onClick={() => setActiveTab('shortcuts')}
-            >
-              Shortcuts
-            </button>
-            <button
-              className={`${styles.segment} ${activeTab === 'skills' ? styles.active : ''}`}
-              onClick={() => setActiveTab('skills')}
-            >
-              Skills
-            </button>
-          </div>
-        </div>
+        <div className={styles.layout}>
+          <aside className={styles.sidebar}>
+            <nav className={styles.sidebarNav}>
+              {SECTIONS.map((s) => (
+                <button
+                  key={s.id}
+                  className={`${styles.sidebarItem} ${!searching && activeSection === s.id ? styles.sidebarItemActive : ''} ${searching && visibleSectionIds.has(s.id) ? styles.sidebarItemMatch : ''}`}
+                  onClick={() => { setActiveSection(s.id); setSearchQuery('') }}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </nav>
+            <div className={styles.sidebarFooter}>
+              <button
+                className={styles.sidebarFooterBtn}
+                onClick={openConfigJson}
+                disabled={!configPath}
+                title={configPath || 'Open config.json in editor'}
+              >
+                Edit config.json
+              </button>
+            </div>
+          </aside>
 
-        {activeTab === 'general' && (
-          <div className={styles.searchBar}>
-            <input
-              className={styles.searchInput}
-              type="text"
-              placeholder="Search settings..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-        )}
+          <div className={styles.content}>
+            <div className={styles.searchBar}>
+              <input
+                className={styles.searchInput}
+                type="text"
+                placeholder="Search settings..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
 
-        {activeTab === 'shortcuts' && (
-          <ShortcutsTab keybindings={keybindings} keybindingsPath={keybindingsPath} />
-        )}
-        {activeTab === 'skills' && <SkillsTab />}
-
-        {activeTab === 'general' && <div className={styles.body}>
+            <div className={styles.body}>
           {/* ── Appearance ─────────────────────────────────────── */}
-          {matchesSearch(searchQuery, 'appearance', 'theme', 'color', 'view', 'chat', 'grid', 'sound', 'dark', 'light', 'midnight', 'terracotta') && <div className={styles.section}>
+          {isVisible('appearance') && <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Appearance</h3>
 
             <div className={styles.field}>
@@ -181,7 +213,7 @@ export function SettingsPanel({
           </div>}
 
           {/* ── Agent Defaults ─────────────────────────────────── */}
-          {matchesSearch(searchQuery, 'agent', 'provider', 'model', 'claude', 'codex', 'opencode', 'concurrent', 'max', 'yolo', 'project', 'directory') && <div className={styles.section}>
+          {isVisible('agents') && <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Agent Defaults</h3>
 
             <div className={styles.field}>
@@ -292,7 +324,7 @@ export function SettingsPanel({
           </div>}
 
           {/* ── Session Import ─────────────────────────────────── */}
-          {matchesSearch(searchQuery, 'session', 'import', 'limit', 'age', 'prefix', 'hidden') && <div className={styles.section}>
+          {isVisible('sessions') && <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Session Import</h3>
 
             <div className={styles.field}>
@@ -362,7 +394,7 @@ export function SettingsPanel({
           </div>}
 
           {/* ── Remote Control ─────────────────────────────────── */}
-          {matchesSearch(searchQuery, 'remote', 'control', 'timeout') && <div className={styles.section}>
+          {isVisible('remote') && <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Remote Control</h3>
 
             <div className={styles.field}>
@@ -395,7 +427,7 @@ export function SettingsPanel({
           </div>}
 
           {/* ── Terminal ───────────────────────────────────────── */}
-          {matchesSearch(searchQuery, 'terminal', 'shell', 'bash', 'zsh', 'pwsh', 'powershell', 'font', 'cursor', 'webgl', 'path', 'scrollback', 'background', 'lru', 'idle', 'lifecycle', 'cmd+j') && <div className={styles.section}>
+          {isVisible('terminal') && <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Terminal</h3>
 
             <div className={styles.field}>
@@ -602,7 +634,7 @@ export function SettingsPanel({
           </div>}
 
           {/* ── Observability ──────────────────────────────────── */}
-          {matchesSearch(searchQuery, 'observability', 'error', 'reporting', 'diagnostics', 'sensitive', 'endpoint') && <div className={styles.section}>
+          {isVisible('observability') && <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Observability</h3>
 
             <div className={styles.field}>
@@ -665,7 +697,23 @@ export function SettingsPanel({
               {exportState && <span className={styles.inlineHint}>{exportState}</span>}
             </div>
           </div>}
-        </div>}
+
+          {isVisible('shortcuts') && (
+            <div className={styles.section}>
+              <h3 className={styles.sectionTitle}>Shortcuts</h3>
+              <ShortcutsTab keybindings={keybindings} keybindingsPath={keybindingsPath} />
+            </div>
+          )}
+
+          {isVisible('skills') && (
+            <div className={styles.section}>
+              <h3 className={styles.sectionTitle}>Skills</h3>
+              <SkillsTab />
+            </div>
+          )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )

@@ -39,7 +39,7 @@ let daemonClient: DaemonClient | null = null
 
 const userDataPath = app.getPath('userData')
 const daemonPaths = getDaemonPaths(userDataPath)
-const configStore = new ConfigStore(userDataPath)
+const configStore = new ConfigStore(userDataPath, { watch: true })
 const keybindingStore = new KeybindingStore(userDataPath)
 const updateService = new UpdateService()
 const fileSystemService = new FileSystemService()
@@ -258,6 +258,15 @@ app.whenReady().then(async () => {
   keybindingStore.subscribe((bindings) => {
     BrowserWindow.getAllWindows().forEach((win) => {
       win.webContents.send(IPC.KEYBINDINGS_ON_CHANGE, bindings)
+    })
+  })
+
+  configStore.subscribe((config) => {
+    // External edit to config.json (e.g. user hand-edited in VS Code).
+    // Mirror into the daemon so both sides stay in sync, then tell the renderer.
+    daemonClient?.setConfig(config).catch(() => { /* best-effort */ })
+    BrowserWindow.getAllWindows().forEach((win) => {
+      win.webContents.send(IPC.CONFIG_ON_CHANGE, config)
     })
   })
 
