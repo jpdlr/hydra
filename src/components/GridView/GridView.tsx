@@ -142,6 +142,21 @@ export function GridView({
 }: GridViewProps) {
   const isRunning = selectedProject === RUNNING_PROJECT_ID
   const [recentCutoffTs, setRecentCutoffTs] = useState<number | null>(null)
+  const [showOnlyRunning, setShowOnlyRunning] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('hydra:gridView:onlyRunning') === '1'
+    } catch {
+      return false
+    }
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('hydra:gridView:onlyRunning', showOnlyRunning ? '1' : '0')
+    } catch {
+      // best-effort persistence
+    }
+  }, [showOnlyRunning])
 
   useEffect(() => {
     if (sessionMaxAgeDays <= 0) {
@@ -179,8 +194,12 @@ export function GridView({
         })
     }
     const currentGroup = recentGroups.find((g) => g.projectDir === selectedProject)
-    return currentGroup?.agents || []
-  }, [recentGroups, selectedProject, isRunning])
+    const list = currentGroup?.agents || []
+    if (showOnlyRunning) {
+      return list.filter((a) => ACTIVE_STATUSES.includes(a.status))
+    }
+    return list
+  }, [recentGroups, selectedProject, isRunning, showOnlyRunning])
 
   const { orderedIds, handleReorder } = useTileOrder(selectedProject, agents, isRunning)
 
@@ -266,17 +285,33 @@ export function GridView({
             Running
             <span className={styles.tabCount}>{runningCount}</span>
           </button>
-          {recentGroups.map((g) => (
-            <button
-              key={g.projectDir}
-              className={`${styles.projectTab} ${g.projectDir === selectedProject ? styles.activeTab : ''}`}
-              onClick={() => onSelectProject(g.projectDir)}
-            >
-              {g.projectName}
-              <span className={styles.tabCount}>{g.agents.length}</span>
-            </button>
-          ))}
+          {recentGroups.map((g) => {
+            const totalCount = g.agents.length
+            const activeCount = g.agents.filter((a) => ACTIVE_STATUSES.includes(a.status)).length
+            const displayCount = showOnlyRunning ? activeCount : totalCount
+            return (
+              <button
+                key={g.projectDir}
+                className={`${styles.projectTab} ${g.projectDir === selectedProject ? styles.activeTab : ''}`}
+                onClick={() => onSelectProject(g.projectDir)}
+              >
+                {g.projectName}
+                <span className={styles.tabCount}>{displayCount}</span>
+              </button>
+            )
+          })}
         </div>
+
+        {!isRunning && (
+          <button
+            className={`${styles.runningFilter} ${showOnlyRunning ? styles.runningFilterActive : ''}`}
+            onClick={() => setShowOnlyRunning((v) => !v)}
+            title={showOnlyRunning ? 'Showing only running agents — click to show all' : 'Show only running agents'}
+          >
+            <span className={styles.runningDot} aria-hidden="true" />
+            {showOnlyRunning ? 'Running only' : 'All'}
+          </button>
+        )}
 
         {/* Column layout picker — pinned outside scroll */}
         <div className={styles.columnPicker}>

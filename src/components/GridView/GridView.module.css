@@ -75,6 +75,41 @@
   color: var(--color-text-muted);
 }
 
+/* Running-only toggle — sits between tabs and column picker */
+.runningFilter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 4px 10px;
+  margin-left: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  background: var(--color-surface-hover);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.runningFilter:hover {
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+}
+
+.runningFilterActive {
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+}
+
+.runningDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  display: inline-block;
+}
+
 /* Column picker — pinned outside scrollable tabs */
 .columnPicker {
   display: flex;
