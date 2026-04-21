@@ -43,8 +43,8 @@ export type WsServerMessage =
   | { type: 'workspace:changed' }
   | { type: 'test-terminal:output'; payload: { data: string } }
   | { type: 'test-terminal:exit'; payload: { exitCode: number } }
-  | { type: 'free-terminal:output'; payload: { data: string } }
-  | { type: 'free-terminal:exit'; payload: { exitCode: number } }
+  | { type: 'free-terminal:output'; payload: { projectDir: string; data: string } }
+  | { type: 'free-terminal:exit'; payload: { projectDir: string; exitCode: number } }
 
 export type WsClientMessage =
   | { type: 'ping' }

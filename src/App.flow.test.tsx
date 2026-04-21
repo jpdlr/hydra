@@ -149,7 +149,11 @@ const baseConfig: AppConfig = {
   terminalFontSize: 12,
   terminalCursorStyle: 'bar',
   terminalCursorBlink: false,
-  terminalEnableWebgl: false
+  terminalEnableWebgl: false,
+  freeTerminalLifecyclePolicy: 'explicit',
+  freeTerminalMaxCount: 8,
+  freeTerminalIdleTimeoutMinutes: 30,
+  freeTerminalScrollbackLines: 5000
 }
 
 let currentConfig: AppConfig = { ...baseConfig }

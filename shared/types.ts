@@ -124,6 +124,13 @@ export type GridColumns = 'auto' | 2 | 3
  */
 export type TerminalShellMode = 'auto' | 'direct' | 'login' | 'custom'
 export type TerminalCursorStyle = 'block' | 'bar' | 'underline'
+/**
+ * How to manage background free terminals (Cmd+J) across project switches.
+ * - `explicit` : keep all running until the user explicitly closes them
+ * - `lru`      : cap at `freeTerminalMaxCount`; evict least-recently-used beyond cap
+ * - `idle`     : kill terminals with no input for `freeTerminalIdleTimeoutMinutes`
+ */
+export type FreeTerminalLifecyclePolicy = 'explicit' | 'lru' | 'idle'
 export interface AppConfig {
   schemaVersion: number
   defaultProvider: ProviderId
@@ -163,6 +170,14 @@ export interface AppConfig {
   terminalCursorStyle: TerminalCursorStyle
   terminalCursorBlink: boolean
   terminalEnableWebgl: boolean
+  // ── Free terminal (Cmd+J) ────────────────────────────────────────────────
+  freeTerminalLifecyclePolicy: FreeTerminalLifecyclePolicy
+  /** Used when policy === 'lru'. Terminals beyond this count are killed LRU-first. */
+  freeTerminalMaxCount: number
+  /** Used when policy === 'idle'. Terminals with no input for this long are killed. */
+  freeTerminalIdleTimeoutMinutes: number
+  /** Max scrollback lines retained per terminal for replay. */
+  freeTerminalScrollbackLines: number
 }
 
 export const MAX_CONCURRENT_AGENTS_HARD_LIMIT = 10
@@ -196,7 +211,11 @@ export const DEFAULT_CONFIG: AppConfig = {
   terminalFontSize: 12,
   terminalCursorStyle: 'bar',
   terminalCursorBlink: false,
-  terminalEnableWebgl: false
+  terminalEnableWebgl: false,
+  freeTerminalLifecyclePolicy: 'explicit',
+  freeTerminalMaxCount: 6,
+  freeTerminalIdleTimeoutMinutes: 60,
+  freeTerminalScrollbackLines: 5000
 }
 
 // ── IPC Channels ─────────────────────────────────────────────────────────────
@@ -345,7 +364,9 @@ export const IPC = {
   FREE_TERMINAL_RESIZE: 'free-terminal:resize',
   FREE_TERMINAL_OUTPUT: 'free-terminal:output',
   FREE_TERMINAL_EXIT: 'free-terminal:exit',
-  FREE_TERMINAL_KILL: 'free-terminal:kill'
+  FREE_TERMINAL_KILL: 'free-terminal:kill',
+  FREE_TERMINAL_BUFFER: 'free-terminal:buffer',
+  FREE_TERMINAL_LIST: 'free-terminal:list'
 } as const
 
 // ── IPC Payloads ─────────────────────────────────────────────────────────────

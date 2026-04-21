@@ -324,22 +324,26 @@ const hydraApi = {
     return () => { ipcRenderer.removeListener(IPC.TEST_TERMINAL_EXIT, handler) }
   },
 
-  // Free terminal (integrated shell)
-  spawnFreeTerminal: (cwd?: string): Promise<void> =>
-    ipcRenderer.invoke(IPC.FREE_TERMINAL_SPAWN, cwd),
-  sendFreeTerminalInput: (data: string): void =>
-    ipcRenderer.send(IPC.FREE_TERMINAL_INPUT, data),
-  resizeFreeTerminal: (cols: number, rows: number): void =>
-    ipcRenderer.send(IPC.FREE_TERMINAL_RESIZE, cols, rows),
-  killFreeTerminal: (): void =>
-    ipcRenderer.send(IPC.FREE_TERMINAL_KILL),
-  onFreeTerminalOutput: (callback: (data: string) => void): (() => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, data: string) => callback(data)
+  // Free terminal (integrated shell, project-scoped)
+  spawnFreeTerminal: (projectDir: string, cwd?: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.FREE_TERMINAL_SPAWN, projectDir, cwd),
+  sendFreeTerminalInput: (projectDir: string, data: string): void =>
+    ipcRenderer.send(IPC.FREE_TERMINAL_INPUT, projectDir, data),
+  resizeFreeTerminal: (projectDir: string, cols: number, rows: number): void =>
+    ipcRenderer.send(IPC.FREE_TERMINAL_RESIZE, projectDir, cols, rows),
+  killFreeTerminal: (projectDir: string): void =>
+    ipcRenderer.send(IPC.FREE_TERMINAL_KILL, projectDir),
+  getFreeTerminalBuffer: (projectDir: string): Promise<{ exists: boolean; data: string }> =>
+    ipcRenderer.invoke(IPC.FREE_TERMINAL_BUFFER, projectDir),
+  listFreeTerminals: (): Promise<Array<{ projectDir: string; lastActivityAt: number; lastInputAt: number; exited: boolean }>> =>
+    ipcRenderer.invoke(IPC.FREE_TERMINAL_LIST),
+  onFreeTerminalOutput: (callback: (projectDir: string, data: string) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, projectDir: string, data: string) => callback(projectDir, data)
     ipcRenderer.on(IPC.FREE_TERMINAL_OUTPUT, handler)
     return () => { ipcRenderer.removeListener(IPC.FREE_TERMINAL_OUTPUT, handler) }
   },
-  onFreeTerminalExit: (callback: (exitCode: number) => void): (() => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, exitCode: number) => callback(exitCode)
+  onFreeTerminalExit: (callback: (projectDir: string, exitCode: number) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, projectDir: string, exitCode: number) => callback(projectDir, exitCode)
     ipcRenderer.on(IPC.FREE_TERMINAL_EXIT, handler)
     return () => { ipcRenderer.removeListener(IPC.FREE_TERMINAL_EXIT, handler) }
   }

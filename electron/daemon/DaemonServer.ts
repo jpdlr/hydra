@@ -37,6 +37,16 @@ function getShellConfig(): { shell: string; shellArgs: string[] } {
   return { shell, shellArgs: ['-l', '-i'] }
 }
 
+interface FreeTerminalEntry {
+  projectDir: string
+  pty: IPty
+  buffer: string[]
+  bufferLen: number
+  lastActivityAt: number
+  lastInputAt: number
+  exited: boolean
+}
+
 interface DaemonServerOptions {
   socketPath: string
   agentManager: AgentManager
@@ -68,7 +78,8 @@ export class DaemonServer {
   private readonly onShutdown: () => void
   private readonly startedAt = Date.now()
   private testPty: IPty | null = null
-  private freePty: IPty | null = null
+  private freeTerminals = new Map<string, FreeTerminalEntry>()
+  private freeIdleTimer: ReturnType<typeof setInterval> | null = null
   private pendingAgentOutput = new Map<string, string>()
   private outputFlushTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -147,17 +158,82 @@ export class DaemonServer {
     }
   }
 
-  private killFreePty(): void {
-    if (this.freePty) {
-      try { this.freePty.kill() } catch { /* already dead */ }
-      this.freePty = null
+  private killFreeTerminal(projectDir: string): boolean {
+    const entry = this.freeTerminals.get(projectDir)
+    if (!entry) return false
+    try { entry.pty.kill() } catch { /* already dead */ }
+    this.freeTerminals.delete(projectDir)
+    return true
+  }
+
+  private killAllFreeTerminals(): void {
+    for (const projectDir of Array.from(this.freeTerminals.keys())) {
+      this.killFreeTerminal(projectDir)
+    }
+  }
+
+  /** Approximate char cap per terminal's ring buffer (≈200 chars/line). */
+  private freeScrollbackCharCap(): number {
+    const lines = Math.max(100, this.configStore.get().freeTerminalScrollbackLines || 5000)
+    return lines * 200
+  }
+
+  private appendFreeBuffer(entry: FreeTerminalEntry, data: string): void {
+    entry.buffer.push(data)
+    entry.bufferLen += data.length
+    const cap = this.freeScrollbackCharCap()
+    if (entry.bufferLen > cap) {
+      const full = entry.buffer.join('')
+      const trimmed = full.slice(full.length - cap)
+      entry.buffer = [trimmed]
+      entry.bufferLen = trimmed.length
+    }
+  }
+
+  private enforceFreeTerminalLru(excludeProjectDir: string): void {
+    const cfg = this.configStore.get()
+    if (cfg.freeTerminalLifecyclePolicy !== 'lru') return
+    const cap = Math.max(1, cfg.freeTerminalMaxCount || 6)
+    while (this.freeTerminals.size >= cap) {
+      let oldestKey: string | null = null
+      let oldestAt = Infinity
+      for (const [key, entry] of this.freeTerminals.entries()) {
+        if (key === excludeProjectDir) continue
+        if (entry.lastActivityAt < oldestAt) {
+          oldestAt = entry.lastActivityAt
+          oldestKey = key
+        }
+      }
+      if (!oldestKey) break
+      this.killFreeTerminal(oldestKey)
+    }
+  }
+
+  private ensureFreeIdleTimer(): void {
+    if (this.freeIdleTimer) return
+    this.freeIdleTimer = setInterval(() => this.sweepIdleFreeTerminals(), 60_000)
+  }
+
+  private sweepIdleFreeTerminals(): void {
+    const cfg = this.configStore.get()
+    if (cfg.freeTerminalLifecyclePolicy !== 'idle') return
+    const timeoutMs = Math.max(1, cfg.freeTerminalIdleTimeoutMinutes || 60) * 60_000
+    const now = Date.now()
+    for (const [key, entry] of Array.from(this.freeTerminals.entries())) {
+      if (now - entry.lastInputAt > timeoutMs) {
+        this.killFreeTerminal(key)
+      }
     }
   }
 
   stop(): void {
     this.flushPendingAgentOutput()
     this.killTestPty()
-    this.killFreePty()
+    this.killAllFreeTerminals()
+    if (this.freeIdleTimer) {
+      clearInterval(this.freeIdleTimer)
+      this.freeIdleTimer = null
+    }
     if (this.wss) {
       for (const client of this.wss.clients) {
         client.close()
@@ -531,45 +607,96 @@ export class DaemonServer {
         return this.json(res, 200, { ok: true })
       }
 
-      // ── Free Terminal (integrated shell) ─────────────────────────────────
+      // ── Free Terminal (integrated shell, project-scoped) ─────────────────
       if (method === 'POST' && path === '/free-terminal/spawn') {
-        this.killFreePty()
-        const body = await this.readBody<{ cwd?: string }>(req)
+        const body = await this.readBody<{ projectDir: string; cwd?: string }>(req)
+        const projectDir = body.projectDir
+        if (!projectDir) return this.json(res, 400, { error: 'projectDir required' })
+
+        const existing = this.freeTerminals.get(projectDir)
+        if (existing && !existing.exited) {
+          existing.lastActivityAt = Date.now()
+          return this.json(res, 200, { ok: true, reused: true })
+        }
+        if (existing?.exited) this.freeTerminals.delete(projectDir)
+
+        this.enforceFreeTerminalLru(projectDir)
+
         const { shell, shellArgs } = getShellConfig()
         const env: Record<string, string> = { ...process.env as Record<string, string>, TERM: 'xterm-256color', FORCE_COLOR: '1' }
         delete env.ELECTRON_RUN_AS_NODE
-        this.freePty = ptySpawn(shell, shellArgs, {
+        const pty = ptySpawn(shell, shellArgs, {
           name: 'xterm-256color',
           cols: 80,
           rows: 24,
-          cwd: body.cwd || homedir(),
+          cwd: body.cwd || projectDir || homedir(),
           env
         })
-        this.freePty.onData((data: string) => {
-          this.broadcast({ type: 'free-terminal:output', payload: { data } })
+        const now = Date.now()
+        const entry: FreeTerminalEntry = {
+          projectDir,
+          pty,
+          buffer: [],
+          bufferLen: 0,
+          lastActivityAt: now,
+          lastInputAt: now,
+          exited: false
+        }
+        this.freeTerminals.set(projectDir, entry)
+        pty.onData((data: string) => {
+          entry.lastActivityAt = Date.now()
+          this.appendFreeBuffer(entry, data)
+          this.broadcast({ type: 'free-terminal:output', payload: { projectDir, data } })
         })
-        this.freePty.onExit(({ exitCode }) => {
-          this.freePty = null
-          this.broadcast({ type: 'free-terminal:exit', payload: { exitCode } })
+        pty.onExit(({ exitCode }) => {
+          entry.exited = true
+          this.freeTerminals.delete(projectDir)
+          this.broadcast({ type: 'free-terminal:exit', payload: { projectDir, exitCode } })
         })
-        return this.json(res, 200, { ok: true })
+        this.ensureFreeIdleTimer()
+        return this.json(res, 200, { ok: true, reused: false })
       }
 
       if (method === 'POST' && path === '/free-terminal/input') {
-        const body = await this.readBody<{ data: string }>(req)
-        this.freePty?.write(body.data)
+        const body = await this.readBody<{ projectDir: string; data: string }>(req)
+        const entry = this.freeTerminals.get(body.projectDir)
+        if (entry) {
+          entry.pty.write(body.data)
+          entry.lastInputAt = Date.now()
+          entry.lastActivityAt = Date.now()
+        }
         return this.json(res, 200, { ok: true })
       }
 
       if (method === 'POST' && path === '/free-terminal/resize') {
-        const body = await this.readBody<{ cols: number; rows: number }>(req)
-        try { this.freePty?.resize(body.cols, body.rows) } catch { /* ignore */ }
+        const body = await this.readBody<{ projectDir: string; cols: number; rows: number }>(req)
+        const entry = this.freeTerminals.get(body.projectDir)
+        try { entry?.pty.resize(body.cols, body.rows) } catch { /* ignore */ }
         return this.json(res, 200, { ok: true })
       }
 
       if (method === 'POST' && path === '/free-terminal/kill') {
-        this.killFreePty()
-        return this.json(res, 200, { ok: true })
+        const body = await this.readBody<{ projectDir: string }>(req)
+        const killed = this.killFreeTerminal(body.projectDir)
+        return this.json(res, 200, { ok: true, killed })
+      }
+
+      if (method === 'GET' && path === '/free-terminal/buffer') {
+        const projectDir = url.searchParams.get('projectDir') || ''
+        const entry = this.freeTerminals.get(projectDir)
+        if (!entry) return this.json(res, 200, { exists: false, data: '' })
+        entry.lastActivityAt = Date.now()
+        return this.json(res, 200, { exists: true, data: entry.buffer.join('') })
+      }
+
+      if (method === 'GET' && path === '/free-terminal/list') {
+        const list = Array.from(this.freeTerminals.values()).map((e) => ({
+          projectDir: e.projectDir,
+          lastActivityAt: e.lastActivityAt,
+          lastInputAt: e.lastInputAt,
+          exited: e.exited
+        }))
+        return this.json(res, 200, list)
       }
 
       // 404

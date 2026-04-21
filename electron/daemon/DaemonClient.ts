@@ -116,10 +116,10 @@ export class DaemonClient extends EventEmitter {
             this.emit('test-terminal:exit', msg.payload.exitCode)
             break
           case 'free-terminal:output':
-            this.emit('free-terminal:output', msg.payload.data)
+            this.emit('free-terminal:output', msg.payload.projectDir, msg.payload.data)
             break
           case 'free-terminal:exit':
-            this.emit('free-terminal:exit', msg.payload.exitCode)
+            this.emit('free-terminal:exit', msg.payload.projectDir, msg.payload.exitCode)
             break
         }
       } catch {
@@ -331,20 +331,28 @@ export class DaemonClient extends EventEmitter {
 
   // ── Free Terminal ─────────────────────────────────────────────────────
 
-  async spawnFreeTerminal(cwd?: string): Promise<void> {
-    await this.post('/free-terminal/spawn', { cwd })
+  async spawnFreeTerminal(projectDir: string, cwd?: string): Promise<void> {
+    await this.post('/free-terminal/spawn', { projectDir, cwd })
   }
 
-  sendFreeTerminalInput(data: string): void {
-    this.post('/free-terminal/input', { data }).catch(() => {})
+  sendFreeTerminalInput(projectDir: string, data: string): void {
+    this.post('/free-terminal/input', { projectDir, data }).catch(() => {})
   }
 
-  resizeFreeTerminal(cols: number, rows: number): void {
-    this.post('/free-terminal/resize', { cols, rows }).catch(() => {})
+  resizeFreeTerminal(projectDir: string, cols: number, rows: number): void {
+    this.post('/free-terminal/resize', { projectDir, cols, rows }).catch(() => {})
   }
 
-  killFreeTerminal(): void {
-    this.post('/free-terminal/kill').catch(() => {})
+  killFreeTerminal(projectDir: string): void {
+    this.post('/free-terminal/kill', { projectDir }).catch(() => {})
+  }
+
+  async getFreeTerminalBuffer(projectDir: string): Promise<{ exists: boolean; data: string }> {
+    return await this.httpRequest('GET', `/free-terminal/buffer?projectDir=${encodeURIComponent(projectDir)}`)
+  }
+
+  async listFreeTerminals(): Promise<Array<{ projectDir: string; lastActivityAt: number; lastInputAt: number; exited: boolean }>> {
+    return await this.httpRequest('GET', '/free-terminal/list')
   }
 
   // ── Shutdown ────────────────────────────────────────────────────────────

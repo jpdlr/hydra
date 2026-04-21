@@ -9,52 +9,76 @@ interface FreeTerminalPanelProps {
 
 export function FreeTerminalPanel({ projectDir, onClose }: FreeTerminalPanelProps) {
   const [rawOutput, setRawOutput] = useState('')
-  const [spawned, setSpawned] = useState(false)
+  const [ready, setReady] = useState(false)
   const [exited, setExited] = useState(false)
-  const spawnedRef = useRef(false)
+  const projectDirRef = useRef(projectDir)
 
-  // Spawn the shell on mount
   useEffect(() => {
-    if (spawnedRef.current) return
-    spawnedRef.current = true
+    projectDirRef.current = projectDir
+  }, [projectDir])
 
-    window.hydra.spawnFreeTerminal(projectDir).then(() => {
-      setSpawned(true)
-    }).catch(() => {
-      setExited(true)
-    })
+  useEffect(() => {
+    let cancelled = false
+    setReady(false)
+    setExited(false)
+    setRawOutput('')
 
-    const unsubOutput = window.hydra.onFreeTerminalOutput((data) => {
+    const unsubOutput = window.hydra.onFreeTerminalOutput((pd, data) => {
+      if (pd !== projectDirRef.current) return
       setRawOutput((prev) => prev + data)
     })
 
-    const unsubExit = window.hydra.onFreeTerminalExit(() => {
+    const unsubExit = window.hydra.onFreeTerminalExit((pd) => {
+      if (pd !== projectDirRef.current) return
       setExited(true)
     })
 
+    ;(async () => {
+      try {
+        const existing = await window.hydra.getFreeTerminalBuffer(projectDir)
+        if (cancelled) return
+        if (existing.exists) {
+          setRawOutput(existing.data)
+          setReady(true)
+          return
+        }
+        await window.hydra.spawnFreeTerminal(projectDir)
+        if (cancelled) return
+        setReady(true)
+      } catch {
+        if (!cancelled) setExited(true)
+      }
+    })()
+
     return () => {
+      cancelled = true
       unsubOutput()
       unsubExit()
-      window.hydra.killFreeTerminal()
+      // Note: do NOT kill the terminal here — it keeps running in the daemon.
     }
   }, [projectDir])
 
   const handleData = useCallback((data: string) => {
-    window.hydra.sendFreeTerminalInput(data)
-  }, [])
+    window.hydra.sendFreeTerminalInput(projectDir, data)
+  }, [projectDir])
 
   const handleResize = useCallback((cols: number, rows: number) => {
-    window.hydra.resizeFreeTerminal(cols, rows)
-  }, [])
+    window.hydra.resizeFreeTerminal(projectDir, cols, rows)
+  }, [projectDir])
 
   const handleRestart = useCallback(() => {
     setRawOutput('')
     setExited(false)
+    setReady(false)
     window.hydra.spawnFreeTerminal(projectDir).then(() => {
-      setSpawned(true)
+      setReady(true)
     }).catch(() => {
       setExited(true)
     })
+  }, [projectDir])
+
+  const handleKill = useCallback(() => {
+    window.hydra.killFreeTerminal(projectDir)
   }, [projectDir])
 
   return (
@@ -70,13 +94,18 @@ export function FreeTerminalPanel({ projectDir, onClose }: FreeTerminalPanelProp
               ↻
             </button>
           )}
-          <button className={styles.actionBtn} onClick={onClose} title="Close terminal (Cmd+J)">
+          {!exited && ready && (
+            <button className={styles.actionBtn} onClick={handleKill} title="Kill terminal process">
+              ⏻
+            </button>
+          )}
+          <button className={styles.actionBtn} onClick={onClose} title="Hide terminal (Cmd+J) — stays running">
             ✕
           </button>
         </div>
       </div>
       <div className={styles.terminalArea}>
-        {spawned && (
+        {ready && (
           <TerminalPane
             rawOutput={rawOutput}
             onData={handleData}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type {
   AppConfig,
+  FreeTerminalLifecyclePolicy,
   ProviderId,
   TerminalCursorStyle,
   TerminalShellMode,
@@ -394,7 +395,7 @@ export function SettingsPanel({
           </div>}
 
           {/* ── Terminal ───────────────────────────────────────── */}
-          {matchesSearch(searchQuery, 'terminal', 'shell', 'bash', 'zsh', 'pwsh', 'powershell', 'font', 'cursor', 'webgl', 'path') && <div className={styles.section}>
+          {matchesSearch(searchQuery, 'terminal', 'shell', 'bash', 'zsh', 'pwsh', 'powershell', 'font', 'cursor', 'webgl', 'path', 'scrollback', 'background', 'lru', 'idle', 'lifecycle', 'cmd+j') && <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Terminal</h3>
 
             <div className={styles.field}>
@@ -518,6 +519,85 @@ export function SettingsPanel({
                 />
                 <span>Enable WebGL renderer (faster, requires GPU)</span>
               </label>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label}>Background Terminals (Cmd+J)</label>
+              <div className={styles.segmented}>
+                {(['explicit', 'lru', 'idle'] as FreeTerminalLifecyclePolicy[]).map((policy) => (
+                  <button
+                    key={policy}
+                    className={`${styles.segment} ${config.freeTerminalLifecyclePolicy === policy ? styles.active : ''}`}
+                    onClick={() => onUpdate({ freeTerminalLifecyclePolicy: policy })}
+                  >
+                    {policy === 'explicit' ? 'Explicit' : policy === 'lru' ? 'LRU' : 'Idle timeout'}
+                  </button>
+                ))}
+              </div>
+              <p className={styles.hint}>
+                Hidden terminals keep running per-project.{' '}
+                {config.freeTerminalLifecyclePolicy === 'explicit' && 'Only killed when you press the kill button.'}
+                {config.freeTerminalLifecyclePolicy === 'lru' && 'Oldest terminal is killed when the cap is reached.'}
+                {config.freeTerminalLifecyclePolicy === 'idle' && 'Killed after the configured idle time with no input.'}
+              </p>
+            </div>
+
+            {config.freeTerminalLifecyclePolicy === 'lru' && (
+              <div className={styles.field}>
+                <label className={styles.label}>Max background terminals</label>
+                <input
+                  className={styles.dirInput}
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={config.freeTerminalMaxCount}
+                  onChange={(e) =>
+                    onUpdate({
+                      freeTerminalMaxCount: Math.max(1, Math.min(50, parseInt(e.target.value, 10) || 6))
+                    })
+                  }
+                />
+              </div>
+            )}
+
+            {config.freeTerminalLifecyclePolicy === 'idle' && (
+              <div className={styles.field}>
+                <label className={styles.label}>Idle timeout (minutes)</label>
+                <input
+                  className={styles.dirInput}
+                  type="number"
+                  min={1}
+                  max={1440}
+                  value={config.freeTerminalIdleTimeoutMinutes}
+                  onChange={(e) =>
+                    onUpdate({
+                      freeTerminalIdleTimeoutMinutes: Math.max(
+                        1,
+                        Math.min(1440, parseInt(e.target.value, 10) || 60)
+                      )
+                    })
+                  }
+                />
+              </div>
+            )}
+
+            <div className={styles.field}>
+              <label className={styles.label}>Scrollback lines</label>
+              <input
+                className={styles.dirInput}
+                type="number"
+                min={100}
+                max={100000}
+                value={config.freeTerminalScrollbackLines}
+                onChange={(e) =>
+                  onUpdate({
+                    freeTerminalScrollbackLines: Math.max(
+                      100,
+                      Math.min(100000, parseInt(e.target.value, 10) || 5000)
+                    )
+                  })
+                }
+              />
             </div>
           </div>}
 
