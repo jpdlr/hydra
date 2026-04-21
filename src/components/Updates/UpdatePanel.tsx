@@ -7,16 +7,25 @@ interface UpdatePanelProps {
   onCheck: () => Promise<void>
   onDownload: () => Promise<void>
   onInstall: () => Promise<void>
+  onRunBrewUpgrade?: () => Promise<void>
+  onOpenDownload?: () => Promise<void>
   onClose: () => void
 }
 
-export function UpdatePanel({ state, onCheck, onDownload, onInstall, onClose }: UpdatePanelProps) {
-  const [busyAction, setBusyAction] = useState<'check' | 'download' | 'install' | null>(null)
+type ActionKey = 'check' | 'download' | 'install' | 'brew' | 'open'
 
-  const runAction = async (
-    action: 'check' | 'download' | 'install',
-    handler: () => Promise<void>
-  ) => {
+export function UpdatePanel({
+  state,
+  onCheck,
+  onDownload,
+  onInstall,
+  onRunBrewUpgrade,
+  onOpenDownload,
+  onClose
+}: UpdatePanelProps) {
+  const [busyAction, setBusyAction] = useState<ActionKey | null>(null)
+
+  const runAction = async (action: ActionKey, handler: () => Promise<void>) => {
     setBusyAction(action)
     try {
       await handler()
@@ -24,6 +33,14 @@ export function UpdatePanel({ state, onCheck, onDownload, onInstall, onClose }: 
       setBusyAction(null)
     }
   }
+
+  const statusLabel = (() => {
+    if (state.downloaded) return 'Update downloaded'
+    if (state.downloading) return 'Downloading update...'
+    if (state.checking) return 'Checking for updates...'
+    if (state.available) return 'Update available'
+    return 'Up to date'
+  })()
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -42,26 +59,15 @@ export function UpdatePanel({ state, onCheck, onDownload, onInstall, onClose }: 
 
         {!state.supported ? (
           <div className={styles.message}>
-            Automatic in-app updates are available on Windows and Linux (AppImage only). macOS and
-            Linux .deb support is planned — install the latest build manually from the releases
-            page for now.
+            Update checks aren&apos;t available on this platform yet. Install the latest build
+            manually from the releases page.
           </div>
         ) : (
           <>
             <div className={styles.meta}>
               <div>
                 <span className={styles.label}>Status</span>
-                <span className={styles.value}>
-                  {state.downloaded
-                    ? 'Update downloaded'
-                    : state.downloading
-                      ? 'Downloading update...'
-                      : state.checking
-                        ? 'Checking for updates...'
-                        : state.available
-                          ? 'Update available'
-                          : 'Up to date'}
-                </span>
+                <span className={styles.value}>{statusLabel}</span>
               </div>
               <div>
                 <span className={styles.label}>Latest</span>
@@ -95,7 +101,7 @@ export function UpdatePanel({ state, onCheck, onDownload, onInstall, onClose }: 
                 {busyAction === 'check' ? 'Checking...' : 'Check for Updates'}
               </button>
 
-              {state.available && !state.downloaded && (
+              {state.canAutoInstall && state.available && !state.downloaded && (
                 <button
                   className={styles.primaryBtn}
                   onClick={() => void runAction('download', onDownload)}
@@ -106,7 +112,7 @@ export function UpdatePanel({ state, onCheck, onDownload, onInstall, onClose }: 
                 </button>
               )}
 
-              {state.downloaded && (
+              {state.canAutoInstall && state.downloaded && (
                 <button
                   className={styles.primaryBtn}
                   onClick={() => void runAction('install', onInstall)}
@@ -114,6 +120,28 @@ export function UpdatePanel({ state, onCheck, onDownload, onInstall, onClose }: 
                   type="button"
                 >
                   {busyAction === 'install' ? 'Installing...' : 'Install & Restart'}
+                </button>
+              )}
+
+              {!state.canAutoInstall && state.available && state.installMethod === 'brew' && onRunBrewUpgrade && (
+                <button
+                  className={styles.primaryBtn}
+                  onClick={() => void runAction('brew', onRunBrewUpgrade)}
+                  disabled={busyAction !== null}
+                  type="button"
+                >
+                  {busyAction === 'brew' ? 'Opening Terminal...' : 'Upgrade via brew'}
+                </button>
+              )}
+
+              {!state.canAutoInstall && state.available && state.installMethod !== 'brew' && onOpenDownload && (
+                <button
+                  className={styles.primaryBtn}
+                  onClick={() => void runAction('open', onOpenDownload)}
+                  disabled={busyAction !== null || !state.downloadUrl}
+                  type="button"
+                >
+                  {busyAction === 'open' ? 'Opening...' : 'Download'}
                 </button>
               )}
             </div>
@@ -130,4 +158,3 @@ function formatDate(value: string | null): string {
   if (Number.isNaN(date.getTime())) return '—'
   return date.toLocaleString()
 }
-

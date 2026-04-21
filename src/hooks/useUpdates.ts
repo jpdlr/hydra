@@ -12,7 +12,11 @@ const EMPTY_STATE: AppUpdateState = {
   latestVersion: null,
   releaseDate: null,
   releaseNotes: null,
-  error: null
+  error: null,
+  canAutoInstall: false,
+  installMethod: null,
+  downloadUrl: null,
+  releaseUrl: null
 }
 
 export function useUpdates() {
@@ -59,6 +63,21 @@ export function useUpdates() {
     return window.hydra.installUpdateAndRestart()
   }, [])
 
-  return { updateState: state, loading, check, download, install }
-}
+  const runBrewUpgrade = useCallback(async () => {
+    return window.hydra.runBrewUpgrade()
+  }, [])
 
+  const openDownload = useCallback(async () => {
+    return window.hydra.openUpdateDownload()
+  }, [])
+
+  return {
+    updateState: state,
+    loading,
+    check,
+    download,
+    install,
+    runBrewUpgrade,
+    openDownload
+  }
+}

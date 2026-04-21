@@ -18,12 +18,7 @@ jobs:
     permissions:
       contents: write
     env:
-      CSC_LINK: ${{ secrets.CSC_LINK }}
-      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-      CSC_NAME: ${{ secrets.CSC_NAME }}
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       MAIN_VITE_HYDRA_FIREBASE_API_KEY: ${{ vars.HYDRA_FIREBASE_API_KEY || secrets.HYDRA_FIREBASE_API_KEY }}
       MAIN_VITE_HYDRA_FIREBASE_AUTH_DOMAIN: ${{ vars.HYDRA_FIREBASE_AUTH_DOMAIN || secrets.HYDRA_FIREBASE_AUTH_DOMAIN }}
@@ -38,32 +33,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check signing secrets
-        id: mac-secrets
-        shell: bash
-        run: |
-          missing=0
-          for key in CSC_LINK CSC_KEY_PASSWORD CSC_NAME APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
-            if [ -z "${!key}" ]; then
-              echo "Missing $key"
-              missing=1
-            fi
-          done
-          if [ "$missing" -eq 1 ]; then
-            echo "available=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "available=true" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Setup Node
-        if: ${{ steps.mac-secrets.outputs.available == 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
       - name: Check Firebase release env
-        if: ${{ steps.mac-secrets.outputs.available == 'true' }}
         shell: bash
         run: |
           missing=0
@@ -85,31 +61,75 @@ jobs:
           fi
 
       - name: Install dependencies
-        if: ${{ steps.mac-secrets.outputs.available == 'true' }}
         run: npm ci
 
       - name: Validate
-        if: ${{ steps.mac-secrets.outputs.available == 'true' }}
         run: |
           npm run lint
           npm run typecheck
           npm test -- --run
 
-      - name: Release Preflight
-        if: ${{ steps.mac-secrets.outputs.available == 'true' }}
-        run: npm run release:preflight
-
-      - name: Build Signed Dry Run
-        if: ${{ steps.mac-secrets.outputs.available == 'true' && github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+      - name: Build Mac Artifacts (dry run)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
         run: npm run dist:mac:dry-run
 
-      - name: Build and Publish Release
-        if: ${{ steps.mac-secrets.outputs.available == 'true' && (github.event_name != 'workflow_dispatch' || !inputs.dry_run) }}
-        run: npm run dist:mac
+      - name: Build Mac Artifacts
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        run: npm run dist:mac:dry-run
 
-      - name: Skip mac release
-        if: ${{ steps.mac-secrets.outputs.available != 'true' }}
-        run: echo "Skipping mac release because signing secrets are not configured."
+      - name: Resolve release tag (Mac)
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        id: release-tag
+        shell: bash
+        run: |
+          tag=""
+          tag_from_sha=$(git tag --points-at "$GITHUB_SHA" | head -n1)
+          if [ -n "$tag_from_sha" ]; then
+            tag="$tag_from_sha"
+          fi
+          if [ -z "$tag" ] && [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            tag="${GITHUB_REF#refs/tags/}"
+          fi
+          if [ -z "$tag" ]; then
+            echo "Unable to resolve release tag. GITHUB_REF=$GITHUB_REF GITHUB_SHA=$GITHUB_SHA"
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Resolved release tag: $tag"
+
+      - name: Ensure published release with generated notes (Mac)
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        shell: bash
+        run: |
+          tag="${{ steps.release-tag.outputs.tag }}"
+          npm run release:notes -- upsert "$tag" --repo "$GITHUB_REPOSITORY"
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json id,isDraft,isPrerelease,url
+
+      - name: Upload release assets (Mac)
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        shell: bash
+        run: |
+          tag="${{ steps.release-tag.outputs.tag }}"
+          shopt -s nullglob
+          assets=(dist/*.dmg dist/*.blockmap dist/latest-mac*.yml)
+          if [ ${#assets[@]} -eq 0 ]; then
+            echo "No Mac artifacts found in dist/"
+            ls -la dist/ || true
+            exit 1
+          fi
+          gh release upload "$tag" "${assets[@]}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+      - name: Upload workflow artifact (Mac)
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-installer-${{ steps.release-tag.outputs.tag }}
+          path: |
+            dist/*.dmg
+            dist/*.blockmap
+            dist/latest-mac*.yml
 
   windows-release:
     runs-on: windows-latest
@@ -369,3 +389,55 @@ jobs:
             dist/*.deb
             dist/*.blockmap
             dist/latest-linux*.yml
+
+  publish-packages:
+    needs: [mac-release, windows-release, linux-release]
+    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Resolve release tag
+        id: tag
+        shell: bash
+        run: |
+          tag=""
+          tag_from_sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA" --jq '.commit.message' 2>/dev/null || true)
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            tag="${GITHUB_REF#refs/tags/}"
+          fi
+          if [ -z "$tag" ]; then
+            tag=$(git ls-remote --tags "https://github.com/$GITHUB_REPOSITORY.git" \
+              | awk '{print $2}' | sed 's|refs/tags/||' | sort -V | tail -1)
+          fi
+          if [ -z "$tag" ]; then
+            echo "Unable to resolve tag"; exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch Homebrew update
+        shell: bash
+        run: |
+          gh workflow run update-homebrew.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref "${{ steps.tag.outputs.tag }}" \
+            -f tag="${{ steps.tag.outputs.tag }}" || echo "Homebrew dispatch failed — continuing"
+
+      - name: Dispatch winget update
+        shell: bash
+        run: |
+          gh workflow run update-winget.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref "${{ steps.tag.outputs.tag }}" \
+            -f tag="${{ steps.tag.outputs.tag }}" || echo "winget dispatch failed — continuing"
+
+      - name: Dispatch AUR update
+        shell: bash
+        run: |
+          gh workflow run update-aur.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref "${{ steps.tag.outputs.tag }}" \
+            -f tag="${{ steps.tag.outputs.tag }}" || echo "AUR dispatch failed — continuing"

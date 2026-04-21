@@ -4,6 +4,18 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 
 ---
 
+### TerminalPane xterm mocks don't expose `terminal.unicode`
+**Date**: 2026-04-21
+**Mistake**: Setting `terminal.unicode.activeVersion = '11'` after loading `Unicode11Addon` throws in jsdom tests because the xterm mock in `TerminalPane.test.tsx` doesn't stub the `unicode` property.
+**Fix**: Guard with `if (terminal.unicode)` before mutating. Fine in production since the real xterm always has it; tests that don't exercise unicode can skip the stub.
+
+### Shell wrapping for cross-platform PATH robustness
+**Date**: 2026-04-21
+**Context**: Agents launched directly via `ptySpawn(cmd, args)` inherit Electron's spawn environment, which on Arch/CachyOS/NixOS does not include user-shell PATH additions from `.zshrc`/`.bashrc`. Users saw `claude: command not found` despite the CLI being installed.
+**Fix**: Added `TerminalShellMode` ('auto' | 'direct' | 'login' | 'custom') config + `wrapWithShell` helper in `electron/agents/shellWrapper.ts`. `auto` maps to `login` on POSIX (spawns through `$SHELL -lc <quoted-cmd>`) and `direct` on Windows (keeps the existing cmd.exe .cmd fallback). Config flows into AgentManager via `setShellConfigProvider(() => ...)` from the daemon.
+
+---
+
 ### Electron fails to launch on Linux distros without setuid `chrome-sandbox`
 **Date**: 2026-04-20
 **Mistake**: On Arch-based distros (e.g. CachyOS) `electron-vite dev` silently fails to open the Electron window because the bundled `chrome-sandbox` helper is not setuid root. Users end up opening `localhost:5173` directly in Chrome and see `window.hydra is undefined` errors (no preload).
@@ -540,3 +552,29 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Mistake**: A stale-lock respawn test asserted `stdio: 'ignore'` without pinning `process.platform`, so it silently encoded macOS behavior and broke on Windows where daemon output is redirected to `daemon.log`.
 
 **Fix**: Explicitly mock `process.platform` inside daemon lifecycle tests whenever the expected `spawn(...)` options are platform-specific, and keep separate Windows assertions for log redirection behavior.
+
+### Release-triggered package updaters must wait for artifact upload
+
+**Context**: Added Homebrew/winget/AUR auto-publish workflows that pull the DMG/AppImage/EXE from the GitHub release. Initial instinct was to trigger them with `on: release: { types: [published] }`.
+
+**Mistake**: The existing `release.yml` creates the GitHub release *before* uploading artifacts (via `release:notes upsert`). A `release.published` trigger fires immediately and races the asset uploads — the downloader 404s.
+
+**Fix**: Keep the update workflows as `workflow_dispatch`-only, and add a `publish-packages` job to `release.yml` that `needs: [mac-release, windows-release, linux-release]` and uses `gh workflow run` to dispatch each updater with the tag as an input. Guarantees assets exist before the downloader runs.
+
+### Unsigned macOS DMG via Homebrew Cask
+
+**Context**: Shipping macOS without a paid Apple Developer account. Mac job in `release.yml` previously skipped entirely unless `CSC_*`/`APPLE_*` secrets were set.
+
+**Mistake**: `electron-builder.yml` had `identity: ${CSC_NAME}` and `hardenedRuntime: true`, which fail when no signing cert is present. Also the mac job relied on electron-builder's built-in GitHub publish, which needs `dist:mac` (non dry-run) and works poorly without a cert.
+
+**Fix**: Set `identity: null` and `hardenedRuntime: false` in `electron-builder.yml`. In the mac-release job set `CSC_IDENTITY_AUTO_DISCOVERY=false`, build with `dist:mac:dry-run`, and upload `dist/*.dmg` explicitly via `gh release upload` (mirroring the linux job). Homebrew Cask strips `com.apple.quarantine` on install, so `brew install --cask` works despite the DMG being unsigned. Users who download the DMG directly will still need to right-click → Open.
+
+**Caveat**: `electron-updater` auto-updates will not verify the unsigned DMG, so in-app updates on macOS likely won't work until the app is signed + notarized.
+
+### macOS update notifications without code signing
+
+**Context**: Shipping unsigned macOS builds means `electron-updater` can't auto-install (Apple requires a signature verify before the binary is replaced). But we still want users to know a new version exists.
+
+**Mistake**: Early draft reused `electron-updater` for the macOS check-only path. `autoUpdater.checkForUpdates()` on an unsigned mac build emits errors ("Could not get code signature for running app") before it even reports a version diff.
+
+**Fix**: In `UpdateService`, branch by platform. Windows + Linux-AppImage keep the `electron-updater` path with auto-download/install. macOS uses a GitHub Releases API poller (`https://api.github.com/repos/jpdlr/hydra/releases/latest`) with 6h interval, populates the same `AppUpdateState`, and exposes `runBrewUpgrade()` (opens Terminal via `osascript` and runs `brew upgrade --cask hydra`) and `openDownloadPage()` (opens the DMG URL in the browser). Install method is detected from `process.execPath` (`/Caskroom/hydra/` → brew). Added `canAutoInstall: boolean` and `installMethod` to `AppUpdateState` so the UI can pick the right CTA per platform/install-method.

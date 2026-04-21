@@ -34,6 +34,7 @@ import type {
   GitBranch,
   GitFileContents,
   GitPrDiff,
+  GitDiffStats,
   EditorId,
   RemoteControlState,
   SkillScanResult,
@@ -200,6 +201,10 @@ const hydraApi = {
     ipcRenderer.invoke(IPC.UPDATE_DOWNLOAD),
   installUpdateAndRestart: (): Promise<boolean> =>
     ipcRenderer.invoke(IPC.UPDATE_INSTALL),
+  runBrewUpgrade: (): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC.UPDATE_RUN_BREW_UPGRADE),
+  openUpdateDownload: (): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC.UPDATE_OPEN_DOWNLOAD),
   onUpdateStateChange: (callback: (state: AppUpdateState) => void): (() => void) => {
     const handler = (_event: Electron.IpcRendererEvent, state: AppUpdateState) =>
       callback(state)
@@ -248,6 +253,8 @@ const hydraApi = {
     ipcRenderer.invoke(IPC.GIT_LOG, projectDir, limit),
   getGitDiff: (projectDir: string, filePath?: string): Promise<string> =>
     ipcRenderer.invoke(IPC.GIT_DIFF, projectDir, filePath),
+  getGitDiffStats: (projectDir: string): Promise<GitDiffStats> =>
+    ipcRenderer.invoke(IPC.GIT_DIFF_STATS, projectDir),
   gitCommit: (projectDir: string, message: string, files?: string[]): Promise<string> =>
     ipcRenderer.invoke(IPC.GIT_COMMIT, projectDir, message, files),
   gitPush: (projectDir: string): Promise<void> =>

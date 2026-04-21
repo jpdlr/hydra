@@ -114,6 +114,16 @@ export const EDITOR_REGISTRY: EditorDefinition[] = [
 export type ThemeId = 'light' | 'dark' | 'midnight'
 export type ViewMode = 'grid' | 'chat'
 export type GridColumns = 'auto' | 2 | 3
+/**
+ * Terminal shell wrapping mode.
+ * - `direct`   : spawn the CLI binary directly (legacy behavior)
+ * - `login`    : spawn through the user's login shell so rc files set PATH etc.
+ *                (fixes "command not found" on Arch/CachyOS/NixOS)
+ * - `custom`   : use `terminalShellPath` + `terminalShellArgs` verbatim
+ * - `auto`     : `login` on macOS/Linux, `direct` on Windows
+ */
+export type TerminalShellMode = 'auto' | 'direct' | 'login' | 'custom'
+export type TerminalCursorStyle = 'block' | 'bar' | 'underline'
 export interface AppConfig {
   schemaVersion: number
   defaultProvider: ProviderId
@@ -142,6 +152,17 @@ export interface AppConfig {
   includeSensitiveDiagnostics: boolean
   remoteControlEnabled: boolean
   remoteSessionTimeoutMinutes: number
+  // ── Terminal / shell ──────────────────────────────────────────────────────
+  terminalShellMode: TerminalShellMode
+  /** Absolute path to a custom shell; only used when terminalShellMode === 'custom'. */
+  terminalShellPath: string
+  /** Extra args for the shell wrapper. Split on whitespace. E.g. "-lc" or "-NoLogo -Command". */
+  terminalShellArgs: string
+  terminalFontFamily: string
+  terminalFontSize: number
+  terminalCursorStyle: TerminalCursorStyle
+  terminalCursorBlink: boolean
+  terminalEnableWebgl: boolean
 }
 
 export const MAX_CONCURRENT_AGENTS_HARD_LIMIT = 10
@@ -167,7 +188,15 @@ export const DEFAULT_CONFIG: AppConfig = {
   errorReportingEndpoint: '',
   includeSensitiveDiagnostics: false,
   remoteControlEnabled: false,
-  remoteSessionTimeoutMinutes: 480
+  remoteSessionTimeoutMinutes: 480,
+  terminalShellMode: 'auto',
+  terminalShellPath: '',
+  terminalShellArgs: '',
+  terminalFontFamily: '"SF Mono", "Menlo", "Monaco", monospace',
+  terminalFontSize: 12,
+  terminalCursorStyle: 'bar',
+  terminalCursorBlink: false,
+  terminalEnableWebgl: false
 }
 
 // ── IPC Channels ─────────────────────────────────────────────────────────────
@@ -248,6 +277,8 @@ export const IPC = {
   UPDATE_CHECK: 'update:check',
   UPDATE_DOWNLOAD: 'update:download',
   UPDATE_INSTALL: 'update:install',
+  UPDATE_RUN_BREW_UPGRADE: 'update:run-brew-upgrade',
+  UPDATE_OPEN_DOWNLOAD: 'update:open-download',
   UPDATE_STATE_CHANGED: 'update:state-changed',
 
   // MCP
@@ -270,6 +301,7 @@ export const IPC = {
   GIT_STATUS: 'git:status',
   GIT_LOG: 'git:log',
   GIT_DIFF: 'git:diff',
+  GIT_DIFF_STATS: 'git:diff-stats',
   GIT_COMMIT: 'git:commit',
   GIT_PUSH: 'git:push',
 
@@ -462,6 +494,8 @@ export interface CcusageOptions {
 
 // ── App updates ───────────────────────────────────────────────────────────────
 
+export type UpdateInstallMethod = 'brew' | 'direct' | 'unknown'
+
 export interface AppUpdateState {
   supported: boolean
   platform: string
@@ -474,6 +508,15 @@ export interface AppUpdateState {
   releaseDate: string | null
   releaseNotes: string | null
   error: string | null
+  // Whether electron-updater can auto-download + install on this platform.
+  // False on macOS (unsigned build) — users upgrade via brew or manual download.
+  canAutoInstall: boolean
+  // Detected install method on macOS; null on other platforms or pre-detection.
+  installMethod: UpdateInstallMethod | null
+  // Direct download URL for the current platform's artifact on the latest release.
+  downloadUrl: string | null
+  // HTML page URL for the latest release.
+  releaseUrl: string | null
 }
 
 // ── Observability ──────────────────────────────────────────────────────────
@@ -662,6 +705,12 @@ export interface GitFileContents {
   original: string
   modified: string
   language: string
+}
+
+export interface GitDiffStats {
+  additions: number
+  deletions: number
+  files: number
 }
 
 export interface GitPrMetadata {

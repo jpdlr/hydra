@@ -19,11 +19,9 @@ publish:
 mac:
   icon: build/icon.png
   category: public.app-category.developer-tools
-  hardenedRuntime: true
+  hardenedRuntime: false
   gatekeeperAssess: false
-  entitlements: build/entitlements.mac.plist
-  entitlementsInherit: build/entitlements.mac.inherit.plist
-  identity: ${CSC_NAME}
+  identity: null
   target:
     - dmg
     - dir

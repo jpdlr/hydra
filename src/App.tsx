@@ -9,6 +9,7 @@ import { NewAgentDialog } from './components/NewAgent/NewAgentDialog'
 import { HeadlessPanel } from './components/Headless/HeadlessPanel'
 import { UsageDashboard } from './components/UsageDashboard/UsageDashboard'
 import { UpdatePanel } from './components/Updates/UpdatePanel'
+import { UpdateBanner } from './components/Updates/UpdateBanner'
 import { NotificationToast } from './components/Notifications/NotificationToast'
 import { FileSearchPopup } from './components/FileSearchPopup/FileSearchPopup'
 import { CommandPalette } from './components/CommandPalette/CommandPalette'
@@ -17,6 +18,7 @@ import { RemoteControlModal } from './components/RemoteControl/RemoteControlModa
 import { PreflightTestModal } from './components/PreflightTestModal/PreflightTestModal'
 import { useAgents } from './hooks/useAgents'
 import { useConfig } from './hooks/useConfig'
+import { TerminalConfigContext, deriveTerminalConfig } from './hooks/useTerminalConfig'
 import { useKeybindings } from './hooks/useKeybindings'
 import { useViewMode } from './hooks/useViewMode'
 import { useNotifications } from './hooks/useNotifications'
@@ -96,8 +98,14 @@ export default function App() {
   const { config, updateConfig } = useConfig()
   const { keybindings, keybindingsPath } = useKeybindings()
   const { notifications, dismiss: dismissNotification } = useNotifications(config.enableSoundEffects)
-  const { updateState, check: checkForUpdates, download: downloadUpdate, install: installUpdate } =
-    useUpdates()
+  const {
+    updateState,
+    check: checkForUpdates,
+    download: downloadUpdate,
+    install: installUpdate,
+    runBrewUpgrade,
+    openDownload
+  } = useUpdates()
   const remoteControl = useRemoteControl()
   const {
     agents,
@@ -582,7 +590,16 @@ export default function App() {
     [selectedProject]
   )
 
+  const terminalVisualConfig = useMemo(() => deriveTerminalConfig(config), [
+    config.terminalFontFamily,
+    config.terminalFontSize,
+    config.terminalCursorStyle,
+    config.terminalCursorBlink,
+    config.terminalEnableWebgl
+  ])
+
   return (
+    <TerminalConfigContext.Provider value={terminalVisualConfig}>
     <div className={styles.app}>
       <Header
         viewMode={viewMode}
@@ -812,8 +829,22 @@ export default function App() {
           onInstall={async () => {
             await installUpdate()
           }}
+          onRunBrewUpgrade={async () => {
+            await runBrewUpgrade()
+          }}
+          onOpenDownload={async () => {
+            await openDownload()
+          }}
         />
       )}
+
+      <UpdateBanner
+        state={updateState}
+        onDownload={downloadUpdate}
+        onInstall={installUpdate}
+        onRunBrewUpgrade={runBrewUpgrade}
+        onOpenDownload={openDownload}
+      />
 
       {showYoloConfirm && (
         <div className={styles.confirmOverlay} onClick={() => setShowYoloConfirm(false)}>
@@ -954,6 +985,7 @@ export default function App() {
 
       <NotificationToast notifications={notifications} onDismiss={dismissNotification} />
     </div>
+    </TerminalConfigContext.Provider>
   )
 }
 

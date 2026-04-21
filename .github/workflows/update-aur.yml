@@ -1,0 +1,73 @@
+name: Update AUR
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to publish (e.g. v0.2.33)'
+        required: true
+        type: string
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check secrets
+        id: check
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.AUR_SSH_PRIVATE_KEY }}" ]; then
+            echo "AUR_SSH_PRIVATE_KEY not set — skipping"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.check.outputs.skip == 'false'
+        uses: actions/checkout@v4
+
+      - name: Resolve tag and version
+        if: steps.check.outputs.skip == 'false'
+        id: meta
+        shell: bash
+        run: |
+          tag="${{ inputs.tag }}"
+          version="${tag#v}"
+          echo "tag=$tag"         >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Download AppImage and compute SHA256
+        if: steps.check.outputs.skip == 'false'
+        id: sums
+        shell: bash
+        run: |
+          version="${{ steps.meta.outputs.version }}"
+          url="https://github.com/jpdlr/hydra/releases/download/v${version}/hydra-${version}-x86_64.AppImage"
+          echo "Fetching $url"
+          curl -sfL -o hydra.AppImage "$url"
+          sha=$(sha256sum hydra.AppImage | awk '{print $1}')
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Render PKGBUILD
+        if: steps.check.outputs.skip == 'false'
+        shell: bash
+        run: |
+          version="${{ steps.meta.outputs.version }}"
+          sha="${{ steps.sums.outputs.sha }}"
+          mkdir -p build-aur
+          cp packaging/aur/PKGBUILD build-aur/PKGBUILD
+          sed -i "s/^pkgver=.*/pkgver=${version}/" build-aur/PKGBUILD
+          sed -i "s/^pkgrel=.*/pkgrel=1/" build-aur/PKGBUILD
+          sed -i "s/^sha256sums=.*/sha256sums=('${sha}')/" build-aur/PKGBUILD
+
+      - name: Publish to AUR
+        if: steps.check.outputs.skip == 'false'
+        uses: KSXGitHub/github-actions-deploy-aur@v2.7.2
+        with:
+          pkgname: hydra-bin
+          pkgbuild: build-aur/PKGBUILD
+          commit_username: ${{ secrets.AUR_USERNAME }}
+          commit_email: ${{ secrets.AUR_EMAIL }}
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: "hydra-bin ${{ steps.meta.outputs.version }}-1"

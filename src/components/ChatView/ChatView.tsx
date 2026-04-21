@@ -5,6 +5,7 @@ import { InputBar } from './InputBar'
 import type { AttachedImage } from './InputBar'
 import { EditorPanel } from '../EditorPanel'
 import { SplitHandle } from '../EditorPanel/SplitHandle'
+import { DiffStats } from './DiffStats'
 import type { AgentState, ProviderId } from '@shared/types'
 import type { EditorTab } from '../EditorPanel/TabBar'
 import claudeIcon from '@/assets/claude-icon.png'
@@ -140,6 +141,7 @@ export function ChatView({
             <StatusBadge status={agent.status} />
             {agent.isManager && <span className={styles.managerBadge}>Manager</span>}
             {agent.yolo && <span className={styles.yoloBadge}>YOLO</span>}
+            <DiffStats projectDir={agent.worktreePath ?? agent.projectDir} />
           </div>
         </div>
         <div className={styles.agentActions}>

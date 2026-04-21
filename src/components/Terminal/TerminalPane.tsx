@@ -3,7 +3,10 @@ import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { ImageAddon } from '@xterm/addon-image'
 import { WebLinksAddon } from '@xterm/addon-web-links'
+import { Unicode11Addon } from '@xterm/addon-unicode11'
+import { WebglAddon } from '@xterm/addon-webgl'
 import '@xterm/xterm/css/xterm.css'
+import { useTerminalConfig } from '../../hooks/useTerminalConfig'
 
 interface TerminalPaneProps {
   rawOutput: string
@@ -52,11 +55,17 @@ export function TerminalPane({
   onData,
   onResize,
   className,
-  fontSize = 12,
+  fontSize,
   lineHeight = 1.35,
   autoFocus = true,
   isVisible = true
 }: TerminalPaneProps) {
+  const terminalConfig = useTerminalConfig()
+  const effectiveFontSize = fontSize ?? terminalConfig.fontSize
+  const effectiveFontFamily = terminalConfig.fontFamily
+  const effectiveCursorStyle = terminalConfig.cursorStyle
+  const effectiveCursorBlink = terminalConfig.cursorBlink
+  const effectiveEnableWebgl = terminalConfig.enableWebgl
   const wrapperRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const terminalRef = useRef<Terminal | null>(null)
@@ -85,13 +94,14 @@ export function TerminalPane({
 
     const terminal = new Terminal({
       theme: getTerminalTheme(),
-      fontFamily: '"SF Mono", "Menlo", "Monaco", monospace',
-      fontSize,
+      fontFamily: effectiveFontFamily,
+      fontSize: effectiveFontSize,
       lineHeight,
-      cursorBlink: false,
-      cursorStyle: 'bar',
+      cursorBlink: effectiveCursorBlink,
+      cursorStyle: effectiveCursorStyle,
       disableStdin: !onData,
       scrollback: 5000,
+      allowProposedApi: true,
       // Preserve raw terminal newline/cursor semantics for TUI apps like Codex.
       convertEol: false
     })
@@ -103,10 +113,30 @@ export function TerminalPane({
       event.preventDefault()
       window.hydra.openExternal(uri).catch(() => {})
     })
+    const unicode11Addon = new Unicode11Addon()
     terminal.loadAddon(fitAddon)
     terminal.loadAddon(imageAddon)
     terminal.loadAddon(webLinksAddon)
+    terminal.loadAddon(unicode11Addon)
+    if (terminal.unicode) {
+      terminal.unicode.activeVersion = '11'
+    }
     terminal.open(containerRef.current)
+
+    let webglAddon: WebglAddon | null = null
+    if (effectiveEnableWebgl) {
+      try {
+        webglAddon = new WebglAddon()
+        webglAddon.onContextLoss(() => {
+          webglAddon?.dispose()
+          webglAddon = null
+        })
+        terminal.loadAddon(webglAddon)
+      } catch (err) {
+        console.warn('[TerminalPane] WebGL renderer unavailable, falling back to canvas:', err)
+        webglAddon = null
+      }
+    }
 
     const fitAndNotify = () => {
       try {
@@ -249,12 +279,21 @@ export function TerminalPane({
       wrapper.removeEventListener('dragleave', handleDragLeave, true)
       wrapper.removeEventListener('dragover', handleDragOver, true)
       wrapper.removeEventListener('drop', handleDrop, true)
+      webglAddon?.dispose()
       terminal.dispose()
       terminalRef.current = null
       fitAddonRef.current = null
       fitAndNotifyRef.current = null
     }
-  }, [autoFocus, fontSize, lineHeight])
+  }, [
+    autoFocus,
+    effectiveFontSize,
+    effectiveFontFamily,
+    effectiveCursorStyle,
+    effectiveCursorBlink,
+    effectiveEnableWebgl,
+    lineHeight
+  ])
 
   useEffect(() => {
     if (!isVisible) return

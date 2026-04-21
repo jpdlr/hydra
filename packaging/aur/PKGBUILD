@@ -1,0 +1,43 @@
+# Maintainer: jpdlr <jpdlr@users.noreply.github.com>
+pkgname=hydra-bin
+pkgver=0.2.32
+pkgrel=1
+pkgdesc="Orchestrate Claude Code and OpenAI Codex CLI agents in parallel"
+arch=('x86_64')
+url="https://github.com/jpdlr/hydra"
+license=('MIT')
+depends=('fuse2')
+provides=('hydra')
+conflicts=('hydra')
+options=(!strip !debug)
+source=("https://github.com/jpdlr/hydra/releases/download/v${pkgver}/hydra-${pkgver}-x86_64.AppImage")
+sha256sums=('SKIP')
+noextract=("hydra-${pkgver}-x86_64.AppImage")
+
+prepare() {
+  chmod +x "${srcdir}/hydra-${pkgver}-x86_64.AppImage"
+  "${srcdir}/hydra-${pkgver}-x86_64.AppImage" --appimage-extract >/dev/null
+}
+
+package() {
+  install -d "${pkgdir}/opt/${pkgname}"
+  cp -a "${srcdir}/squashfs-root/." "${pkgdir}/opt/${pkgname}/"
+  chmod -R go+rX,go-w "${pkgdir}/opt/${pkgname}"
+
+  install -d "${pkgdir}/usr/bin"
+  ln -s "/opt/${pkgname}/AppRun" "${pkgdir}/usr/bin/hydra"
+
+  install -Dm644 "${srcdir}/squashfs-root/hydra.desktop" \
+    "${pkgdir}/usr/share/applications/hydra.desktop"
+  sed -i "s|^Exec=.*|Exec=/usr/bin/hydra %U|" \
+    "${pkgdir}/usr/share/applications/hydra.desktop"
+  sed -i "s|^Icon=.*|Icon=hydra|" \
+    "${pkgdir}/usr/share/applications/hydra.desktop"
+
+  for size in 256x256 512x512; do
+    src="${srcdir}/squashfs-root/usr/share/icons/hicolor/${size}/apps/hydra.png"
+    if [ -f "$src" ]; then
+      install -Dm644 "$src" "${pkgdir}/usr/share/icons/hicolor/${size}/apps/hydra.png"
+    fi
+  done
+}

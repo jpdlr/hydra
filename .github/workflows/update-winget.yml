@@ -1,0 +1,33 @@
+name: Update winget
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to publish (e.g. v0.2.33)'
+        required: true
+        type: string
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    steps:
+      - name: Check token
+        id: check
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.WINGET_TOKEN }}" ]; then
+            echo "WINGET_TOKEN not set — skipping"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Submit to winget-pkgs
+        if: steps.check.outputs.skip == 'false'
+        uses: vedantmgoyal9/winget-releaser@main
+        with:
+          identifier: jpdlr.Hydra
+          release-tag: ${{ inputs.tag }}
+          installers-regex: '^hydra-.+-x64\.exe$'
+          token: ${{ secrets.WINGET_TOKEN }}

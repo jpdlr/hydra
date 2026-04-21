@@ -78,6 +78,14 @@ async function main(): Promise<void> {
   const sessionCatalog = new SessionCatalog()
   const codexSessionCatalog = new CodexSessionCatalog()
   const agentManager = new AgentManager(sessionCatalog, codexSessionCatalog)
+  agentManager.setShellConfigProvider(() => {
+    const c = configStore.get()
+    return {
+      mode: c.terminalShellMode,
+      path: c.terminalShellPath,
+      args: c.terminalShellArgs
+    }
+  })
   const headlessOrchestrator = new HeadlessOrchestrator(join(userDataPath, 'headless-runs'))
   const notificationService = new DaemonNotificationService()
 

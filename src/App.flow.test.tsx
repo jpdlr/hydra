@@ -45,11 +45,17 @@ vi.mock('./hooks/useUpdates', () => ({
       latestVersion: null,
       releaseDate: null,
       releaseNotes: null,
-      error: null
+      error: null,
+      canAutoInstall: false,
+      installMethod: null,
+      downloadUrl: null,
+      releaseUrl: null
     },
     check: vi.fn(),
     download: vi.fn(),
-    install: vi.fn()
+    install: vi.fn(),
+    runBrewUpgrade: vi.fn(),
+    openDownload: vi.fn()
   })
 }))
 
@@ -135,7 +141,15 @@ const baseConfig: AppConfig = {
   sessionMaxAgeDays: 7,
   remoteControlEnabled: false,
   remoteSessionTimeoutMinutes: 480,
-  gridColumns: 'auto'
+  gridColumns: 'auto',
+  terminalShellMode: 'auto',
+  terminalShellPath: '',
+  terminalShellArgs: '',
+  terminalFontFamily: '"SF Mono", "Menlo", monospace',
+  terminalFontSize: 12,
+  terminalCursorStyle: 'bar',
+  terminalCursorBlink: false,
+  terminalEnableWebgl: false
 }
 
 let currentConfig: AppConfig = { ...baseConfig }

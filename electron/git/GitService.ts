@@ -1,7 +1,7 @@
 import { execFile } from 'child_process'
 import { access, readFile } from 'fs/promises'
 import { join } from 'path'
-import type { GitStatus, GitCommit, GitBranch, GitFileContents, GitPrDiff, GitPrMetadata } from '@shared/types'
+import type { GitStatus, GitCommit, GitBranch, GitFileContents, GitPrDiff, GitPrMetadata, GitDiffStats } from '@shared/types'
 
 function run(cwd: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -121,6 +121,63 @@ export class GitService {
         const [hash, message, author, date] = line.split('\0')
         return { hash: hash.slice(0, 8), message, author, date }
       })
+  }
+
+  async getDiffStats(projectDir: string): Promise<GitDiffStats> {
+    await assertGitRepo(projectDir)
+    let additions = 0
+    let deletions = 0
+    const changedFiles = new Set<string>()
+
+    try {
+      const out = await run(projectDir, ['diff', 'HEAD', '--numstat'])
+      for (const line of out.split('\n')) {
+        if (!line.trim()) continue
+        const [addStr, delStr, ...pathParts] = line.split('\t')
+        const add = parseInt(addStr, 10)
+        const del = parseInt(delStr, 10)
+        if (!Number.isNaN(add)) additions += add
+        if (!Number.isNaN(del)) deletions += del
+        if (pathParts.length > 0) changedFiles.add(pathParts.join('\t'))
+      }
+    } catch {
+      // Fresh repo with no HEAD — fall back to diff against empty tree
+      try {
+        const out = await run(projectDir, ['diff', '--numstat'])
+        for (const line of out.split('\n')) {
+          if (!line.trim()) continue
+          const [addStr, delStr, ...pathParts] = line.split('\t')
+          const add = parseInt(addStr, 10)
+          const del = parseInt(delStr, 10)
+          if (!Number.isNaN(add)) additions += add
+          if (!Number.isNaN(del)) deletions += del
+          if (pathParts.length > 0) changedFiles.add(pathParts.join('\t'))
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    // Include untracked files as pure additions (line count each)
+    try {
+      const untrackedOut = await run(projectDir, ['ls-files', '--others', '--exclude-standard', '-z'])
+      const files = untrackedOut.split('\0').filter(Boolean)
+      for (const file of files) {
+        changedFiles.add(file)
+        try {
+          const content = await readFile(join(projectDir, file), 'utf8')
+          if (content.length === 0) continue
+          const lines = content.split('\n').length - (content.endsWith('\n') ? 1 : 0)
+          additions += Math.max(lines, 1)
+        } catch {
+          // Binary/unreadable — skip
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    return { additions, deletions, files: changedFiles.size }
   }
 
   async getDiff(projectDir: string, filePath?: string): Promise<string> {

@@ -1,0 +1,44 @@
+.diffStats {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.additions {
+  color: var(--color-git-add, #3fb950);
+}
+
+.deletions {
+  color: var(--color-git-del, #f85149);
+}
+
+.squares {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.squareAdd,
+.squareDel,
+.squareEmpty {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.squareAdd {
+  background: var(--color-git-add, #3fb950);
+}
+
+.squareDel {
+  background: var(--color-git-del, #f85149);
+}
+
+.squareEmpty {
+  background: transparent;
+  border: 1px solid var(--color-border);
+}

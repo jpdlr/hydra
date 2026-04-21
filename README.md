@@ -141,7 +141,7 @@ Built-in structured logging and diagnostics for debugging and monitoring.
 
 ### Prerequisites
 
-- **macOS** (x86_64 or Apple Silicon), **Windows** (x64), or **Linux** (x64)
+- **macOS** (Apple Silicon), **Windows** (x64), or **Linux** (x64)
 - **Node.js 20+**
 - **npm** or **[Bun](https://bun.sh)** — either package manager works
 - **Claude Code CLI** available on PATH as `claude`
@@ -149,18 +149,36 @@ Built-in structured logging and diagnostics for debugging and monitoring.
 
 ### Installation
 
-Download the latest release from [GitHub Releases](https://github.com/jpdlr/hydra/releases), or build from source.
+Install via a package manager, or download the latest release from [GitHub Releases](https://github.com/jpdlr/hydra/releases).
 
-**macOS** — download the `.dmg` and drag Hydra to Applications.
+#### macOS — Homebrew (recommended)
 
-**Windows** — download and run the `.exe` installer.
+```bash
+brew install --cask jpdlr/hydra/hydra
+```
 
-**Linux** — two options:
+This installs the Apple Silicon build from the [`jpdlr/homebrew-hydra`](https://github.com/jpdlr/homebrew-hydra) tap. Homebrew strips the quarantine attribute on install, so the app launches cleanly even though the DMG is unsigned.
 
-- **AppImage** (portable, works on any distro):
+Upgrade with `brew upgrade --cask hydra`.
+
+#### macOS — direct download
+
+Download `hydra-X.Y.Z.dmg` from [Releases](https://github.com/jpdlr/hydra/releases) and drag Hydra to `/Applications`. The first launch will be blocked by Gatekeeper because the app isn't signed — right-click `Hydra.app` → **Open** → confirm, or run:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Hydra.app
+```
+
+#### Windows
+
+Download and run the `hydra-X.Y.Z-x64.exe` installer from [Releases](https://github.com/jpdlr/hydra/releases).
+
+#### Linux
+
+- **AppImage** (portable, any distro):
   ```bash
-  chmod +x Hydra-*.AppImage
-  ./Hydra-*.AppImage
+  chmod +x hydra-*-x86_64.AppImage
+  ./hydra-*-x86_64.AppImage
   ```
 - **Debian/Ubuntu** (`.deb`):
   ```bash
@@ -275,11 +293,11 @@ All scripts work with both `npm` and `bun` — substitute `bun run` for `npm run
 GitHub Actions runs on every push and pull request:
 
 - **CI** (`.github/workflows/ci.yml`) — Lint, typecheck, and test on Ubuntu + Windows with Node.js 20
-- **Release** (`.github/workflows/release.yml`) — macOS signed/notarized builds, Windows installer builds, and Linux AppImage + `.deb` builds on `v*` tags or manual dispatch
+- **Release** (`.github/workflows/release.yml`) — unsigned macOS DMG, Windows installer, and Linux AppImage + `.deb` builds on `v*` tags or manual dispatch. Triggers Homebrew tap updater (`update-homebrew.yml`) on publish.
 
 ### Release
 
-Releases are published as GitHub draft releases with signed/notarized macOS binaries, Windows installer artifacts, and Linux AppImage + `.deb` packages.
+Releases are published to [GitHub Releases](https://github.com/jpdlr/hydra/releases) with an unsigned macOS DMG, a Windows installer, and Linux AppImage + `.deb` packages. The Homebrew tap ([`jpdlr/homebrew-hydra`](https://github.com/jpdlr/homebrew-hydra)) is auto-updated after each release.
 
 ```bash
 # Tag a release
@@ -301,9 +319,11 @@ Project release flow used in this repository:
 bash scripts/deploy-local.sh
 ```
 
-Required repository secrets for macOS signing:
+Required repository secrets:
 
-`CSC_LINK` `CSC_KEY_PASSWORD` `CSC_NAME` `APPLE_ID` `APPLE_APP_SPECIFIC_PASSWORD` `APPLE_TEAM_ID`
+- `HOMEBREW_TAP_TOKEN` — fine-grained PAT with `contents:write` on `jpdlr/homebrew-hydra`, used by `update-homebrew.yml` to commit new cask versions.
+
+See [`packaging/README.md`](packaging/README.md) for the full packaging setup (Homebrew tap, plus scaffolding for winget and AUR if/when activated).
 
 ## Tech Stack
 

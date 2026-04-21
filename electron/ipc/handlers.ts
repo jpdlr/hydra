@@ -83,7 +83,15 @@ const appConfigPatchSchema = z
     errorReportingEndpoint: z.string().max(1024).optional(),
     includeSensitiveDiagnostics: z.boolean().optional(),
     remoteControlEnabled: z.boolean().optional(),
-    remoteSessionTimeoutMinutes: z.number().int().min(30).max(1440).optional()
+    remoteSessionTimeoutMinutes: z.number().int().min(30).max(1440).optional(),
+    terminalShellMode: z.enum(['auto', 'direct', 'login', 'custom']).optional(),
+    terminalShellPath: z.string().max(4096).optional(),
+    terminalShellArgs: z.string().max(1024).optional(),
+    terminalFontFamily: z.string().max(256).optional(),
+    terminalFontSize: z.number().int().min(8).max(32).optional(),
+    terminalCursorStyle: z.enum(['block', 'bar', 'underline']).optional(),
+    terminalCursorBlink: z.boolean().optional(),
+    terminalEnableWebgl: z.boolean().optional()
   })
   .strict()
 const headlessStartSchema = z.object({
@@ -694,6 +702,14 @@ export function registerIpcHandlers(
     return updateService.installAndRestart()
   })
 
+  ipcMain.handle(IPC.UPDATE_RUN_BREW_UPGRADE, async () => {
+    return updateService.runBrewUpgrade()
+  })
+
+  ipcMain.handle(IPC.UPDATE_OPEN_DOWNLOAD, async () => {
+    return updateService.openDownloadPage()
+  })
+
   // ── MCP ────────────────────────────────────────────────────────────────────
 
   ipcMain.handle(IPC.MCP_SERVER_STATUS, async () => {
@@ -793,6 +809,11 @@ export function registerIpcHandlers(
       const dir = projectDirSchema.parse(projectDir)
       const fp = filePath ? z.string().max(8192).parse(filePath) : undefined
       return gitService.getDiff(dir, fp)
+    })
+
+    ipcMain.handle(IPC.GIT_DIFF_STATS, async (_event, projectDir: string) => {
+      const dir = projectDirSchema.parse(projectDir)
+      return gitService.getDiffStats(dir)
     })
 
     ipcMain.handle(

@@ -6,6 +6,7 @@ import { GitService } from '../git/GitService'
 import { SessionCatalog } from '../sessions/SessionCatalog'
 import { CodexSessionCatalog } from '../sessions/CodexSessionCatalog'
 import { getProvider, getAllProviders } from './providers'
+import { wrapWithShell, type ShellConfig } from './shellWrapper'
 import { MAX_CONCURRENT_AGENTS_HARD_LIMIT } from '@shared/types'
 import { detectLatestModelFromTerminalOutput } from '@shared/terminalModelDetection'
 import type { PersistedWorkspaceAgent } from '../workspace/WorkspaceStore'
@@ -62,6 +63,17 @@ export class AgentManager extends EventEmitter {
   private agents: Map<string, ManagedAgent> = new Map()
   private providerPaths: Map<ProviderId, string> = new Map()
   private activityPollInterval: ReturnType<typeof setInterval> | null = null
+  // Defaults to 'direct' so that unit tests (and any non-configured caller)
+  // keep their existing spawn signature: ptySpawn(cmd, args, opts).
+  private shellConfigProvider: () => ShellConfig = () => ({
+    mode: 'direct',
+    path: '',
+    args: ''
+  })
+
+  setShellConfigProvider(provider: () => ShellConfig): void {
+    this.shellConfigProvider = provider
+  }
 
   constructor(
     private readonly sessionCatalog: SessionCatalog = new SessionCatalog(),
@@ -422,8 +434,8 @@ export class AgentManager extends EventEmitter {
     }
 
     const provider = getProvider(managed.state.provider)
-    const cmd = this.providerPaths.get(managed.state.provider) || provider.command
-    const args = this.buildArgs(managed.state)
+    const rawCmd = this.providerPaths.get(managed.state.provider) || provider.command
+    const rawArgs = this.buildArgs(managed.state)
 
     const ptyEnv = {
       ...process.env,
@@ -439,7 +451,12 @@ export class AgentManager extends EventEmitter {
       env: ptyEnv
     }
 
-    console.log(`[spawn] agent=${managed.state.id} provider=${managed.state.provider} cmd="${cmd}" args=${JSON.stringify(args)} cwd="${managed.state.projectDir}" platform=${process.platform}`)
+    const shellConfig = this.shellConfigProvider()
+    const wrapped = wrapWithShell({ cmd: rawCmd, args: rawArgs }, shellConfig)
+    const cmd = wrapped.cmd
+    const args = wrapped.args
+
+    console.log(`[spawn] agent=${managed.state.id} provider=${managed.state.provider} shellMode=${shellConfig.mode} cmd="${cmd}" args=${JSON.stringify(args)} cwd="${managed.state.projectDir}" platform=${process.platform}`)
 
     let pty: ReturnType<typeof ptySpawn>
     try {

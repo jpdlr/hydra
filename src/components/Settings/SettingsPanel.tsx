@@ -1,5 +1,12 @@
 import { useState } from 'react'
-import type { AppConfig, ProviderId, ThemeId, ViewMode } from '@shared/types'
+import type {
+  AppConfig,
+  ProviderId,
+  TerminalCursorStyle,
+  TerminalShellMode,
+  ThemeId,
+  ViewMode
+} from '@shared/types'
 import type { KeybindingRule } from '@shared/keybindings'
 import {
   PROVIDER_LABELS,
@@ -383,6 +390,134 @@ export function SettingsPanel({
                   })
                 }
               />
+            </div>
+          </div>}
+
+          {/* ── Terminal ───────────────────────────────────────── */}
+          {matchesSearch(searchQuery, 'terminal', 'shell', 'bash', 'zsh', 'pwsh', 'powershell', 'font', 'cursor', 'webgl', 'path') && <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>Terminal</h3>
+
+            <div className={styles.field}>
+              <label className={styles.label}>Shell Wrapping</label>
+              <div className={styles.segmented}>
+                {(['auto', 'direct', 'login', 'custom'] as TerminalShellMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    className={`${styles.segment} ${config.terminalShellMode === mode ? styles.active : ''}`}
+                    onClick={() => onUpdate({ terminalShellMode: mode })}
+                  >
+                    {mode === 'auto' ? 'Auto' : mode === 'direct' ? 'Direct' : mode === 'login' ? 'Login shell' : 'Custom'}
+                  </button>
+                ))}
+              </div>
+              <span className={styles.inlineHint}>
+                Login shell wraps agents in <code>$SHELL -lc</code> so your PATH and rc files are loaded — fixes &quot;command not found&quot; on Arch/NixOS. Auto picks login on macOS/Linux, direct on Windows.
+              </span>
+            </div>
+
+            {config.terminalShellMode === 'custom' && (
+              <>
+                <div className={styles.field}>
+                  <label className={styles.label}>Custom Shell Path</label>
+                  <input
+                    className={styles.dirInput}
+                    type="text"
+                    value={config.terminalShellPath}
+                    onChange={(e) => onUpdate({ terminalShellPath: e.target.value })}
+                    placeholder="/usr/bin/fish or C:\\Program Files\\PowerShell\\7\\pwsh.exe"
+                  />
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.label}>Shell Args</label>
+                  <input
+                    className={styles.dirInput}
+                    type="text"
+                    value={config.terminalShellArgs}
+                    onChange={(e) => onUpdate({ terminalShellArgs: e.target.value })}
+                    placeholder="-lc"
+                  />
+                  <span className={styles.inlineHint}>Whitespace-separated. The agent command is appended as the final argument.</span>
+                </div>
+              </>
+            )}
+
+            {config.terminalShellMode === 'login' && (
+              <div className={styles.field}>
+                <label className={styles.label}>Shell Args Override (optional)</label>
+                <input
+                  className={styles.dirInput}
+                  type="text"
+                  value={config.terminalShellArgs}
+                  onChange={(e) => onUpdate({ terminalShellArgs: e.target.value })}
+                  placeholder="-lc (default)"
+                />
+              </div>
+            )}
+
+            <div className={styles.field}>
+              <label className={styles.label}>Font Family</label>
+              <input
+                className={styles.dirInput}
+                type="text"
+                value={config.terminalFontFamily}
+                onChange={(e) => onUpdate({ terminalFontFamily: e.target.value })}
+                placeholder='"SF Mono", "Menlo", monospace'
+              />
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label}>Font Size</label>
+              <input
+                className={styles.numberInput}
+                type="number"
+                min={8}
+                max={32}
+                value={config.terminalFontSize}
+                onChange={(e) =>
+                  onUpdate({
+                    terminalFontSize: Math.max(8, Math.min(32, parseInt(e.target.value, 10) || 12))
+                  })
+                }
+              />
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label}>Cursor Style</label>
+              <div className={styles.segmented}>
+                {(['bar', 'block', 'underline'] as TerminalCursorStyle[]).map((style) => (
+                  <button
+                    key={style}
+                    className={`${styles.segment} ${config.terminalCursorStyle === style ? styles.active : ''}`}
+                    onClick={() => onUpdate({ terminalCursorStyle: style })}
+                  >
+                    {style[0].toUpperCase() + style.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={config.terminalCursorBlink}
+                  onChange={(e) => onUpdate({ terminalCursorBlink: e.target.checked })}
+                  className={styles.checkbox}
+                />
+                <span>Blink cursor</span>
+              </label>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={config.terminalEnableWebgl}
+                  onChange={(e) => onUpdate({ terminalEnableWebgl: e.target.checked })}
+                  className={styles.checkbox}
+                />
+                <span>Enable WebGL renderer (faster, requires GPU)</span>
+              </label>
             </div>
           </div>}
 

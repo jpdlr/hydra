@@ -298,6 +298,8 @@ app.whenReady().then(async () => {
         message: error instanceof Error ? error.message : String(error)
       })
     })
+    // On macOS, poll GitHub every 6h for notify-only updates.
+    updateService.startBackgroundPolling()
   }
 
   updateService.on('state-changed', (state) => {
