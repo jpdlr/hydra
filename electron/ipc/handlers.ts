@@ -991,45 +991,60 @@ export function registerIpcHandlers(
 
   // ── Free Terminal (integrated shell) ────────────────────────────────────
 
-  daemonClient?.on('free-terminal:output', (projectDir: string, data: string) => {
+  daemonClient?.on('free-terminal:output', (terminalId: string, projectDir: string, data: string) => {
     BrowserWindow.getAllWindows().forEach((win) => {
-      win.webContents.send(IPC.FREE_TERMINAL_OUTPUT, projectDir, data)
+      win.webContents.send(IPC.FREE_TERMINAL_OUTPUT, terminalId, projectDir, data)
     })
   })
 
-  daemonClient?.on('free-terminal:exit', (projectDir: string, exitCode: number) => {
+  daemonClient?.on('free-terminal:exit', (terminalId: string, projectDir: string, exitCode: number) => {
     BrowserWindow.getAllWindows().forEach((win) => {
-      win.webContents.send(IPC.FREE_TERMINAL_EXIT, projectDir, exitCode)
+      win.webContents.send(IPC.FREE_TERMINAL_EXIT, terminalId, projectDir, exitCode)
     })
   })
 
-  ipcMain.handle(IPC.FREE_TERMINAL_SPAWN, async (_event, projectDir: string, cwd?: string) => {
-    await getDaemonClient().spawnFreeTerminal(projectDir, cwd)
+  daemonClient?.on('free-terminal:layout-changed', (projectDir: string, layout: unknown) => {
+    BrowserWindow.getAllWindows().forEach((win) => {
+      win.webContents.send(IPC.FREE_TERMINAL_LAYOUT_CHANGED, projectDir, layout)
+    })
   })
 
-  ipcMain.on(IPC.FREE_TERMINAL_INPUT, (_event, projectDir: string, data: string) => {
+  ipcMain.handle(IPC.FREE_TERMINAL_SPAWN, async (_event, projectDir: string, options?: { cwd?: string; groupId?: string }) => {
+    return await getDaemonClient().spawnFreeTerminal(projectDir, options)
+  })
+
+  ipcMain.on(IPC.FREE_TERMINAL_INPUT, (_event, terminalId: string, data: string) => {
     if (!daemonClient) {
       logDaemonUnavailable('free-terminal.input.skipped')
       return
     }
-    daemonClient.sendFreeTerminalInput(projectDir, data)
+    daemonClient.sendFreeTerminalInput(terminalId, data)
   })
 
-  ipcMain.on(IPC.FREE_TERMINAL_RESIZE, (_event, projectDir: string, cols: number, rows: number) => {
+  ipcMain.on(IPC.FREE_TERMINAL_RESIZE, (_event, terminalId: string, cols: number, rows: number) => {
     if (!daemonClient) {
       logDaemonUnavailable('free-terminal.resize.skipped')
       return
     }
-    daemonClient.resizeFreeTerminal(projectDir, cols, rows)
+    daemonClient.resizeFreeTerminal(terminalId, cols, rows)
   })
 
-  ipcMain.on(IPC.FREE_TERMINAL_KILL, (_event, projectDir: string) => {
+  ipcMain.on(IPC.FREE_TERMINAL_KILL, (_event, terminalId: string) => {
     if (!daemonClient) return
-    daemonClient.killFreeTerminal(projectDir)
+    daemonClient.killFreeTerminal(terminalId)
   })
 
-  ipcMain.handle(IPC.FREE_TERMINAL_BUFFER, async (_event, projectDir: string) => {
-    return await getDaemonClient().getFreeTerminalBuffer(projectDir)
+  ipcMain.on(IPC.FREE_TERMINAL_ACTIVATE, (_event, projectDir: string, groupId: string, paneId?: string) => {
+    if (!daemonClient) return
+    daemonClient.activateFreeTerminal(projectDir, groupId, paneId)
+  })
+
+  ipcMain.handle(IPC.FREE_TERMINAL_BUFFER, async (_event, terminalId: string) => {
+    return await getDaemonClient().getFreeTerminalBuffer(terminalId)
+  })
+
+  ipcMain.handle(IPC.FREE_TERMINAL_LAYOUT, async (_event, projectDir: string) => {
+    return await getDaemonClient().getFreeTerminalLayout(projectDir)
   })
 
   ipcMain.handle(IPC.FREE_TERMINAL_LIST, async () => {

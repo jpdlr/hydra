@@ -17,7 +17,8 @@ import type {
   StartHeadlessRunPayload,
   McpServerStatus,
   SkillScanResult,
-  SkillTogglePayload
+  SkillTogglePayload,
+  FreeTerminalLayout
 } from '@shared/types'
 import type { DaemonHealthResponse, WsServerMessage } from './protocol'
 
@@ -116,10 +117,13 @@ export class DaemonClient extends EventEmitter {
             this.emit('test-terminal:exit', msg.payload.exitCode)
             break
           case 'free-terminal:output':
-            this.emit('free-terminal:output', msg.payload.projectDir, msg.payload.data)
+            this.emit('free-terminal:output', msg.payload.terminalId, msg.payload.projectDir, msg.payload.data)
             break
           case 'free-terminal:exit':
-            this.emit('free-terminal:exit', msg.payload.projectDir, msg.payload.exitCode)
+            this.emit('free-terminal:exit', msg.payload.terminalId, msg.payload.projectDir, msg.payload.exitCode)
+            break
+          case 'free-terminal:layout-changed':
+            this.emit('free-terminal:layout-changed', msg.payload.projectDir, msg.payload.layout)
             break
         }
       } catch {
@@ -331,27 +335,35 @@ export class DaemonClient extends EventEmitter {
 
   // ── Free Terminal ─────────────────────────────────────────────────────
 
-  async spawnFreeTerminal(projectDir: string, cwd?: string): Promise<void> {
-    await this.post('/free-terminal/spawn', { projectDir, cwd })
+  async spawnFreeTerminal(projectDir: string, options?: { cwd?: string; groupId?: string }): Promise<{ terminalId: string; groupId: string; layout: FreeTerminalLayout }> {
+    return await this.post('/free-terminal/spawn', { projectDir, cwd: options?.cwd, groupId: options?.groupId })
   }
 
-  sendFreeTerminalInput(projectDir: string, data: string): void {
-    this.post('/free-terminal/input', { projectDir, data }).catch(() => {})
+  sendFreeTerminalInput(terminalId: string, data: string): void {
+    this.post('/free-terminal/input', { terminalId, data }).catch(() => {})
   }
 
-  resizeFreeTerminal(projectDir: string, cols: number, rows: number): void {
-    this.post('/free-terminal/resize', { projectDir, cols, rows }).catch(() => {})
+  resizeFreeTerminal(terminalId: string, cols: number, rows: number): void {
+    this.post('/free-terminal/resize', { terminalId, cols, rows }).catch(() => {})
   }
 
-  killFreeTerminal(projectDir: string): void {
-    this.post('/free-terminal/kill', { projectDir }).catch(() => {})
+  killFreeTerminal(terminalId: string): void {
+    this.post('/free-terminal/kill', { terminalId }).catch(() => {})
   }
 
-  async getFreeTerminalBuffer(projectDir: string): Promise<{ exists: boolean; data: string }> {
-    return await this.httpRequest('GET', `/free-terminal/buffer?projectDir=${encodeURIComponent(projectDir)}`)
+  activateFreeTerminal(projectDir: string, groupId: string, paneId?: string): void {
+    this.post('/free-terminal/activate', { projectDir, groupId, paneId }).catch(() => {})
   }
 
-  async listFreeTerminals(): Promise<Array<{ projectDir: string; lastActivityAt: number; lastInputAt: number; exited: boolean }>> {
+  async getFreeTerminalBuffer(terminalId: string): Promise<{ exists: boolean; data: string }> {
+    return await this.httpRequest('GET', `/free-terminal/buffer?terminalId=${encodeURIComponent(terminalId)}`)
+  }
+
+  async getFreeTerminalLayout(projectDir: string): Promise<FreeTerminalLayout> {
+    return await this.httpRequest('GET', `/free-terminal/layout?projectDir=${encodeURIComponent(projectDir)}`)
+  }
+
+  async listFreeTerminals(): Promise<Array<{ terminalId: string; projectDir: string; label: string; lastActivityAt: number; lastInputAt: number; exited: boolean }>> {
     return await this.httpRequest('GET', '/free-terminal/list')
   }
 

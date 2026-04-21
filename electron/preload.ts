@@ -325,28 +325,37 @@ const hydraApi = {
     return () => { ipcRenderer.removeListener(IPC.TEST_TERMINAL_EXIT, handler) }
   },
 
-  // Free terminal (integrated shell, project-scoped)
-  spawnFreeTerminal: (projectDir: string, cwd?: string): Promise<void> =>
-    ipcRenderer.invoke(IPC.FREE_TERMINAL_SPAWN, projectDir, cwd),
-  sendFreeTerminalInput: (projectDir: string, data: string): void =>
-    ipcRenderer.send(IPC.FREE_TERMINAL_INPUT, projectDir, data),
-  resizeFreeTerminal: (projectDir: string, cols: number, rows: number): void =>
-    ipcRenderer.send(IPC.FREE_TERMINAL_RESIZE, projectDir, cols, rows),
-  killFreeTerminal: (projectDir: string): void =>
-    ipcRenderer.send(IPC.FREE_TERMINAL_KILL, projectDir),
-  getFreeTerminalBuffer: (projectDir: string): Promise<{ exists: boolean; data: string }> =>
-    ipcRenderer.invoke(IPC.FREE_TERMINAL_BUFFER, projectDir),
-  listFreeTerminals: (): Promise<Array<{ projectDir: string; lastActivityAt: number; lastInputAt: number; exited: boolean }>> =>
+  // Free terminal (integrated shell, project-scoped, multi-pane)
+  spawnFreeTerminal: (projectDir: string, options?: { cwd?: string; groupId?: string }): Promise<{ terminalId: string; groupId: string; layout: import('../shared/types').FreeTerminalLayout }> =>
+    ipcRenderer.invoke(IPC.FREE_TERMINAL_SPAWN, projectDir, options),
+  sendFreeTerminalInput: (terminalId: string, data: string): void =>
+    ipcRenderer.send(IPC.FREE_TERMINAL_INPUT, terminalId, data),
+  resizeFreeTerminal: (terminalId: string, cols: number, rows: number): void =>
+    ipcRenderer.send(IPC.FREE_TERMINAL_RESIZE, terminalId, cols, rows),
+  killFreeTerminal: (terminalId: string): void =>
+    ipcRenderer.send(IPC.FREE_TERMINAL_KILL, terminalId),
+  activateFreeTerminal: (projectDir: string, groupId: string, paneId?: string): void =>
+    ipcRenderer.send(IPC.FREE_TERMINAL_ACTIVATE, projectDir, groupId, paneId),
+  getFreeTerminalBuffer: (terminalId: string): Promise<{ exists: boolean; data: string }> =>
+    ipcRenderer.invoke(IPC.FREE_TERMINAL_BUFFER, terminalId),
+  getFreeTerminalLayout: (projectDir: string): Promise<import('../shared/types').FreeTerminalLayout> =>
+    ipcRenderer.invoke(IPC.FREE_TERMINAL_LAYOUT, projectDir),
+  listFreeTerminals: (): Promise<Array<{ terminalId: string; projectDir: string; label: string; lastActivityAt: number; lastInputAt: number; exited: boolean }>> =>
     ipcRenderer.invoke(IPC.FREE_TERMINAL_LIST),
-  onFreeTerminalOutput: (callback: (projectDir: string, data: string) => void): (() => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, projectDir: string, data: string) => callback(projectDir, data)
+  onFreeTerminalOutput: (callback: (terminalId: string, projectDir: string, data: string) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, terminalId: string, projectDir: string, data: string) => callback(terminalId, projectDir, data)
     ipcRenderer.on(IPC.FREE_TERMINAL_OUTPUT, handler)
     return () => { ipcRenderer.removeListener(IPC.FREE_TERMINAL_OUTPUT, handler) }
   },
-  onFreeTerminalExit: (callback: (projectDir: string, exitCode: number) => void): (() => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, projectDir: string, exitCode: number) => callback(projectDir, exitCode)
+  onFreeTerminalExit: (callback: (terminalId: string, projectDir: string, exitCode: number) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, terminalId: string, projectDir: string, exitCode: number) => callback(terminalId, projectDir, exitCode)
     ipcRenderer.on(IPC.FREE_TERMINAL_EXIT, handler)
     return () => { ipcRenderer.removeListener(IPC.FREE_TERMINAL_EXIT, handler) }
+  },
+  onFreeTerminalLayoutChanged: (callback: (projectDir: string, layout: import('../shared/types').FreeTerminalLayout) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, projectDir: string, layout: import('../shared/types').FreeTerminalLayout) => callback(projectDir, layout)
+    ipcRenderer.on(IPC.FREE_TERMINAL_LAYOUT_CHANGED, handler)
+    return () => { ipcRenderer.removeListener(IPC.FREE_TERMINAL_LAYOUT_CHANGED, handler) }
   }
 }
 

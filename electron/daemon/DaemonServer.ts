@@ -22,7 +22,9 @@ import type {
   CreateAgentPayload,
   AppConfig,
   StartHeadlessRunPayload,
-  ProviderId
+  ProviderId,
+  FreeTerminalLayout,
+  FreeTerminalGroup
 } from '@shared/types'
 
 /** Return the appropriate shell and args for the current platform. */
@@ -38,13 +40,21 @@ function getShellConfig(): { shell: string; shellArgs: string[] } {
 }
 
 interface FreeTerminalEntry {
+  id: string
   projectDir: string
+  label: string
   pty: IPty
   buffer: string[]
   bufferLen: number
   lastActivityAt: number
   lastInputAt: number
   exited: boolean
+}
+
+interface ProjectTerminalState {
+  groups: FreeTerminalGroup[]
+  activeGroupId: string | null
+  nextLabel: number
 }
 
 interface DaemonServerOptions {
@@ -79,6 +89,7 @@ export class DaemonServer {
   private readonly startedAt = Date.now()
   private testPty: IPty | null = null
   private freeTerminals = new Map<string, FreeTerminalEntry>()
+  private projectLayouts = new Map<string, ProjectTerminalState>()
   private freeIdleTimer: ReturnType<typeof setInterval> | null = null
   private pendingAgentOutput = new Map<string, string>()
   private outputFlushTimer: ReturnType<typeof setTimeout> | null = null
@@ -158,18 +169,87 @@ export class DaemonServer {
     }
   }
 
-  private killFreeTerminal(projectDir: string): boolean {
-    const entry = this.freeTerminals.get(projectDir)
+  private getProjectState(projectDir: string): ProjectTerminalState {
+    let state = this.projectLayouts.get(projectDir)
+    if (!state) {
+      state = { groups: [], activeGroupId: null, nextLabel: 1 }
+      this.projectLayouts.set(projectDir, state)
+    }
+    return state
+  }
+
+  private buildLayout(projectDir: string): FreeTerminalLayout {
+    const state = this.getProjectState(projectDir)
+    const panes = [] as FreeTerminalLayout['panes']
+    for (const group of state.groups) {
+      for (const paneId of group.paneIds) {
+        const entry = this.freeTerminals.get(paneId)
+        if (entry) panes.push({ id: entry.id, label: entry.label, exited: entry.exited })
+      }
+    }
+    return {
+      projectDir,
+      groups: state.groups.map((g) => ({ id: g.id, paneIds: [...g.paneIds], activePaneId: g.activePaneId })),
+      activeGroupId: state.activeGroupId,
+      panes
+    }
+  }
+
+  private broadcastLayout(projectDir: string): void {
+    this.broadcast({
+      type: 'free-terminal:layout-changed',
+      payload: { projectDir, layout: this.buildLayout(projectDir) }
+    })
+  }
+
+  private removePaneFromLayout(entry: FreeTerminalEntry): { removedGroupId: string | null } {
+    const state = this.projectLayouts.get(entry.projectDir)
+    if (!state) return { removedGroupId: null }
+    let removedGroupId: string | null = null
+    for (const group of state.groups) {
+      const idx = group.paneIds.indexOf(entry.id)
+      if (idx >= 0) {
+        group.paneIds.splice(idx, 1)
+        if (group.activePaneId === entry.id) {
+          group.activePaneId = group.paneIds[0] ?? ''
+        }
+        if (group.paneIds.length === 0) {
+          removedGroupId = group.id
+        }
+        break
+      }
+    }
+    if (removedGroupId) {
+      state.groups = state.groups.filter((g) => g.id !== removedGroupId)
+      if (state.activeGroupId === removedGroupId) {
+        state.activeGroupId = state.groups[0]?.id ?? null
+      }
+    }
+    if (state.groups.length === 0) {
+      this.projectLayouts.delete(entry.projectDir)
+    }
+    return { removedGroupId }
+  }
+
+  private killFreeTerminal(terminalId: string): boolean {
+    const entry = this.freeTerminals.get(terminalId)
     if (!entry) return false
     try { entry.pty.kill() } catch { /* already dead */ }
-    this.freeTerminals.delete(projectDir)
+    const projectDir = entry.projectDir
+    this.removePaneFromLayout(entry)
+    this.freeTerminals.delete(terminalId)
+    this.broadcastLayout(projectDir)
     return true
   }
 
   private killAllFreeTerminals(): void {
-    for (const projectDir of Array.from(this.freeTerminals.keys())) {
-      this.killFreeTerminal(projectDir)
+    for (const terminalId of Array.from(this.freeTerminals.keys())) {
+      const entry = this.freeTerminals.get(terminalId)
+      if (!entry) continue
+      try { entry.pty.kill() } catch { /* already dead */ }
     }
+    this.freeTerminals.clear()
+    this.projectLayouts.clear()
   }
 
   /** Approximate char cap per terminal's ring buffer (≈200 chars/line). */
@@ -190,7 +270,7 @@ export class DaemonServer {
     }
   }
 
-  private enforceFreeTerminalLru(excludeProjectDir: string): void {
+  private enforceFreeTerminalLru(): void {
     const cfg = this.configStore.get()
     if (cfg.freeTerminalLifecyclePolicy !== 'lru') return
     const cap = Math.max(1, cfg.freeTerminalMaxCount || 6)
@@ -198,7 +278,6 @@ export class DaemonServer {
       let oldestKey: string | null = null
       let oldestAt = Infinity
       for (const [key, entry] of this.freeTerminals.entries()) {
-        if (key === excludeProjectDir) continue
         if (entry.lastActivityAt < oldestAt) {
           oldestAt = entry.lastActivityAt
           oldestKey = key
@@ -219,11 +298,19 @@ export class DaemonServer {
     if (cfg.freeTerminalLifecyclePolicy !== 'idle') return
     const timeoutMs = Math.max(1, cfg.freeTerminalIdleTimeoutMinutes || 60) * 60_000
     const now = Date.now()
-    for (const [key, entry] of Array.from(this.freeTerminals.entries())) {
+    for (const [terminalId, entry] of Array.from(this.freeTerminals.entries())) {
       if (now - entry.lastInputAt > timeoutMs) {
-        this.killFreeTerminal(key)
+        this.killFreeTerminal(terminalId)
       }
     }
+  }
+
+  private generateTerminalId(): string {
+    return `term-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+  }
+
+  private generateGroupId(): string {
+    return `grp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
   }
 
   stop(): void {
@@ -607,20 +694,17 @@ export class DaemonServer {
         return this.json(res, 200, { ok: true })
       }
 
-      // ── Free Terminal (integrated shell, project-scoped) ─────────────────
+      // ── Free Terminal (integrated shell, project-scoped, multi-pane) ────
       if (method === 'POST' && path === '/free-terminal/spawn') {
-        const body = await this.readBody<{ projectDir: string; cwd?: string }>(req)
+        const body = await this.readBody<{ projectDir: string; cwd?: string; groupId?: string }>(req)
         const projectDir = body.projectDir
         if (!projectDir) return this.json(res, 400, { error: 'projectDir required' })
 
-        const existing = this.freeTerminals.get(projectDir)
-        if (existing && !existing.exited) {
-          existing.lastActivityAt = Date.now()
-          return this.json(res, 200, { ok: true, reused: true })
-        }
-        if (existing?.exited) this.freeTerminals.delete(projectDir)
+        this.enforceFreeTerminalLru()
 
-        this.enforceFreeTerminalLru(projectDir)
+        const state = this.getProjectState(projectDir)
+        const terminalId = this.generateTerminalId()
+        const label = `Terminal ${state.nextLabel++}`
 
         const { shell, shellArgs } = getShellConfig()
         const env: Record<string, string> = { ...process.env as Record<string, string>, TERM: 'xterm-256color', FORCE_COLOR: '1' }
@@ -634,7 +718,9 @@ export class DaemonServer {
         })
         const now = Date.now()
         const entry: FreeTerminalEntry = {
+          id: terminalId,
           projectDir,
+          label,
           pty,
           buffer: [],
           bufferLen: 0,
@@ -642,24 +728,40 @@ export class DaemonServer {
           lastInputAt: now,
           exited: false
         }
-        this.freeTerminals.set(projectDir, entry)
+        this.freeTerminals.set(terminalId, entry)
+
+        let targetGroup: FreeTerminalGroup | undefined
+        if (body.groupId) {
+          targetGroup = state.groups.find((g) => g.id === body.groupId)
+        }
+        if (!targetGroup) {
+          targetGroup = { id: this.generateGroupId(), paneIds: [], activePaneId: terminalId }
+          state.groups.push(targetGroup)
+        }
+        targetGroup.paneIds.push(terminalId)
+        targetGroup.activePaneId = terminalId
+        state.activeGroupId = targetGroup.id
+
         pty.onData((data: string) => {
           entry.lastActivityAt = Date.now()
           this.appendFreeBuffer(entry, data)
-          this.broadcast({ type: 'free-terminal:output', payload: { projectDir, data } })
+          this.broadcast({ type: 'free-terminal:output', payload: { terminalId, projectDir, data } })
         })
         pty.onExit(({ exitCode }) => {
           entry.exited = true
-          this.freeTerminals.delete(projectDir)
-          this.broadcast({ type: 'free-terminal:exit', payload: { projectDir, exitCode } })
+          this.removePaneFromLayout(entry)
+          this.freeTerminals.delete(terminalId)
+          this.broadcast({ type: 'free-terminal:exit', payload: { terminalId, projectDir, exitCode } })
+          this.broadcastLayout(projectDir)
         })
         this.ensureFreeIdleTimer()
-        return this.json(res, 200, { ok: true, reused: false })
+        this.broadcastLayout(projectDir)
+        return this.json(res, 200, { ok: true, terminalId, groupId: targetGroup.id, layout: this.buildLayout(projectDir) })
       }
 
       if (method === 'POST' && path === '/free-terminal/input') {
-        const body = await this.readBody<{ projectDir: string; data: string }>(req)
-        const entry = this.freeTerminals.get(body.projectDir)
+        const body = await this.readBody<{ terminalId: string; data: string }>(req)
+        const entry = this.freeTerminals.get(body.terminalId)
         if (entry) {
           entry.pty.write(body.data)
           entry.lastInputAt = Date.now()
@@ -669,29 +771,53 @@ export class DaemonServer {
       }
 
       if (method === 'POST' && path === '/free-terminal/resize') {
-        const body = await this.readBody<{ projectDir: string; cols: number; rows: number }>(req)
-        const entry = this.freeTerminals.get(body.projectDir)
+        const body = await this.readBody<{ terminalId: string; cols: number; rows: number }>(req)
+        const entry = this.freeTerminals.get(body.terminalId)
         try { entry?.pty.resize(body.cols, body.rows) } catch { /* ignore */ }
         return this.json(res, 200, { ok: true })
       }
 
       if (method === 'POST' && path === '/free-terminal/kill') {
-        const body = await this.readBody<{ projectDir: string }>(req)
-        const killed = this.killFreeTerminal(body.projectDir)
+        const body = await this.readBody<{ terminalId: string }>(req)
+        const killed = this.killFreeTerminal(body.terminalId)
         return this.json(res, 200, { ok: true, killed })
       }
 
+      if (method === 'POST' && path === '/free-terminal/activate') {
+        const body = await this.readBody<{ projectDir: string; groupId?: string; paneId?: string }>(req)
+        const state = this.projectLayouts.get(body.projectDir)
+        if (!state) return this.json(res, 200, { ok: true })
+        if (body.groupId) {
+          const group = state.groups.find((g) => g.id === body.groupId)
+          if (group) {
+            state.activeGroupId = group.id
+            if (body.paneId && group.paneIds.includes(body.paneId)) {
+              group.activePaneId = body.paneId
+            }
+          }
+        }
+        this.broadcastLayout(body.projectDir)
+        return this.json(res, 200, { ok: true, layout: this.buildLayout(body.projectDir) })
+      }
+
       if (method === 'GET' && path === '/free-terminal/buffer') {
-        const projectDir = url.searchParams.get('projectDir') || ''
-        const entry = this.freeTerminals.get(projectDir)
+        const terminalId = url.searchParams.get('terminalId') || ''
+        const entry = this.freeTerminals.get(terminalId)
         if (!entry) return this.json(res, 200, { exists: false, data: '' })
         entry.lastActivityAt = Date.now()
         return this.json(res, 200, { exists: true, data: entry.buffer.join('') })
       }
 
+      if (method === 'GET' && path === '/free-terminal/layout') {
+        const projectDir = url.searchParams.get('projectDir') || ''
+        return this.json(res, 200, this.buildLayout(projectDir))
+      }
+
       if (method === 'GET' && path === '/free-terminal/list') {
         const list = Array.from(this.freeTerminals.values()).map((e) => ({
+          terminalId: e.id,
           projectDir: e.projectDir,
+          label: e.label,
           lastActivityAt: e.lastActivityAt,
           lastInputAt: e.lastInputAt,
           exited: e.exited

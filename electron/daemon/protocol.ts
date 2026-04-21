@@ -14,7 +14,8 @@ import type {
   HeadlessRunLogPayload,
   HeadlessRunLogOptions,
   StartHeadlessRunPayload,
-  McpServerStatus
+  McpServerStatus,
+  FreeTerminalLayout
 } from '@shared/types'
 
 // ── REST API ──────────────────────────────────────────────────────────────────
@@ -43,8 +44,9 @@ export type WsServerMessage =
   | { type: 'workspace:changed' }
   | { type: 'test-terminal:output'; payload: { data: string } }
   | { type: 'test-terminal:exit'; payload: { exitCode: number } }
-  | { type: 'free-terminal:output'; payload: { projectDir: string; data: string } }
-  | { type: 'free-terminal:exit'; payload: { projectDir: string; exitCode: number } }
+  | { type: 'free-terminal:output'; payload: { terminalId: string; projectDir: string; data: string } }
+  | { type: 'free-terminal:exit'; payload: { terminalId: string; projectDir: string; exitCode: number } }
+  | { type: 'free-terminal:layout-changed'; payload: { projectDir: string; layout: FreeTerminalLayout } }
 
 export type WsClientMessage =
   | { type: 'ping' }

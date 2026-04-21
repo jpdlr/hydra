@@ -367,8 +367,30 @@ export const IPC = {
   FREE_TERMINAL_EXIT: 'free-terminal:exit',
   FREE_TERMINAL_KILL: 'free-terminal:kill',
   FREE_TERMINAL_BUFFER: 'free-terminal:buffer',
-  FREE_TERMINAL_LIST: 'free-terminal:list'
+  FREE_TERMINAL_LIST: 'free-terminal:list',
+  FREE_TERMINAL_LAYOUT: 'free-terminal:layout',
+  FREE_TERMINAL_ACTIVATE: 'free-terminal:activate',
+  FREE_TERMINAL_LAYOUT_CHANGED: 'free-terminal:layout-changed'
 } as const
+
+export interface FreeTerminalPaneInfo {
+  id: string
+  label: string
+  exited: boolean
+}
+
+export interface FreeTerminalGroup {
+  id: string
+  paneIds: string[]
+  activePaneId: string
+}
+
+export interface FreeTerminalLayout {
+  projectDir: string
+  groups: FreeTerminalGroup[]
+  activeGroupId: string | null
+  panes: FreeTerminalPaneInfo[]
+}
 
 // ── IPC Payloads ─────────────────────────────────────────────────────────────
 
