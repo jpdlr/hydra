@@ -5,6 +5,7 @@ import { SortDropdown } from './SortDropdown'
 import { FilterDropdown } from './FilterDropdown'
 import { FilterChips } from './FilterChips'
 import { useFilterSort } from './useFilterSort'
+import { fuzzyScore } from '../../lib/fuzzy'
 import type { ProjectGroup, EditorId } from '@shared/types'
 import styles from './Sidebar.module.css'
 
@@ -135,14 +136,18 @@ export function Sidebar({
 
   const filteredGroups = searchQuery
     ? processed
-        .map((group) => ({
-          ...group,
-          agents: group.agents.filter(
-            (a) =>
-              a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              group.projectName.toLowerCase().includes(searchQuery.toLowerCase())
-          )
-        }))
+        .map((group) => {
+          const projectScore = fuzzyScore(searchQuery, group.projectName)
+          const scored = group.agents
+            .map((a) => {
+              const nameScore = fuzzyScore(searchQuery, a.name)
+              const best = Math.max(nameScore, projectScore)
+              return { agent: a, score: best }
+            })
+            .filter((entry) => entry.score >= 0)
+            .sort((a, b) => b.score - a.score)
+          return { ...group, agents: scored.map((e) => e.agent) }
+        })
         .filter((group) => group.agents.length > 0)
     : processed
 

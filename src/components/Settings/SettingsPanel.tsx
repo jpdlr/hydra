@@ -14,6 +14,7 @@ import {
   MAX_CONCURRENT_AGENTS_HARD_LIMIT
 } from '@shared/types'
 import { useRuntimeProviderModels } from '../../hooks/useRuntimeProviderModels'
+import { fuzzyScoreAny } from '../../lib/fuzzy'
 import { ShortcutsTab } from './ShortcutsTab'
 import { SkillsTab } from './SkillsTab'
 import claudeIcon from '../../assets/claude-icon.png'
@@ -78,8 +79,7 @@ interface SettingsPanelProps {
 
 function matchesSearch(query: string, ...keywords: string[]): boolean {
   if (!query) return true
-  const q = query.toLowerCase()
-  return keywords.some((kw) => kw.toLowerCase().includes(q))
+  return fuzzyScoreAny(query, ...keywords) >= 0
 }
 
 export function SettingsPanel({
