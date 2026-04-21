@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ReactMarkdown from 'react-markdown'
 import type { AppUpdateState } from '@shared/types'
 import styles from './UpdatePanel.module.css'
 
@@ -84,10 +85,9 @@ export function UpdatePanel({
             {state.releaseNotes && (
               <div className={styles.notes}>
                 <h3>Release Notes</h3>
-                <div
-                  className={styles.notesBody}
-                  dangerouslySetInnerHTML={{ __html: state.releaseNotes }}
-                />
+                <div className={styles.notesBody}>
+                  <ReactMarkdown>{state.releaseNotes}</ReactMarkdown>
+                </div>
               </div>
             )}
 

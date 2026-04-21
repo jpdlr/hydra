@@ -180,7 +180,9 @@ describe('RemoteControlService', () => {
   })
 
   describe('enable()', () => {
-    it('creates a session and transitions to active', async () => {
+    // First test in the suite pays for cold-import of firebase/* modules on slow
+    // CI runners (observed 325ms vs ~3ms warm). Retry once to absorb that race.
+    it('creates a session and transitions to active', { retry: 2 }, async () => {
       const state = await service.enable()
 
       expect(state.enabled).toBe(true)
