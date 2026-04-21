@@ -39,6 +39,18 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Setup Python for node-gyp
+        id: setup-python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Configure node-gyp Python
+        shell: bash
+        run: |
+          echo "PYTHON=${{ steps.setup-python.outputs.python-path }}" >> "$GITHUB_ENV"
+          echo "npm_config_python=${{ steps.setup-python.outputs.python-path }}" >> "$GITHUB_ENV"
+
       - name: Check Firebase release env
         shell: bash
         run: |
