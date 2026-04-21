@@ -16,7 +16,12 @@ import {
 import { useRuntimeProviderModels } from '../../hooks/useRuntimeProviderModels'
 import { ShortcutsTab } from './ShortcutsTab'
 import { SkillsTab } from './SkillsTab'
+import claudeIcon from '../../assets/claude-icon.png'
+import codexIcon from '../../assets/codex-icon.png'
+import opencodeIcon from '../../assets/opencode-icon.png'
 import styles from './SettingsPanel.module.css'
+
+const PROVIDER_ICONS: Record<ProviderId, string> = { claude: claudeIcon, codex: codexIcon, opencode: opencodeIcon }
 
 type SectionId =
   | 'appearance'
@@ -228,6 +233,7 @@ export function SettingsPanel({
                       defaultModel: getDefaultModel(p)
                     })}
                   >
+                    <img src={PROVIDER_ICONS[p]} alt="" className={styles.providerIcon} />
                     {PROVIDER_LABELS[p]}
                   </button>
                 ))}

@@ -484,11 +484,6 @@ export default function App() {
     }
   }, [viewMode, selectedAgent, selectedProject])
 
-  // Collapse the free terminal drawer when switching sessions.
-  useEffect(() => {
-    setFreeTerminalOpen(false)
-  }, [selectedAgentId])
-
   // Keep selected chat agent synced to the active grid project.
   useEffect(() => {
     if (viewMode !== 'grid' || !selectedProject) return
