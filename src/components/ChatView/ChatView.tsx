@@ -8,9 +8,9 @@ import { SplitHandle } from '../EditorPanel/SplitHandle'
 import { DiffStats } from './DiffStats'
 import type { AgentState, ProviderId } from '@shared/types'
 import type { EditorTab } from '../EditorPanel/TabBar'
-import claudeIcon from '@/assets/claude-icon.png'
-import codexIcon from '@/assets/codex-icon.png'
-import opencodeIcon from '@/assets/opencode-icon.png'
+import claudeIcon from '@/assets/icons/claude.svg'
+import codexIcon from '@/assets/icons/codex.svg'
+import opencodeIcon from '@/assets/icons/opencode.svg'
 import styles from './ChatView.module.css'
 
 interface ChatViewProps {

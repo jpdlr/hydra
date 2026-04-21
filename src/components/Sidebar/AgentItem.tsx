@@ -1,9 +1,9 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
 import type { AgentState } from '@shared/types'
 import type { ProviderId } from '@shared/types'
-import claudeIcon from '@/assets/claude-icon.png'
-import codexIcon from '@/assets/codex-icon.png'
-import opencodeIcon from '@/assets/opencode-icon.png'
+import claudeIcon from '@/assets/icons/claude.svg'
+import codexIcon from '@/assets/icons/codex.svg'
+import opencodeIcon from '@/assets/icons/opencode.svg'
 
 const PROVIDER_ICONS: Record<ProviderId, string> = { claude: claudeIcon, codex: codexIcon, opencode: opencodeIcon }
 import styles from './AgentItem.module.css'

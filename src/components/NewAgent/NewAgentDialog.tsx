@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ModelId, ProviderId, CreateAgentPayload, ClaudeSessionSummary, McpServerStatus, WorkMode } from '@shared/types'
 import { PROVIDER_LABELS, CODEX_REASONING_LEVELS } from '@shared/types'
 import { useRuntimeProviderModels } from '../../hooks/useRuntimeProviderModels'
-import claudeIcon from '../../assets/claude-icon.png'
-import codexIcon from '../../assets/codex-icon.png'
-import opencodeIcon from '../../assets/opencode-icon.png'
+import claudeIcon from '../../assets/icons/claude.svg'
+import codexIcon from '../../assets/icons/codex.svg'
+import opencodeIcon from '../../assets/icons/opencode.svg'
 
 const PROVIDER_ICONS: Record<ProviderId, string> = { claude: claudeIcon, codex: codexIcon, opencode: opencodeIcon }
 import styles from './NewAgentDialog.module.css'

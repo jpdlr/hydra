@@ -1,8 +1,8 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import type { ModelId, ProviderId, GitBranch, WorkMode, SkillInfo, SkillScanResult } from '@shared/types'
-import claudeIcon from '@/assets/claude-icon.png'
-import codexIcon from '@/assets/codex-icon.png'
-import opencodeIcon from '@/assets/opencode-icon.png'
+import claudeIcon from '@/assets/icons/claude.svg'
+import codexIcon from '@/assets/icons/codex.svg'
+import opencodeIcon from '@/assets/icons/opencode.svg'
 import { useRuntimeProviderModels } from '../../hooks/useRuntimeProviderModels'
 import styles from './InputBar.module.css'
 

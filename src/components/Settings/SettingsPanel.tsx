@@ -17,9 +17,9 @@ import { useRuntimeProviderModels } from '../../hooks/useRuntimeProviderModels'
 import { fuzzyScoreAny } from '../../lib/fuzzy'
 import { ShortcutsTab } from './ShortcutsTab'
 import { SkillsTab } from './SkillsTab'
-import claudeIcon from '../../assets/claude-icon.png'
-import codexIcon from '../../assets/codex-icon.png'
-import opencodeIcon from '../../assets/opencode-icon.png'
+import claudeIcon from '../../assets/icons/claude.svg'
+import codexIcon from '../../assets/icons/codex.svg'
+import opencodeIcon from '../../assets/icons/opencode.svg'
 import styles from './SettingsPanel.module.css'
 
 const PROVIDER_ICONS: Record<ProviderId, string> = { claude: claudeIcon, codex: codexIcon, opencode: opencodeIcon }
