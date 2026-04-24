@@ -1,6 +1,6 @@
 {
   "name": "hydra",
-  "version": "0.2.44",
+  "version": "0.2.45",
   "description": "Orchestrate Claude Code and OpenAI Codex CLI agents in parallel",
   "main": "./out/main/index.js",
   "author": "jpdlr",

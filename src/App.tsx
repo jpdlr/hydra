@@ -401,6 +401,28 @@ export default function App() {
           if (viewMode !== 'chat') return false
           setChatInputHidden((prev) => !prev)
           return true
+        case 'terminal-new': {
+          if (viewMode !== 'chat') return false
+          const projectDir = selectedAgent?.state.projectDir
+          if (!projectDir) return false
+          setFreeTerminalOpen(true)
+          void window.hydra.spawnFreeTerminal(projectDir)
+          return true
+        }
+        case 'terminal-split': {
+          if (viewMode !== 'chat') return false
+          const projectDir = selectedAgent?.state.projectDir
+          if (!projectDir) return false
+          setFreeTerminalOpen(true)
+          void (async () => {
+            try {
+              const layout = await window.hydra.getFreeTerminalLayout(projectDir)
+              const groupId = layout.activeGroupId ?? layout.groups[0]?.id
+              await window.hydra.spawnFreeTerminal(projectDir, groupId ? { groupId } : undefined)
+            } catch { /* noop */ }
+          })()
+          return true
+        }
         case 'file-search':
           if (!selectedAgentId) return false
           setShowFileSearch(true)
@@ -452,6 +474,7 @@ export default function App() {
       handleRemoveAgent,
       handleRestartAgent,
       keybindingsPath,
+      selectedAgent,
       selectedAgentId,
       setSelectedAgentId,
       toggleViewMode,

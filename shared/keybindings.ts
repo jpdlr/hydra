@@ -9,6 +9,8 @@ export type HydraCommandId =
   | 'toggle-editor'
   | 'toggle-terminal'
   | 'toggle-chat-input'
+  | 'terminal-new'
+  | 'terminal-split'
   | 'file-search'
   | 'save-file'
   | 'command-palette'
@@ -51,6 +53,8 @@ const COMMAND_DEFINITIONS = [
   { id: 'toggle-editor', label: 'Toggle Code Editor', category: 'Editor', showInShortcuts: true, showInPalette: true },
   { id: 'toggle-terminal', label: 'Toggle Terminal', category: 'Editor', showInShortcuts: true, showInPalette: false },
   { id: 'toggle-chat-input', label: 'Toggle Chat Input', category: 'Editor', showInShortcuts: true, showInPalette: true },
+  { id: 'terminal-new', label: 'New Terminal', category: 'Editor', showInShortcuts: true, showInPalette: true },
+  { id: 'terminal-split', label: 'Split Terminal', category: 'Editor', showInShortcuts: true, showInPalette: true },
   { id: 'file-search', label: 'Search Files', category: 'Editor', showInShortcuts: true, showInPalette: true },
   { id: 'save-file', label: 'Save File', category: 'Editor', showInShortcuts: true, showInPalette: false },
   { id: 'command-palette', label: 'Open Command Palette', category: 'Panels', showInShortcuts: true, showInPalette: false },
@@ -84,6 +88,8 @@ export const DEFAULT_KEYBINDINGS: KeybindingRule[] = [
   { command: 'toggle-editor', keys: 'mod+e' },
   { command: 'toggle-terminal', keys: 'mod+j' },
   { command: 'toggle-chat-input', keys: 'mod+shift+i' },
+  { command: 'terminal-new', keys: 'mod+shift+t' },
+  { command: 'terminal-split', keys: 'mod+shift+5' },
   { command: 'file-search', keys: 'mod+p' },
   { command: 'save-file', keys: 'mod+s' },
   { command: 'command-palette', keys: 'mod+shift+p' },
