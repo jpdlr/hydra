@@ -12,11 +12,6 @@
 
 .rowHighlighted {
   background: color-mix(in srgb, var(--color-accent) 18%, transparent);
-  border-radius: var(--radius-sm);
-  padding-left: var(--space-2);
-  padding-right: var(--space-2);
-  margin-left: calc(var(--space-2) * -1);
-  margin-right: calc(var(--space-2) * -1);
 }
 
 .kbdHeld {
@@ -119,9 +114,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-1) 0;
+  padding: var(--space-1) var(--space-2);
   font-size: var(--font-size-sm);
   gap: var(--space-3);
+  border-radius: var(--radius-sm);
 }
 
 .label {
