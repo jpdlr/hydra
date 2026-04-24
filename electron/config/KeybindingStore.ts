@@ -63,6 +63,16 @@ export class KeybindingStore {
         return [...DEFAULT_KEYBINDINGS]
       }
       const rules = parsed.flatMap((item) => this.parseRule(item))
+      const presentCommands = new Set(rules.map((r) => r.command))
+      const missing = DEFAULT_KEYBINDINGS.filter((d) => !presentCommands.has(d.command))
+      if (missing.length > 0) {
+        const next = [...rules, ...missing]
+        try {
+          writeFileSync(this.keybindingsPath, JSON.stringify(next, null, 2), 'utf-8')
+        } catch (error) {
+          console.error('Failed to append missing default keybindings:', error)
+        }
+      }
       return mergeKeybindingsWithDefaults(rules)
     } catch {
       return [...DEFAULT_KEYBINDINGS]
