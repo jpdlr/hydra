@@ -581,54 +581,26 @@ export default function App() {
     keybindings
   ])
 
-  // Double-tap-and-hold Cmd/Ctrl to show shortcuts overlay; release to hide.
+  // Double-tap Cmd/Ctrl to toggle the shortcuts overlay.
   useEffect(() => {
     const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform)
     const targetKey = isMac ? 'Meta' : 'Control'
     let lastTapTs = 0
-    let armed = false
-    let holdTimer: ReturnType<typeof setTimeout> | null = null
-
-    const clearTimer = () => {
-      if (holdTimer) {
-        clearTimeout(holdTimer)
-        holdTimer = null
-      }
-    }
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== targetKey) return
       if (e.repeat) return
       const now = Date.now()
       if (now - lastTapTs < 350) {
-        // Second tap — start hold timer
-        armed = true
-        clearTimer()
-        holdTimer = setTimeout(() => {
-          if (armed) setShowShortcuts(true)
-        }, 220)
+        setShowShortcuts((prev) => !prev)
+        lastTapTs = 0
       } else {
-        armed = false
-      }
-      lastTapTs = now
-    }
-
-    const onKeyUp = (e: KeyboardEvent) => {
-      if (e.key !== targetKey) return
-      clearTimer()
-      if (armed) {
-        armed = false
-        setShowShortcuts(false)
+        lastTapTs = now
       }
     }
 
     window.addEventListener('keydown', onKeyDown)
-    window.addEventListener('keyup', onKeyUp)
-    return () => {
-      window.removeEventListener('keydown', onKeyDown)
-      window.removeEventListener('keyup', onKeyUp)
-      clearTimer()
-    }
+    return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
   // Handle global YOLO toggle
