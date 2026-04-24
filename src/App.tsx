@@ -423,6 +423,20 @@ export default function App() {
           })()
           return true
         }
+        case 'terminal-kill': {
+          if (viewMode !== 'chat') return false
+          const projectDir = selectedAgent?.state.projectDir
+          if (!projectDir) return false
+          void (async () => {
+            try {
+              const layout = await window.hydra.getFreeTerminalLayout(projectDir)
+              const activeGroup = layout.groups.find((g) => g.id === layout.activeGroupId)
+              const paneId = activeGroup?.activePaneId
+              if (paneId) await window.hydra.killFreeTerminal(paneId)
+            } catch { /* noop */ }
+          })()
+          return true
+        }
         case 'file-search':
           if (!selectedAgentId) return false
           setShowFileSearch(true)

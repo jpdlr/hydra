@@ -106,6 +106,30 @@ export function ChatView({
   const [splitRatio, setSplitRatio] = useState(0.5)
   const outerRef = useRef<HTMLDivElement>(null)
 
+  // Free terminal panel height (resizable)
+  const [freeTerminalHeight, setFreeTerminalHeight] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem('hydra:free-terminal-height')
+      const parsed = raw ? parseInt(raw, 10) : NaN
+      if (Number.isFinite(parsed) && parsed >= 120) return parsed
+    } catch { /* noop */ }
+    return 280
+  })
+  useEffect(() => {
+    try {
+      localStorage.setItem('hydra:free-terminal-height', String(freeTerminalHeight))
+    } catch { /* noop */ }
+  }, [freeTerminalHeight])
+
+  const [isResizingTerminal, setIsResizingTerminal] = useState(false)
+  const handleTerminalResizeDrag = useCallback((deltaY: number) => {
+    setFreeTerminalHeight((prev) => {
+      const next = prev - deltaY
+      const maxPx = Math.max(200, Math.floor(window.innerHeight * 0.75))
+      return Math.max(120, Math.min(maxPx, next))
+    })
+  }, [])
+
   const handleSplitDrag = useCallback((deltaX: number) => {
     const outer = outerRef.current
     if (!outer) return
@@ -302,8 +326,22 @@ export function ChatView({
           <div
             className={`${styles.freeTerminalSlider} ${freeTerminalOpen ? styles.freeTerminalSliderOpen : ''}`}
             aria-hidden={!freeTerminalOpen}
+            style={
+              freeTerminalOpen
+                ? { maxHeight: freeTerminalHeight, transition: isResizingTerminal ? 'none' : undefined }
+                : undefined
+            }
           >
-            <div className={styles.freeTerminalSliderInner}>
+            {freeTerminalOpen && (
+              <VerticalResizeHandle
+                onDrag={handleTerminalResizeDrag}
+                onDragStateChange={setIsResizingTerminal}
+              />
+            )}
+            <div
+              className={styles.freeTerminalSliderInner}
+              style={freeTerminalOpen ? { height: freeTerminalHeight } : undefined}
+            >
               {freeTerminalOpen && (
                 <FreeTerminalPanel
                   projectDir={agent.projectDir}
@@ -437,6 +475,53 @@ function StatusBadge({ status }: { status: string }) {
       <span className={styles.statusDot} style={{ background: colors[status] }} />
       {status.charAt(0).toUpperCase() + status.slice(1)}
     </span>
+  )
+}
+
+function VerticalResizeHandle({
+  onDrag,
+  onDragStateChange
+}: {
+  onDrag: (deltaY: number) => void
+  onDragStateChange?: (dragging: boolean) => void
+}) {
+  const startYRef = useRef(0)
+  const [isDragging, setIsDragging] = useState(false)
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      e.preventDefault()
+      startYRef.current = e.clientY
+      setIsDragging(true)
+      onDragStateChange?.(true)
+      const target = e.currentTarget as HTMLElement
+      target.setPointerCapture(e.pointerId)
+
+      const onMove = (ev: PointerEvent) => {
+        const delta = ev.clientY - startYRef.current
+        startYRef.current = ev.clientY
+        onDrag(delta)
+      }
+      const onUp = () => {
+        setIsDragging(false)
+        onDragStateChange?.(false)
+        target.releasePointerCapture(e.pointerId)
+        target.removeEventListener('pointermove', onMove)
+        target.removeEventListener('pointerup', onUp)
+      }
+      target.addEventListener('pointermove', onMove)
+      target.addEventListener('pointerup', onUp)
+    },
+    [onDrag, onDragStateChange]
+  )
+
+  return (
+    <div
+      className={`${styles.terminalResizeHandle} ${isDragging ? styles.terminalResizeHandleActive : ''}`}
+      onPointerDown={handlePointerDown}
+      role="separator"
+      aria-orientation="horizontal"
+    />
   )
 }
 

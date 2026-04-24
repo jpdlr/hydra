@@ -350,6 +350,24 @@
 
 .freeTerminalSliderInner {
   height: min(42vh, 360px);
-  min-height: 180px;
+  min-height: 120px;
   overflow: hidden;
+}
+
+.terminalResizeHandle {
+  height: 6px;
+  margin-top: -3px;
+  margin-bottom: -3px;
+  cursor: ns-resize;
+  background: transparent;
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+  transition: background 120ms ease;
+}
+
+.terminalResizeHandle:hover,
+.terminalResizeHandleActive {
+  background: var(--color-accent);
+  opacity: 0.4;
 }
