@@ -133,7 +133,9 @@ export function UsageDashboard({ onClose }: UsageDashboardProps) {
               {' '}No API keys required.
             </p>
             <div className={styles.installBlock}>
-              <code>{snapshot.installHint?.split('\n')[1]?.trim() ?? 'npm install -g ccusage'}</code>
+              {(snapshot.installHint?.split('\n').slice(1).map((line) => line.trim()).filter(Boolean) ?? ['npm install -g ccusage']).map((command) => (
+                <code key={command}>{command}</code>
+              ))}
             </div>
             <p className={styles.installNote}>
               After installing, refresh or reopen this dashboard to see your usage data.

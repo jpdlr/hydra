@@ -3,7 +3,7 @@
  *
  * - macOS: Finder / Dock launches provide a minimal PATH, so we source the
  *   login shell and fall back to common binary locations.
- * - Windows: append common global npm / Node install locations used by CLI tools.
+ * - Windows: append common global npm / Bun / Node install locations used by CLI tools.
  */
 
 import { execSync } from 'child_process'
@@ -71,6 +71,7 @@ export function fixPath(): void {
       '/usr/local/bin',
       '/opt/homebrew/bin',
       home ? `${home}/.local/bin` : null,
+      home ? `${home}/.bun/bin` : null,
       home ? `${home}/.nvm/versions/node/current/bin` : null
     ])
   }

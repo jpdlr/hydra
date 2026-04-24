@@ -140,7 +140,7 @@ const codexProvider: ProviderConfig = {
   },
 
   async preflight() {
-    return runPreflight('codex', 'Codex CLI not found. Install it with: npm install -g @openai/codex')
+    return runPreflight('codex', 'Codex CLI not found. Install it with: npm install -g @openai/codex or bun add -g @openai/codex')
   }
 }
 

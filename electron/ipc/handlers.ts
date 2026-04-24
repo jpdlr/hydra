@@ -584,8 +584,8 @@ export function registerIpcHandlers(
     const sinceStr = since.toISOString().slice(0, 10).replace(/-/g, '')
     const installHint =
       provider === 'codex'
-        ? 'Install Codex usage support to view usage data:\n  npx @ccusage/codex@latest daily'
-        : 'Install ccusage to view usage data:\n  npm install -g ccusage'
+        ? 'Install Codex usage support to view usage data:\n  npx @ccusage/codex@latest daily\n  bunx @ccusage/codex@latest daily'
+        : 'Install ccusage to view usage data:\n  npm install -g ccusage\n  bun add -g ccusage'
 
     const notInstalled: CcusageSnapshot = {
       available: false,
@@ -596,20 +596,34 @@ export function registerIpcHandlers(
       projects: {}
     }
 
-    const usageCommand = provider === 'codex' ? 'npx' : 'ccusage'
+    const usageCommands = provider === 'codex' ? ['npx', 'bunx'] : ['ccusage']
     const baseArgs =
       provider === 'codex'
         ? ['-y', '@ccusage/codex@latest', 'daily', '--json', '--since', sinceStr]
         : ['daily', '--json', '--since', sinceStr]
+    const argsForCommand = (command: string, args: string[]) =>
+      command === 'bunx' && args[0] === '-y' ? args.slice(1) : args
 
     const runUsageCommand = (args: string[]): Promise<{ error: Error | null; stdout: string }> =>
       new Promise((resolve) => {
-        execFile(
-          usageCommand,
-          args,
-          { timeout: 15_000, env: { ...process.env, FORCE_COLOR: '0' } },
-          (error, stdout) => resolve({ error, stdout })
-        )
+        const runAt = (index: number): void => {
+          const command = usageCommands[index]
+          execFile(
+            command,
+            argsForCommand(command, args),
+            { timeout: 15_000, env: { ...process.env, FORCE_COLOR: '0' } },
+            (error, stdout) => {
+              const isMissing = error && ((error as NodeJS.ErrnoException).code === 'ENOENT' || error.message?.includes('ENOENT'))
+              if (isMissing && index < usageCommands.length - 1) {
+                runAt(index + 1)
+                return
+              }
+              resolve({ error, stdout })
+            }
+          )
+        }
+
+        runAt(0)
       })
 
     return new Promise<CcusageSnapshot>((resolve) => {

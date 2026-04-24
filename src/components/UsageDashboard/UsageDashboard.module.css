@@ -98,9 +98,14 @@
 }
 
 .installBlock code {
+  display: block;
   font-size: var(--font-size-sm);
   color: var(--color-accent);
   font-family: var(--font-mono);
+}
+
+.installBlock code + code {
+  margin-top: var(--space-2);
 }
 
 .installNote {
