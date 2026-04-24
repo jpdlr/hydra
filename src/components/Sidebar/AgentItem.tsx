@@ -14,6 +14,7 @@ interface AgentItemProps {
   onSelect: () => void
   onRename: (newName: string) => void
   onRemove: () => void
+  hotkeyNumber?: number
 }
 
 function relativeTime(iso: string): string {
@@ -38,7 +39,7 @@ const STATUS_COLORS: Record<string, string> = {
   starting: 'var(--color-status-starting)'
 }
 
-export function AgentItem({ agent, isSelected, onSelect, onRename, onRemove }: AgentItemProps) {
+export function AgentItem({ agent, isSelected, onSelect, onRename, onRemove, hotkeyNumber }: AgentItemProps) {
   const age = useMemo(() => relativeTime(agent.lastActivityAt), [agent.lastActivityAt])
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   const [editing, setEditing] = useState(false)
@@ -114,9 +115,15 @@ export function AgentItem({ agent, isSelected, onSelect, onRename, onRemove }: A
         onContextMenu={handleContextMenu}
         title={`${agent.name} — ${agent.status}`}
       >
-        <span className={styles.statusDot}>
-          <StatusIcon status={agent.status} />
-        </span>
+        {hotkeyNumber !== undefined ? (
+          <span className={styles.hotkeyBadge} aria-label={`Hotkey ${hotkeyNumber}`}>
+            {hotkeyNumber}
+          </span>
+        ) : (
+          <span className={styles.statusDot}>
+            <StatusIcon status={agent.status} />
+          </span>
+        )}
         {editing ? (
           <input
             ref={inputRef}

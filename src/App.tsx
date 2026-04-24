@@ -31,6 +31,8 @@ import {
   matchKeybindingEvent,
   type HydraCommandId
 } from '@shared/keybindings'
+import { SIDEBAR_SEARCH_FOCUS_EVENT } from './components/Sidebar/SearchBar'
+import { ShortcutsOverlay } from './components/Shortcuts/ShortcutsOverlay'
 import styles from './App.module.css'
 
 interface PersistedWorkspaceUiState {
@@ -154,6 +156,7 @@ export default function App() {
   const [showGitPanel, setShowGitPanel] = useState(false)
   const [freeTerminalOpen, setFreeTerminalOpen] = useState(false)
   const [chatInputHidden, setChatInputHidden] = useState(false)
+  const [showShortcuts, setShowShortcuts] = useState(false)
   const [selectedProject, setSelectedProject] = useState<string | null>(persistedUi.selectedProject)
   const [expandedTilesByProject, setExpandedTilesByProject] = useState<Record<string, string | null>>(
     persistedUi.expandedTilesByProject
@@ -339,6 +342,7 @@ export default function App() {
     if (showGitPanel) setShowGitPanel(false)
     if (showYoloConfirm) setShowYoloConfirm(false)
     if (showPreflightGate) setShowPreflightGate(false)
+    if (showShortcuts) setShowShortcuts(false)
     if (quitConfirmRunningCount !== null) setQuitConfirmRunningCount(null)
   }, [
     quitConfirmRunningCount,
@@ -350,6 +354,7 @@ export default function App() {
     showPreflightGate,
     showRemoteControl,
     showSettings,
+    showShortcuts,
     showUpdatePanel,
     showUsageDashboard,
     showYoloConfirm
@@ -423,6 +428,12 @@ export default function App() {
           })()
           return true
         }
+        case 'focus-sidebar-search':
+          window.dispatchEvent(new CustomEvent(SIDEBAR_SEARCH_FOCUS_EVENT))
+          return true
+        case 'show-shortcuts':
+          setShowShortcuts(true)
+          return true
         case 'terminal-kill': {
           if (viewMode !== 'chat') return false
           const projectDir = selectedAgent?.state.projectDir
@@ -569,6 +580,56 @@ export default function App() {
     executeCommand,
     keybindings
   ])
+
+  // Double-tap-and-hold Cmd/Ctrl to show shortcuts overlay; release to hide.
+  useEffect(() => {
+    const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform)
+    const targetKey = isMac ? 'Meta' : 'Control'
+    let lastTapTs = 0
+    let armed = false
+    let holdTimer: ReturnType<typeof setTimeout> | null = null
+
+    const clearTimer = () => {
+      if (holdTimer) {
+        clearTimeout(holdTimer)
+        holdTimer = null
+      }
+    }
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== targetKey) return
+      if (e.repeat) return
+      const now = Date.now()
+      if (now - lastTapTs < 350) {
+        // Second tap — start hold timer
+        armed = true
+        clearTimer()
+        holdTimer = setTimeout(() => {
+          if (armed) setShowShortcuts(true)
+        }, 220)
+      } else {
+        armed = false
+      }
+      lastTapTs = now
+    }
+
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key !== targetKey) return
+      clearTimer()
+      if (armed) {
+        armed = false
+        setShowShortcuts(false)
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+      clearTimer()
+    }
+  }, [])
 
   // Handle global YOLO toggle
   const handleGlobalYoloToggle = useCallback(() => {
@@ -1020,6 +1081,10 @@ export default function App() {
           defaultModel={config.defaultModel}
           onClose={() => setShowGitPanel(false)}
         />
+      )}
+
+      {showShortcuts && (
+        <ShortcutsOverlay keybindings={keybindings} onClose={() => setShowShortcuts(false)} />
       )}
 
       <NotificationToast notifications={notifications} onDismiss={dismissNotification} />

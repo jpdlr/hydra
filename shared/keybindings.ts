@@ -12,6 +12,8 @@ export type HydraCommandId =
   | 'terminal-new'
   | 'terminal-split'
   | 'terminal-kill'
+  | 'focus-sidebar-search'
+  | 'show-shortcuts'
   | 'file-search'
   | 'save-file'
   | 'command-palette'
@@ -57,6 +59,8 @@ const COMMAND_DEFINITIONS = [
   { id: 'terminal-new', label: 'New Terminal', category: 'Editor', showInShortcuts: true, showInPalette: true },
   { id: 'terminal-split', label: 'Split Terminal', category: 'Editor', showInShortcuts: true, showInPalette: true },
   { id: 'terminal-kill', label: 'Kill Active Terminal', category: 'Editor', showInShortcuts: true, showInPalette: true },
+  { id: 'focus-sidebar-search', label: 'Focus Sidebar Search', category: 'Navigation', showInShortcuts: true, showInPalette: true },
+  { id: 'show-shortcuts', label: 'Show Keyboard Shortcuts', category: 'Panels', showInShortcuts: true, showInPalette: true },
   { id: 'file-search', label: 'Search Files', category: 'Editor', showInShortcuts: true, showInPalette: true },
   { id: 'save-file', label: 'Save File', category: 'Editor', showInShortcuts: true, showInPalette: false },
   { id: 'command-palette', label: 'Open Command Palette', category: 'Panels', showInShortcuts: true, showInPalette: false },
@@ -93,6 +97,8 @@ export const DEFAULT_KEYBINDINGS: KeybindingRule[] = [
   { command: 'terminal-new', keys: 'mod+shift+t' },
   { command: 'terminal-split', keys: 'mod+shift+5' },
   { command: 'terminal-kill', keys: 'mod+shift+k' },
+  { command: 'focus-sidebar-search', keys: 'mod+k' },
+  { command: 'show-shortcuts', keys: 'mod+/' },
   { command: 'file-search', keys: 'mod+p' },
   { command: 'save-file', keys: 'mod+s' },
   { command: 'command-palette', keys: 'mod+shift+p' },

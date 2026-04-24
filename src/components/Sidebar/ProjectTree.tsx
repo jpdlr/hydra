@@ -14,9 +14,10 @@ interface ProjectTreeProps {
   defaultEditor?: EditorId
   expanded: boolean
   onToggleExpanded: () => void
+  numberedAgentMap?: Map<string, number>
 }
 
-export function ProjectTree({ group, selectedAgentId, onSelectAgent, onNewAgentForProject, onRenameAgent, onRemoveAgent, defaultEditor = 'vscode', expanded, onToggleExpanded }: ProjectTreeProps) {
+export function ProjectTree({ group, selectedAgentId, onSelectAgent, onNewAgentForProject, onRenameAgent, onRemoveAgent, defaultEditor = 'vscode', expanded, onToggleExpanded, numberedAgentMap }: ProjectTreeProps) {
 
   return (
     <div className={styles.group}>
@@ -58,6 +59,7 @@ export function ProjectTree({ group, selectedAgentId, onSelectAgent, onNewAgentF
               onSelect={() => onSelectAgent(agent.id)}
               onRename={(newName) => onRenameAgent(agent.id, newName)}
               onRemove={() => onRemoveAgent(agent.id)}
+              hotkeyNumber={numberedAgentMap?.get(agent.id)}
             />
           ))}
         </div>

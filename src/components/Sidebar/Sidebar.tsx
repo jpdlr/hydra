@@ -42,6 +42,7 @@ export function Sidebar({
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(() => new Set(projectGroups.map((g) => g.projectDir)))
   const [isDragging, setIsDragging] = useState(false)
+  const [selectionMode, setSelectionMode] = useState(false)
   const treeContainerRef = useRef<HTMLDivElement>(null)
   const startXRef = useRef(0)
   const startWidthRef = useRef(0)
@@ -134,6 +135,11 @@ export function Sidebar({
     return () => container.removeEventListener('keydown', handleKeyDown)
   }, [projectGroups])
 
+  // Exit selection mode automatically if there's nothing to select on.
+  useEffect(() => {
+    if (!searchQuery && selectionMode) setSelectionMode(false)
+  }, [searchQuery, selectionMode])
+
   const filteredGroups = searchQuery
     ? processed
         .map((group) => {
@@ -151,10 +157,53 @@ export function Sidebar({
         .filter((group) => group.agents.length > 0)
     : processed
 
+  // Numbered hotkeys (1-9) for the first results when in selection mode.
+  const numberedAgentMap = (() => {
+    if (!selectionMode) return new Map<string, number>()
+    const map = new Map<string, number>()
+    let n = 1
+    for (const group of filteredGroups) {
+      for (const agent of group.agents) {
+        if (n > 9) return map
+        map.set(agent.id, n++)
+      }
+    }
+    return map
+  })()
+
+  useEffect(() => {
+    if (!selectionMode) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setSelectionMode(false)
+        return
+      }
+      if (e.key >= '1' && e.key <= '9') {
+        const num = parseInt(e.key, 10)
+        for (const [agentId, assigned] of numberedAgentMap) {
+          if (assigned === num) {
+            e.preventDefault()
+            onSelectAgent(agentId)
+            setSelectionMode(false)
+            return
+          }
+        }
+      }
+    }
+    window.addEventListener('keydown', handler, true)
+    return () => window.removeEventListener('keydown', handler, true)
+  }, [selectionMode, numberedAgentMap, onSelectAgent])
+
   return (
     <aside className={styles.sidebar} style={{ width }}>
       <div className={styles.searchWrapper}>
-        <SearchBar value={searchQuery} onChange={setSearchQuery}>
+        <SearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          onEscapeWithValue={() => setSelectionMode(true)}
+        >
           <SortDropdown value={sortKey} onChange={setSortKey} />
           <FilterDropdown
             filter={filter}
@@ -183,6 +232,7 @@ export function Sidebar({
               onSelectAgent={onSelectAgent}
               onNewAgentForProject={onNewAgentForProject}
               onRenameAgent={onRenameAgent}
+              numberedAgentMap={numberedAgentMap}
               onRemoveAgent={onRemoveAgent}
               defaultEditor={defaultEditor}
               expanded={expandedDirs.has(group.projectDir)}
