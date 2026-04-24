@@ -247,6 +247,27 @@ export function matchKeybindingEvent(
   return null
 }
 
+export type ModifierName = 'meta' | 'ctrl' | 'alt' | 'shift'
+
+/**
+ * Returns the set of modifier keys required by a keybinding string,
+ * resolving 'mod' to 'meta' on Mac and 'ctrl' elsewhere.
+ */
+export function getBindingModifiers(keys: string, isMac: boolean): Set<ModifierName> {
+  const parsed = parseShortcut(keys)
+  const mods = new Set<ModifierName>()
+  const usesMod = keys.includes('mod')
+  if (usesMod) {
+    mods.add(isMac ? 'meta' : 'ctrl')
+  } else {
+    if (parsed.wantsMeta) mods.add('meta')
+    if (parsed.wantsCtrl) mods.add('ctrl')
+  }
+  if (parsed.wantsAlt) mods.add('alt')
+  if (parsed.wantsShift) mods.add('shift')
+  return mods
+}
+
 export function getShortcutForCommand(
   keybindings: KeybindingRule[],
   commandId: HydraCommandId

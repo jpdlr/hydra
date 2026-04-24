@@ -10,6 +10,16 @@
   animation: fadeIn 120ms ease;
 }
 
+.backdropTransient {
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+}
+
+.backdropTransient .panel {
+  pointer-events: none;
+}
+
 .panel {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -39,6 +49,42 @@
 .hint {
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
+}
+
+.heldChips {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  margin-right: var(--space-3);
+}
+
+.searchWrapper {
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.search {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  outline: none;
+}
+
+.search:focus {
+  border-color: var(--color-accent);
+}
+
+.empty {
+  grid-column: 1 / -1;
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
 }
 
 .body {

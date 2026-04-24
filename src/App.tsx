@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Header } from './components/Header/Header'
 import { Sidebar } from './components/Sidebar/Sidebar'
 import { ChatView } from './components/ChatView/ChatView'
@@ -157,6 +157,8 @@ export default function App() {
   const [freeTerminalOpen, setFreeTerminalOpen] = useState(false)
   const [chatInputHidden, setChatInputHidden] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
+  const [shortcutsMode, setShortcutsMode] = useState<'transient' | 'persistent'>('persistent')
+  const [heldModifiers, setHeldModifiers] = useState<Set<import('@shared/keybindings').ModifierName>>(new Set())
   const [selectedProject, setSelectedProject] = useState<string | null>(persistedUi.selectedProject)
   const [expandedTilesByProject, setExpandedTilesByProject] = useState<Record<string, string | null>>(
     persistedUi.expandedTilesByProject
@@ -432,6 +434,7 @@ export default function App() {
           window.dispatchEvent(new CustomEvent(SIDEBAR_SEARCH_FOCUS_EVENT))
           return true
         case 'show-shortcuts':
+          setShortcutsMode('persistent')
           setShowShortcuts(true)
           return true
         case 'terminal-kill': {
@@ -581,27 +584,98 @@ export default function App() {
     keybindings
   ])
 
-  // Double-tap Cmd/Ctrl to toggle the shortcuts overlay.
+  // KeyClu-style modifier-hold: while a modifier (Cmd/Shift/Alt/Ctrl) is
+  // held for >250ms without firing a shortcut, show the transient overlay
+  // filtered to that modifier combo. Releasing all modifiers closes it.
   useEffect(() => {
-    const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform)
-    const targetKey = isMac ? 'Meta' : 'Control'
-    let lastTapTs = 0
+    type Mod = import('@shared/keybindings').ModifierName
+    const HOLD_DELAY = 250
+    let held = new Set<Mod>()
+    let pendingTimer: ReturnType<typeof setTimeout> | null = null
+    let cancelled = false
+
+    const clearTimer = () => {
+      if (pendingTimer) {
+        clearTimeout(pendingTimer)
+        pendingTimer = null
+      }
+    }
+
+    const scheduleShow = () => {
+      clearTimer()
+      cancelled = false
+      pendingTimer = setTimeout(() => {
+        if (cancelled || held.size === 0) return
+        setShortcutsMode('transient')
+        setHeldModifiers(new Set(held))
+        setShowShortcuts(true)
+      }, HOLD_DELAY)
+    }
+
+    const updateHeldFromEvent = (e: KeyboardEvent) => {
+      const next = new Set<Mod>()
+      if (e.metaKey) next.add('meta')
+      if (e.ctrlKey) next.add('ctrl')
+      if (e.altKey) next.add('alt')
+      if (e.shiftKey) next.add('shift')
+      held = next
+    }
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== targetKey) return
-      if (e.repeat) return
-      const now = Date.now()
-      if (now - lastTapTs < 350) {
-        setShowShortcuts((prev) => !prev)
-        lastTapTs = 0
+      const isMod = e.key === 'Meta' || e.key === 'Control' || e.key === 'Alt' || e.key === 'Shift'
+      updateHeldFromEvent(e)
+      if (isMod) {
+        if (showShortcutsRef.current) {
+          // Already showing transient — update filter live.
+          setHeldModifiers(new Set(held))
+        } else {
+          scheduleShow()
+        }
       } else {
-        lastTapTs = now
+        // Non-modifier key pressed during hold cancels the pending transient.
+        cancelled = true
+        clearTimer()
+      }
+    }
+
+    const onKeyUp = (e: KeyboardEvent) => {
+      updateHeldFromEvent(e)
+      if (held.size === 0) {
+        cancelled = true
+        clearTimer()
+        if (shortcutsModeRef.current === 'transient' && showShortcutsRef.current) {
+          setShowShortcuts(false)
+        }
+      } else if (shortcutsModeRef.current === 'transient' && showShortcutsRef.current) {
+        setHeldModifiers(new Set(held))
+      }
+    }
+
+    const onBlur = () => {
+      held = new Set()
+      cancelled = true
+      clearTimer()
+      if (shortcutsModeRef.current === 'transient' && showShortcutsRef.current) {
+        setShowShortcuts(false)
       }
     }
 
     window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    window.addEventListener('blur', onBlur)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+      window.removeEventListener('blur', onBlur)
+      clearTimer()
+    }
   }, [])
+
+  // Refs so the long-lived effect above can read latest UI state.
+  const showShortcutsRef = useRef(showShortcuts)
+  const shortcutsModeRef = useRef(shortcutsMode)
+  useEffect(() => { showShortcutsRef.current = showShortcuts }, [showShortcuts])
+  useEffect(() => { shortcutsModeRef.current = shortcutsMode }, [shortcutsMode])
 
   // Handle global YOLO toggle
   const handleGlobalYoloToggle = useCallback(() => {
@@ -1056,7 +1130,12 @@ export default function App() {
       )}
 
       {showShortcuts && (
-        <ShortcutsOverlay keybindings={keybindings} onClose={() => setShowShortcuts(false)} />
+        <ShortcutsOverlay
+          keybindings={keybindings}
+          onClose={() => setShowShortcuts(false)}
+          mode={shortcutsMode}
+          heldModifiers={shortcutsMode === 'transient' ? heldModifiers : undefined}
+        />
       )}
 
       <NotificationToast notifications={notifications} onDismiss={dismissNotification} />
