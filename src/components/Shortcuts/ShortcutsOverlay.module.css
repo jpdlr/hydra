@@ -10,14 +10,19 @@
   animation: fadeIn 120ms ease;
 }
 
-.backdropTransient {
-  background: rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(2px);
-  pointer-events: none;
+.rowHighlighted {
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+  border-radius: var(--radius-sm);
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
+  margin-left: calc(var(--space-2) * -1);
+  margin-right: calc(var(--space-2) * -1);
 }
 
-.backdropTransient .panel {
-  pointer-events: none;
+.kbdHeld {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  box-shadow: 0 1px 0 var(--color-accent);
 }
 
 .panel {

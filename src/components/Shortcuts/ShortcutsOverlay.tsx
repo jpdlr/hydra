@@ -14,17 +14,6 @@ import styles from './ShortcutsOverlay.module.css'
 interface ShortcutsOverlayProps {
   keybindings: KeybindingRule[]
   onClose: () => void
-  /**
-   * Modifier keys currently held. When non-empty, the overlay filters to
-   * bindings whose modifier set exactly matches.
-   */
-  heldModifiers?: Set<ModifierName>
-  /**
-   * 'transient' — opened by holding modifiers; search input not focused, no
-   * Esc handler (closes when modifiers released by parent).
-   * 'persistent' — opened explicitly; search input focused; Esc closes.
-   */
-  mode?: 'transient' | 'persistent'
 }
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform)
@@ -41,17 +30,18 @@ function modifiersEqual(a: Set<ModifierName>, b: Set<ModifierName>): boolean {
   return true
 }
 
-export function ShortcutsOverlay({
-  keybindings,
-  onClose,
-  heldModifiers,
-  mode = 'persistent'
-}: ShortcutsOverlayProps) {
+export function ShortcutsOverlay({ keybindings, onClose }: ShortcutsOverlayProps) {
   const [query, setQuery] = useState('')
+  const [heldMods, setHeldMods] = useState<Set<ModifierName>>(new Set())
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // Focus search on open.
   useEffect(() => {
-    if (mode !== 'persistent') return
+    inputRef.current?.focus()
+  }, [])
+
+  // Esc closes.
+  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault()
@@ -60,11 +50,28 @@ export function ShortcutsOverlay({
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [mode, onClose])
+  }, [onClose])
 
+  // Track held modifiers — used to highlight matching rows.
   useEffect(() => {
-    if (mode === 'persistent') inputRef.current?.focus()
-  }, [mode])
+    const updateFromEvent = (e: KeyboardEvent) => {
+      const next = new Set<ModifierName>()
+      if (e.metaKey) next.add('meta')
+      if (e.ctrlKey) next.add('ctrl')
+      if (e.altKey) next.add('alt')
+      if (e.shiftKey) next.add('shift')
+      setHeldMods(next)
+    }
+    const onBlur = () => setHeldMods(new Set())
+    window.addEventListener('keydown', updateFromEvent)
+    window.addEventListener('keyup', updateFromEvent)
+    window.addEventListener('blur', onBlur)
+    return () => {
+      window.removeEventListener('keydown', updateFromEvent)
+      window.removeEventListener('keyup', updateFromEvent)
+      window.removeEventListener('blur', onBlur)
+    }
+  }, [])
 
   const allBindings = useMemo<BindingEntry[]>(() => {
     return KEYBINDING_COMMANDS
@@ -76,14 +83,9 @@ export function ShortcutsOverlay({
       })
   }, [keybindings])
 
-  const filteredByModifier = useMemo(() => {
-    if (!heldModifiers || heldModifiers.size === 0) return allBindings
-    return allBindings.filter((b) => b.shortcut && modifiersEqual(b.modifiers, heldModifiers))
-  }, [allBindings, heldModifiers])
-
   const filtered = useMemo(() => {
-    if (!query.trim()) return filteredByModifier
-    return filteredByModifier
+    if (!query.trim()) return allBindings
+    return allBindings
       .map((b) => {
         const labelScore = fuzzyScore(query, b.cmd.label)
         const keysScore = b.shortcut ? fuzzyScore(query, b.shortcut) : -1
@@ -93,7 +95,7 @@ export function ShortcutsOverlay({
       .filter((r) => r.score >= 0)
       .sort((a, b) => b.score - a.score)
       .map((r) => r.entry)
-  }, [filteredByModifier, query])
+  }, [allBindings, query])
 
   const groups = useMemo(() => {
     const map = new Map<string, BindingEntry[]>()
@@ -106,17 +108,16 @@ export function ShortcutsOverlay({
   }, [filtered])
 
   const heldChips = useMemo(() => {
-    if (!heldModifiers || heldModifiers.size === 0) return []
     const order: ModifierName[] = ['meta', 'ctrl', 'alt', 'shift']
-    return order.filter((m) => heldModifiers.has(m)).map((m) => formatModifierChip(m))
-  }, [heldModifiers])
+    return order.filter((m) => heldMods.has(m)).map((m) => formatModifierChip(m))
+  }, [heldMods])
 
   return (
     <div
-      className={`${styles.backdrop} ${mode === 'transient' ? styles.backdropTransient : ''}`}
-      onClick={mode === 'persistent' ? onClose : undefined}
+      className={styles.backdrop}
+      onClick={onClose}
       role="dialog"
-      aria-modal={mode === 'persistent'}
+      aria-modal="true"
       aria-label="Keyboard shortcuts"
     >
       <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
@@ -125,24 +126,22 @@ export function ShortcutsOverlay({
           {heldChips.length > 0 && (
             <span className={styles.heldChips}>
               {heldChips.map((chip, i) => (
-                <kbd key={i} className={styles.kbd}>{chip}</kbd>
+                <kbd key={i} className={`${styles.kbd} ${styles.kbdHeld}`}>{chip}</kbd>
               ))}
             </span>
           )}
-          <span className={styles.hint}>{mode === 'persistent' ? 'Esc to close' : 'Release to close'}</span>
+          <span className={styles.hint}>Esc to close</span>
         </div>
-        {mode === 'persistent' && (
-          <div className={styles.searchWrapper}>
-            <input
-              ref={inputRef}
-              className={styles.search}
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search shortcuts..."
-            />
-          </div>
-        )}
+        <div className={styles.searchWrapper}>
+          <input
+            ref={inputRef}
+            className={styles.search}
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search shortcuts..."
+          />
+        </div>
         <div className={styles.body}>
           {filtered.length === 0 ? (
             <div className={styles.empty}>No matching shortcuts.</div>
@@ -150,10 +149,14 @@ export function ShortcutsOverlay({
             groups.map(([label, entries]) => (
               <div key={label} className={styles.group}>
                 <div className={styles.groupLabel}>{label}</div>
-                {entries.map(({ cmd, shortcut }) => {
+                {entries.map(({ cmd, shortcut, modifiers }) => {
                   const keys = shortcut ? formatKeybinding(shortcut, isMac) : ['Unbound']
+                  const highlighted = heldMods.size > 0 && modifiersEqual(modifiers, heldMods)
                   return (
-                    <div key={cmd.id} className={styles.row}>
+                    <div
+                      key={cmd.id}
+                      className={`${styles.row} ${highlighted ? styles.rowHighlighted : ''}`}
+                    >
                       <span className={styles.label}>{cmd.label}</span>
                       <span className={styles.keys}>
                         {keys.map((key, idx) => (
