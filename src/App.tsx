@@ -153,6 +153,7 @@ export default function App() {
   const [showCommandPalette, setShowCommandPalette] = useState(false)
   const [showGitPanel, setShowGitPanel] = useState(false)
   const [freeTerminalOpen, setFreeTerminalOpen] = useState(false)
+  const [chatInputHidden, setChatInputHidden] = useState(false)
   const [selectedProject, setSelectedProject] = useState<string | null>(persistedUi.selectedProject)
   const [expandedTilesByProject, setExpandedTilesByProject] = useState<Record<string, string | null>>(
     persistedUi.expandedTilesByProject
@@ -395,6 +396,10 @@ export default function App() {
         case 'toggle-terminal':
           if (viewMode !== 'chat') return false
           setFreeTerminalOpen((prev) => !prev)
+          return true
+        case 'toggle-chat-input':
+          if (viewMode !== 'chat') return false
+          setChatInputHidden((prev) => !prev)
           return true
         case 'file-search':
           if (!selectedAgentId) return false
@@ -701,6 +706,8 @@ export default function App() {
               theme={config.theme}
               freeTerminalOpen={freeTerminalOpen}
               onToggleFreeTerminal={() => setFreeTerminalOpen((prev) => !prev)}
+              chatInputHidden={chatInputHidden}
+              onToggleChatInput={() => setChatInputHidden((prev) => !prev)}
               gitPanelOpen={showGitPanel}
               onOpenGitPanel={() => setShowGitPanel(true)}
               onSwitchModel={(nextModel) => {

@@ -8,6 +8,7 @@ export type HydraCommandId =
   | 'toggle-global-yolo'
   | 'toggle-editor'
   | 'toggle-terminal'
+  | 'toggle-chat-input'
   | 'file-search'
   | 'save-file'
   | 'command-palette'
@@ -49,6 +50,7 @@ const COMMAND_DEFINITIONS = [
   { id: 'toggle-global-yolo', label: 'Toggle Global YOLO', category: 'Agents', showInShortcuts: true, showInPalette: true },
   { id: 'toggle-editor', label: 'Toggle Code Editor', category: 'Editor', showInShortcuts: true, showInPalette: true },
   { id: 'toggle-terminal', label: 'Toggle Terminal', category: 'Editor', showInShortcuts: true, showInPalette: false },
+  { id: 'toggle-chat-input', label: 'Toggle Chat Input', category: 'Editor', showInShortcuts: true, showInPalette: true },
   { id: 'file-search', label: 'Search Files', category: 'Editor', showInShortcuts: true, showInPalette: true },
   { id: 'save-file', label: 'Save File', category: 'Editor', showInShortcuts: true, showInPalette: false },
   { id: 'command-palette', label: 'Open Command Palette', category: 'Panels', showInShortcuts: true, showInPalette: false },
@@ -81,6 +83,7 @@ export const DEFAULT_KEYBINDINGS: KeybindingRule[] = [
   { command: 'toggle-global-yolo', keys: 'mod+shift+y' },
   { command: 'toggle-editor', keys: 'mod+e' },
   { command: 'toggle-terminal', keys: 'mod+j' },
+  { command: 'toggle-chat-input', keys: 'mod+shift+i' },
   { command: 'file-search', keys: 'mod+p' },
   { command: 'save-file', keys: 'mod+s' },
   { command: 'command-palette', keys: 'mod+shift+p' },

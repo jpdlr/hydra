@@ -41,6 +41,8 @@ interface ChatViewProps {
   onToggleFreeTerminal?: () => void
   gitPanelOpen?: boolean
   onOpenGitPanel?: () => void
+  chatInputHidden?: boolean
+  onToggleChatInput?: () => void
 }
 
 export function ChatView({
@@ -68,7 +70,9 @@ export function ChatView({
   freeTerminalOpen = false,
   onToggleFreeTerminal,
   gitPanelOpen = false,
-  onOpenGitPanel
+  onOpenGitPanel,
+  chatInputHidden = false,
+  onToggleChatInput
 }: ChatViewProps) {
   // Git branch for the current project
   const [gitBranch, setGitBranch] = useState<string | null>(null)
@@ -162,6 +166,15 @@ export function ChatView({
                 title="Toggle Terminal (Cmd+J)"
               >
                 <TermShellIcon />
+              </button>
+            )}
+            {onToggleChatInput && (
+              <button
+                className={`${styles.actionBtn} ${chatInputHidden ? styles.actionBtnActive : ''}`}
+                onClick={onToggleChatInput}
+                title={chatInputHidden ? 'Show Chat Input (Cmd+Shift+I)' : 'Hide Chat Input (Cmd+Shift+I)'}
+              >
+                <ChatBubbleIcon />
               </button>
             )}
             {onOpenGitPanel && (
@@ -261,26 +274,28 @@ export function ChatView({
 
       <div className={styles.bottomDock}>
         {/* Input */}
-        <InputBar
-          onSend={(input, images) => onSendInput(input, images)}
-          onModelChange={onSwitchModel}
-          disabled={agent.status === 'starting'}
-          provider={agent.provider}
-          model={agent.model}
-          gitBranch={gitBranch}
-          projectDir={agent.projectDir}
-          onBranchChanged={setGitBranch}
-          workMode={agent.workMode}
-          worktreeBranch={agent.worktreeBranch}
+        {!chatInputHidden && (
+          <InputBar
+            onSend={(input, images) => onSendInput(input, images)}
+            onModelChange={onSwitchModel}
+            disabled={agent.status === 'starting'}
+            provider={agent.provider}
+            model={agent.model}
+            gitBranch={gitBranch}
+            projectDir={agent.projectDir}
+            onBranchChanged={setGitBranch}
+            workMode={agent.workMode}
+            worktreeBranch={agent.worktreeBranch}
 
-          placeholder={
-            agent.status === 'errored'
-              ? 'Session disconnected. Send to auto-restart...'
-              : agent.status === 'idle'
-                ? 'Send to start this session...'
-                : 'Send a message...'
-          }
-        />
+            placeholder={
+              agent.status === 'errored'
+                ? 'Session disconnected. Send to auto-restart...'
+                : agent.status === 'idle'
+                  ? 'Send to start this session...'
+                  : 'Send a message...'
+            }
+          />
+        )}
 
         {/* Free terminal slider (below chat input) */}
         {onToggleFreeTerminal && (
@@ -422,6 +437,23 @@ function StatusBadge({ status }: { status: string }) {
       <span className={styles.statusDot} style={{ background: colors[status] }} />
       {status.charAt(0).toUpperCase() + status.slice(1)}
     </span>
+  )
+}
+
+function ChatBubbleIcon() {
+  return (
+    <svg
+      className={styles.actionIcon}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 4h10a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H7l-3 2.5V11H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" />
+    </svg>
   )
 }
 
