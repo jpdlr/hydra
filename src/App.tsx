@@ -848,6 +848,7 @@ export default function App() {
           defaultModel={config.defaultModel}
           defaultProjectDir={newAgentPrefillDir || config.defaultProjectDir}
           globalYolo={config.globalYolo}
+          knownProjectDirs={projectGroups.map((g) => g.projectDir)}
           onSubmit={async (payload) => {
             if (!(await ensurePreflightReady())) return
             await createAgent(payload)

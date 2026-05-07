@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
-import type { ModelId, ProviderId, CreateAgentPayload, ClaudeSessionSummary, McpServerStatus, WorkMode } from '@shared/types'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ModelId, ProviderId, CreateAgentPayload, ClaudeSessionSummary, DirSuggestion, McpServerStatus, WorkMode } from '@shared/types'
 import { PROVIDER_LABELS, CODEX_REASONING_LEVELS } from '@shared/types'
 import { useRuntimeProviderModels } from '../../hooks/useRuntimeProviderModels'
+import { fuzzyScore } from '../../lib/fuzzy'
 import claudeIcon from '../../assets/icons/claude.svg'
 import codexIcon from '../../assets/icons/codex.svg'
 import opencodeIcon from '../../assets/icons/opencode.svg'
@@ -16,6 +17,7 @@ interface NewAgentDialogProps {
   defaultModel: ModelId
   defaultProjectDir: string
   globalYolo: boolean
+  knownProjectDirs?: string[]
   onSubmit: (payload: CreateAgentPayload) => void
   onClose: () => void
 }
@@ -25,6 +27,7 @@ export function NewAgentDialog({
   defaultModel,
   defaultProjectDir,
   globalYolo,
+  knownProjectDirs = [],
   onSubmit,
   onClose
 }: NewAgentDialogProps) {
@@ -155,6 +158,114 @@ export function NewAgentDialog({
     if (dir) setProjectDir(dir)
   }
 
+  // ── Project directory combobox ─────────────────────────────────────────
+  const [dirFsResults, setDirFsResults] = useState<DirSuggestion[]>([])
+  const [dirSuggestionsOpen, setDirSuggestionsOpen] = useState(false)
+  const [dirActiveIdx, setDirActiveIdx] = useState(0)
+  const dirComboRef = useRef<HTMLDivElement>(null)
+
+  const knownProjectMatches = useMemo(() => {
+    const query = projectDir.trim()
+    const seen = new Set<string>()
+    const dedup = knownProjectDirs.filter((p) => {
+      if (!p || seen.has(p)) return false
+      seen.add(p)
+      return true
+    })
+    if (!query) {
+      return dedup.slice(0, 8).map((path) => ({ path, score: 0 }))
+    }
+    const scored = dedup
+      .map((path) => ({ path, score: fuzzyScore(query, path) }))
+      .filter((entry) => entry.score >= 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 8)
+    return scored
+  }, [knownProjectDirs, projectDir])
+
+  useEffect(() => {
+    const query = projectDir.trim()
+    const looksLikePath = query.startsWith('/') || query.startsWith('~')
+    if (!looksLikePath) {
+      setDirFsResults([])
+      return
+    }
+    let cancelled = false
+    const handle = setTimeout(() => {
+      window.hydra
+        .listDirectories(query)
+        .then((results) => {
+          if (!cancelled) setDirFsResults(results)
+        })
+        .catch(() => {
+          if (!cancelled) setDirFsResults([])
+        })
+    }, 80)
+    return () => {
+      cancelled = true
+      clearTimeout(handle)
+    }
+  }, [projectDir])
+
+  const dirSuggestions = useMemo(() => {
+    const list: Array<{ kind: 'recent' | 'fs'; path: string; isGitRepo?: boolean }> = []
+    const seen = new Set<string>()
+    for (const entry of knownProjectMatches) {
+      if (seen.has(entry.path)) continue
+      seen.add(entry.path)
+      list.push({ kind: 'recent', path: entry.path })
+    }
+    for (const entry of dirFsResults) {
+      if (seen.has(entry.path)) continue
+      seen.add(entry.path)
+      list.push({ kind: 'fs', path: entry.path, isGitRepo: entry.isGitRepo })
+    }
+    return list
+  }, [knownProjectMatches, dirFsResults])
+
+  useEffect(() => {
+    setDirActiveIdx(0)
+  }, [dirSuggestions])
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!dirComboRef.current) return
+      if (!dirComboRef.current.contains(e.target as Node)) {
+        setDirSuggestionsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const acceptDirSuggestion = (path: string) => {
+    setProjectDir(path)
+    setDirSuggestionsOpen(false)
+  }
+
+  const handleDirKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!dirSuggestionsOpen || dirSuggestions.length === 0) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setDirActiveIdx((i) => (i + 1) % dirSuggestions.length)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setDirActiveIdx((i) => (i - 1 + dirSuggestions.length) % dirSuggestions.length)
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      const choice = dirSuggestions[dirActiveIdx]
+      if (choice) acceptDirSuggestion(choice.path)
+    } else if (e.key === 'Escape') {
+      setDirSuggestionsOpen(false)
+    } else if (e.key === 'Tab' && dirSuggestions[dirActiveIdx]) {
+      e.preventDefault()
+      acceptDirSuggestion(dirSuggestions[dirActiveIdx].path)
+    }
+  }
+
+  const recentCount = knownProjectMatches.length
+  const fsCount = dirFsResults.length
+
   return (
     <div className={styles.overlay} onClick={onClose}>
       <form
@@ -188,14 +299,62 @@ export function NewAgentDialog({
             <div className={styles.field}>
               <label className={styles.label}>Project Directory</label>
               <div className={styles.dirField}>
-                <input
-                  className={styles.dirInput}
-                  type="text"
-                  value={projectDir}
-                  onChange={(e) => setProjectDir(e.target.value)}
-                  placeholder="/path/to/project"
-                  required
-                />
+                <div className={styles.dirInputWrap} ref={dirComboRef}>
+                  <input
+                    className={`${styles.input} ${styles.dirInput}`}
+                    type="text"
+                    value={projectDir}
+                    onChange={(e) => {
+                      setProjectDir(e.target.value)
+                      setDirSuggestionsOpen(true)
+                    }}
+                    onFocus={() => setDirSuggestionsOpen(true)}
+                    onKeyDown={handleDirKeyDown}
+                    placeholder="/path/to/project — type to search"
+                    autoComplete="off"
+                    spellCheck={false}
+                    role="combobox"
+                    aria-expanded={dirSuggestionsOpen && dirSuggestions.length > 0}
+                    aria-autocomplete="list"
+                    required
+                  />
+                  {dirSuggestionsOpen && dirSuggestions.length > 0 && (
+                    <div className={styles.dirSuggestions} role="listbox">
+                      {recentCount > 0 && (
+                        <div className={styles.dirSuggestionGroupLabel}>Recent</div>
+                      )}
+                      {dirSuggestions.map((sug, idx) => {
+                        const isFirstFs = sug.kind === 'fs' && idx === recentCount
+                        return (
+                          <div key={`${sug.kind}-${sug.path}`}>
+                            {isFirstFs && fsCount > 0 && (
+                              <div className={styles.dirSuggestionGroupLabel}>Folders</div>
+                            )}
+                            <button
+                              type="button"
+                              role="option"
+                              aria-selected={idx === dirActiveIdx}
+                              className={`${styles.dirSuggestion} ${idx === dirActiveIdx ? styles.dirSuggestionActive : ''}`}
+                              onMouseEnter={() => setDirActiveIdx(idx)}
+                              onMouseDown={(e) => {
+                                e.preventDefault()
+                                acceptDirSuggestion(sug.path)
+                              }}
+                            >
+                              <span className={styles.dirSuggestionName}>{sug.path}</span>
+                              {sug.isGitRepo && (
+                                <span className={styles.dirSuggestionGit}>git</span>
+                              )}
+                              {sug.kind === 'recent' && (
+                                <span className={styles.dirSuggestionMeta}>recent</span>
+                              )}
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
                 <button
                   className={styles.browseBtn}
                   type="button"

@@ -131,6 +131,12 @@ export type TerminalCursorStyle = 'block' | 'bar' | 'underline'
  * - `idle`     : kill terminals with no input for `freeTerminalIdleTimeoutMinutes`
  */
 export type FreeTerminalLifecyclePolicy = 'explicit' | 'lru' | 'idle'
+/**
+ * How an auxiliary panel (Git, Editor) is presented when toggled open.
+ * - `overlay` : slides in from the right above the main content; rest of UI stays interactive.
+ * - `split`   : occupies a resizable column alongside the main content (classic split view).
+ */
+export type PanelDisplayMode = 'overlay' | 'split'
 export interface AppConfig {
   schemaVersion: number
   defaultProvider: ProviderId
@@ -178,6 +184,11 @@ export interface AppConfig {
   freeTerminalIdleTimeoutMinutes: number
   /** Max scrollback lines retained per terminal for replay. */
   freeTerminalScrollbackLines: number
+  // ── Panels (Git / Editor) ────────────────────────────────────────────────
+  /** Display mode for the Git panel (Cmd+G). */
+  gitPanelDisplayMode: PanelDisplayMode
+  /** Display mode for the Editor panel (Cmd+E). */
+  editorPanelDisplayMode: PanelDisplayMode
 }
 
 export const MAX_CONCURRENT_AGENTS_HARD_LIMIT = 10
@@ -215,7 +226,9 @@ export const DEFAULT_CONFIG: AppConfig = {
   freeTerminalLifecyclePolicy: 'explicit',
   freeTerminalMaxCount: 6,
   freeTerminalIdleTimeoutMinutes: 60,
-  freeTerminalScrollbackLines: 5000
+  freeTerminalScrollbackLines: 5000,
+  gitPanelDisplayMode: 'overlay',
+  editorPanelDisplayMode: 'overlay'
 }
 
 // ── IPC Channels ─────────────────────────────────────────────────────────────
@@ -257,6 +270,7 @@ export const IPC = {
 
   // Dialog
   DIALOG_SELECT_DIR: 'dialog:select-dir',
+  FS_LIST_DIRS: 'fs:list-dirs',
 
   // Shell
   OPEN_IN_EDITOR: 'shell:open-in-editor',
@@ -710,6 +724,12 @@ export interface FsSearchResult {
   path: string
   name: string
   isDirectory: false
+}
+
+export interface DirSuggestion {
+  path: string
+  name: string
+  isGitRepo: boolean
 }
 
 export interface FsWatchEventPayload {

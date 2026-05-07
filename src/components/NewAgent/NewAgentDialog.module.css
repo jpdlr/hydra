@@ -124,10 +124,83 @@
   gap: var(--space-2);
 }
 
-.dirInput {
+.dirInputWrap {
   flex: 1;
+  position: relative;
+}
+
+.dirInput {
+  width: 100%;
   font-size: var(--font-size-sm);
   font-family: var(--font-mono);
+}
+
+.dirSuggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 10;
+  max-height: 280px;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-1);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.dirSuggestionGroupLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  padding: var(--space-2) var(--space-2) var(--space-1);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dirSuggestion {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-mono);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  background: transparent;
+}
+
+.dirSuggestion:hover,
+.dirSuggestionActive {
+  background: var(--color-surface-hover);
+}
+
+.dirSuggestionName {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dirSuggestionMeta {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-family: var(--font-ui);
+  flex-shrink: 0;
+}
+
+.dirSuggestionGit {
+  font-size: var(--font-size-xs);
+  color: var(--color-accent);
+  font-family: var(--font-ui);
+  flex-shrink: 0;
 }
 
 .browseBtn {

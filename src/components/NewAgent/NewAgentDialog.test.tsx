@@ -29,6 +29,7 @@ describe('NewAgentDialog', () => {
       ...window.hydra,
       listClaudeSessions: vi.fn().mockResolvedValue(sessions),
       selectDirectory: vi.fn().mockResolvedValue(null),
+      listDirectories: vi.fn().mockResolvedValue([]),
       getMcpServerStatus: vi.fn().mockResolvedValue({
         running: false,
         port: null,
@@ -82,7 +83,7 @@ describe('NewAgentDialog', () => {
       { timeout: 10000 }
     )
 
-    const projectInput = screen.getByPlaceholderText('/path/to/project') as HTMLInputElement
+    const projectInput = screen.getByPlaceholderText(/path\/to\/project/) as HTMLInputElement
     await waitFor(
       () => {
         expect(projectInput.value).toBe('/Users/jp/projects/ep_inventory')

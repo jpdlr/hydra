@@ -1,8 +1,9 @@
 import { ipcMain, dialog, BrowserWindow, shell, clipboard, nativeImage } from 'electron'
 import { execFile } from 'child_process'
 import { existsSync } from 'fs'
+import { readdir } from 'fs/promises'
 import { homedir } from 'os'
-import { join } from 'path'
+import { dirname, basename, join, isAbsolute } from 'path'
 import { DaemonClient } from '../daemon/DaemonClient'
 import { ConfigStore } from '../config/ConfigStore'
 import { NotificationService } from '../notifications/NotificationService'
@@ -91,7 +92,13 @@ const appConfigPatchSchema = z
     terminalFontSize: z.number().int().min(8).max(32).optional(),
     terminalCursorStyle: z.enum(['block', 'bar', 'underline']).optional(),
     terminalCursorBlink: z.boolean().optional(),
-    terminalEnableWebgl: z.boolean().optional()
+    terminalEnableWebgl: z.boolean().optional(),
+    freeTerminalLifecyclePolicy: z.enum(['explicit', 'lru', 'idle']).optional(),
+    freeTerminalMaxCount: z.number().int().min(1).max(50).optional(),
+    freeTerminalIdleTimeoutMinutes: z.number().int().min(1).max(1440).optional(),
+    freeTerminalScrollbackLines: z.number().int().min(100).max(100000).optional(),
+    gitPanelDisplayMode: z.enum(['overlay', 'split']).optional(),
+    editorPanelDisplayMode: z.enum(['overlay', 'split']).optional()
   })
   .strict()
 const headlessStartSchema = z.object({
@@ -456,6 +463,51 @@ export function registerIpcHandlers(
       return null
     }
     return result.filePaths[0]
+  })
+
+  ipcMain.handle(IPC.FS_LIST_DIRS, async (_event, rawQuery: unknown) => {
+    const query = typeof rawQuery === 'string' ? rawQuery : ''
+    if (!query) return []
+
+    let expanded = query
+    if (expanded === '~' || expanded.startsWith('~/')) {
+      expanded = join(homedir(), expanded.slice(1))
+    }
+    if (!isAbsolute(expanded)) return []
+
+    const endsWithSep = expanded.endsWith('/')
+    const parent = endsWithSep ? expanded : dirname(expanded)
+    const prefix = endsWithSep ? '' : basename(expanded)
+    const prefixLower = prefix.toLowerCase()
+    const includeHidden = prefix.startsWith('.')
+
+    let entries
+    try {
+      entries = await readdir(parent, { withFileTypes: true })
+    } catch {
+      return []
+    }
+
+    const matches = []
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      if (!includeHidden && entry.name.startsWith('.')) continue
+      if (prefixLower && !entry.name.toLowerCase().startsWith(prefixLower)) continue
+      const fullPath = join(parent, entry.name)
+      matches.push({
+        path: fullPath,
+        name: entry.name,
+        isGitRepo: existsSync(join(fullPath, '.git'))
+      })
+      if (matches.length >= 50) break
+    }
+
+    matches.sort((a, b) => {
+      if (a.isGitRepo !== b.isGitRepo) return a.isGitRepo ? -1 : 1
+      return a.name.localeCompare(b.name)
+    })
+
+    return matches
   })
 
   // ── Shell ────────────────────────────────────────────────────────────────

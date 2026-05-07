@@ -29,6 +29,7 @@ import type {
   FsReadFileResult,
   FsSearchResult,
   FsWatchEventPayload,
+  DirSuggestion,
   GitStatus,
   GitCommit,
   GitBranch,
@@ -131,6 +132,8 @@ const hydraApi = {
   // Dialog
   selectDirectory: (): Promise<string | null> =>
     ipcRenderer.invoke(IPC.DIALOG_SELECT_DIR),
+  listDirectories: (query: string): Promise<DirSuggestion[]> =>
+    ipcRenderer.invoke(IPC.FS_LIST_DIRS, query),
 
   // Shell
   openInEditor: (dir: string): Promise<boolean> =>
