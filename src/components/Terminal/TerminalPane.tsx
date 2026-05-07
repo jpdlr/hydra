@@ -218,6 +218,16 @@ export function TerminalPane({
         e.preventDefault()
         e.stopPropagation()
         onDataRef.current?.('\n')
+        return
+      }
+      // Cmd/Ctrl+Backspace → clear input line (readline kill-line, Ctrl+U).
+      // macOS sends nothing for Cmd+Backspace by default; emit ^U so the
+      // shell wipes from cursor to start-of-line, matching native input fields.
+      if (e.key === 'Backspace' && (e.metaKey || (e.ctrlKey && !e.shiftKey && !e.altKey)) && !e.altKey) {
+        e.preventDefault()
+        e.stopPropagation()
+        onDataRef.current?.('\u0015')
+        return
       }
     }
     wrapper.addEventListener('keydown', handleKeyDown, true) // capture phase
