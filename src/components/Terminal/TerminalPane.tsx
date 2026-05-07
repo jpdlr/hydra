@@ -229,6 +229,27 @@ export function TerminalPane({
         onDataRef.current?.('\u0015')
         return
       }
+      // Cmd+Left / Cmd+Right → start / end of line (readline ^A / ^E).
+      if (e.metaKey && !e.ctrlKey && !e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault()
+        e.stopPropagation()
+        onDataRef.current?.(e.key === 'ArrowLeft' ? '' : '')
+        return
+      }
+      // Option+Left / Option+Right → previous / next word (ESC b / ESC f).
+      if (e.altKey && !e.metaKey && !e.ctrlKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault()
+        e.stopPropagation()
+        onDataRef.current?.(e.key === 'ArrowLeft' ? 'b' : 'f')
+        return
+      }
+      // Option+Backspace → delete previous word (readline ^W).
+      if (e.key === 'Backspace' && e.altKey && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault()
+        e.stopPropagation()
+        onDataRef.current?.('')
+        return
+      }
     }
     wrapper.addEventListener('keydown', handleKeyDown, true) // capture phase
 
