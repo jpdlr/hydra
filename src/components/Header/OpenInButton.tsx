@@ -3,6 +3,7 @@ import type { EditorId } from '@shared/types'
 import { EDITOR_REGISTRY } from '@shared/types'
 import { fallbackOpenInEditors, getEditorLabel, normalizeInstalledEditors } from '../../lib/editorUtils'
 import { EditorIcon } from '../shared/EditorIcon'
+import { Tooltip } from '../Tooltip'
 import styles from './OpenInButton.module.css'
 
 interface OpenInButtonProps {
@@ -66,21 +67,20 @@ export function OpenInButton({ projectDir, defaultEditor, onSetDefaultEditor }: 
 
   return (
     <div className={styles.container} ref={containerRef}>
-      <button
-        className={styles.mainBtn}
-        onClick={handleMainClick}
-        title={`Open in ${defaultLabel}`}
-      >
-        <EditorIcon editor={defaultEditor} size={14} />
-        <span className={styles.label}>Open</span>
-      </button>
-      <button
-        className={`${styles.chevronBtn} ${open ? styles.chevronBtnOpen : ''}`}
-        onClick={() => setOpen(!open)}
-        title="Open in..."
-      >
-        <ChevronIcon />
-      </button>
+      <Tooltip content={`Open in ${defaultLabel}`}>
+        <button className={styles.mainBtn} onClick={handleMainClick}>
+          <EditorIcon editor={defaultEditor} size={14} />
+          <span className={styles.label}>Open</span>
+        </button>
+      </Tooltip>
+      <Tooltip content="Choose editor">
+        <button
+          className={`${styles.chevronBtn} ${open ? styles.chevronBtnOpen : ''}`}
+          onClick={() => setOpen(!open)}
+        >
+          <ChevronIcon />
+        </button>
+      </Tooltip>
 
       {open && (
         <div className={styles.dropdown}>

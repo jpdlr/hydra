@@ -1,5 +1,6 @@
 import { ViewSwitcher } from './ViewSwitcher'
 import { OpenInButton } from './OpenInButton'
+import { Tooltip } from '../Tooltip'
 import type { ViewMode, EditorId } from '@shared/types'
 import styles from './Header.module.css'
 
@@ -77,28 +78,34 @@ export function Header({
           onSetDefaultEditor={onSetDefaultEditor}
         />
         {showUpdateAction && (
-          <button
-            className={`${styles.updateBtn} ${updateReadyToInstall ? styles.updateReady : updateAvailable ? styles.updateAvailable : ''}`}
-            onClick={onOpenUpdates}
-            title={updateReadyToInstall ? 'Update ready to install' : 'Check for app updates'}
-          >
-            {updateReadyToInstall ? 'Install Update' : updateAvailable ? 'Update Available' : 'Updates'}
-          </button>
+          <Tooltip content={updateReadyToInstall ? 'Update ready to install' : 'Check for app updates'}>
+            <button
+              className={`${styles.updateBtn} ${updateReadyToInstall ? styles.updateReady : updateAvailable ? styles.updateAvailable : ''}`}
+              onClick={onOpenUpdates}
+            >
+              {updateReadyToInstall ? 'Install Update' : updateAvailable ? 'Update Available' : 'Updates'}
+            </button>
+          </Tooltip>
         )}
         {/* Headless button hidden — functionality preserved, just not exposed in header for now */}
-        <button
-          className={`${styles.remoteBtn} ${remoteActive ? styles.remoteActive : ''}`}
-          onClick={onOpenRemote}
-          title="Remote Control"
-        >
-          Remote
-        </button>
-        <button className={styles.usageBtn} onClick={onOpenUsage} title="Usage Dashboard">
-          Usage
-        </button>
-        <button className={styles.settingsBtn} onClick={onOpenSettings} title="Settings">
-          <SettingsIcon />
-        </button>
+        <Tooltip content="Remote Control">
+          <button
+            className={`${styles.remoteBtn} ${remoteActive ? styles.remoteActive : ''}`}
+            onClick={onOpenRemote}
+          >
+            Remote
+          </button>
+        </Tooltip>
+        <Tooltip content="Usage Dashboard">
+          <button className={styles.usageBtn} onClick={onOpenUsage}>
+            Usage
+          </button>
+        </Tooltip>
+        <Tooltip content="Settings">
+          <button className={styles.settingsBtn} onClick={onOpenSettings}>
+            <SettingsIcon />
+          </button>
+        </Tooltip>
       </div>
     </header>
   )
