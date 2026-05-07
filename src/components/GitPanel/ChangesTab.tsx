@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react'
 import type { GitStatus, GitCommit, GitFileContents } from '@shared/types'
 import { MonacoDiffViewer } from './MonacoDiffViewer'
+import { PierreDiffViewer } from './PierreDiffViewer'
+import { useFeatureFlag } from '../../lib/featureFlags'
 import styles from './ChangesTab.module.css'
 
 interface ChangesTabProps {
@@ -32,6 +34,7 @@ export function ChangesTab({
   onRefresh,
   onExpandedChange
 }: ChangesTabProps) {
+  const useExperimentalViews = useFeatureFlag('experimentalViews')
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
   const [fileContents, setFileContents] = useState<GitFileContents | null>(null)
   const [loadingDiff, setLoadingDiff] = useState(false)
@@ -202,13 +205,23 @@ export function ChangesTab({
           {loadingDiff ? (
             <div className={styles.loading}>Loading diff...</div>
           ) : fileContents ? (
-            <MonacoDiffViewer
-              original={fileContents.original}
-              modified={fileContents.modified}
-              language={fileContents.language}
-              theme={theme}
-              filePath={selectedFile!}
-            />
+            useExperimentalViews ? (
+              <PierreDiffViewer
+                original={fileContents.original}
+                modified={fileContents.modified}
+                language={fileContents.language}
+                theme={theme}
+                filePath={selectedFile!}
+              />
+            ) : (
+              <MonacoDiffViewer
+                original={fileContents.original}
+                modified={fileContents.modified}
+                language={fileContents.language}
+                theme={theme}
+                filePath={selectedFile!}
+              />
+            )
           ) : (
             <div className={styles.empty}>(unable to load diff)</div>
           )}
