@@ -31,9 +31,10 @@ async function walkProject(
     for (const entry of entries) {
       if (out.length >= MAX_PATHS) break
       const path = dir === '.' ? entry.name : `${dir}/${entry.name}`
-      out.push(path)
-      if (entry.isDirectory && depth < MAX_DEPTH) {
-        queue.push({ dir: path, depth: depth + 1 })
+      if (entry.isDirectory) {
+        if (depth < MAX_DEPTH) queue.push({ dir: path, depth: depth + 1 })
+      } else {
+        out.push(path)
       }
     }
   }

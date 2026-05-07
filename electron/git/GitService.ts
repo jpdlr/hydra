@@ -31,6 +31,15 @@ async function assertGitRepo(projectDir: string): Promise<void> {
   await access(join(projectDir, '.git'))
 }
 
+async function isGitRepo(projectDir: string): Promise<boolean> {
+  try {
+    await access(join(projectDir, '.git'))
+    return true
+  } catch {
+    return false
+  }
+}
+
 const LANG_MAP: Record<string, string> = {
   ts: 'typescript', tsx: 'typescript', js: 'javascript', jsx: 'javascript',
   json: 'json', css: 'css', scss: 'scss', html: 'html', md: 'markdown',
@@ -67,7 +76,9 @@ export class GitService {
   // ── Existing methods ────────────────────────────────────────────────────
 
   async getStatus(projectDir: string): Promise<GitStatus> {
-    await assertGitRepo(projectDir)
+    if (!(await isGitRepo(projectDir))) {
+      return { branch: '', ahead: 0, behind: 0, modified: [], staged: [], untracked: [] }
+    }
 
     const branchOut = await run(projectDir, ['rev-parse', '--abbrev-ref', 'HEAD'])
     const branch = branchOut.trim()
@@ -106,7 +117,7 @@ export class GitService {
   }
 
   async getLog(projectDir: string, limit = 20): Promise<GitCommit[]> {
-    await assertGitRepo(projectDir)
+    if (!(await isGitRepo(projectDir))) return []
     const out = await run(projectDir, [
       'log',
       `--max-count=${limit}`,
@@ -124,7 +135,9 @@ export class GitService {
   }
 
   async getDiffStats(projectDir: string): Promise<GitDiffStats> {
-    await assertGitRepo(projectDir)
+    if (!(await isGitRepo(projectDir))) {
+      return { additions: 0, deletions: 0, files: 0 }
+    }
     let additions = 0
     let deletions = 0
     const changedFiles = new Set<string>()
