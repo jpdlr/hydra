@@ -151,17 +151,23 @@ export class FileSystemService {
     let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
     const watcher = watch(projectDir, { recursive: true }, (eventType, filename) => {
-      if (!filename) return
-      // Ignore changes in filtered directories
-      const parts = filename.split('/')
-      if (parts.some((p) => IGNORED_NAMES.has(p))) return
+      // macOS FSEvents sometimes delivers `filename === null` (notably when a
+      // top-level directory is created). Treat as a generic refresh of the root
+      // rather than dropping the event.
+      const name = filename ?? ''
+
+      if (name) {
+        // Ignore changes in filtered directories (only when we know the path).
+        const parts = name.split('/')
+        if (parts.some((p) => IGNORED_NAMES.has(p))) return
+      }
 
       if (debounceTimer) clearTimeout(debounceTimer)
       debounceTimer = setTimeout(() => {
         onEvent({
           agentId,
           eventType: eventType === 'rename' ? 'rename' : 'change',
-          path: filename
+          path: name
         })
       }, 300)
     })

@@ -32,6 +32,9 @@ async function walkProject(
       if (out.length >= MAX_PATHS) break
       const path = dir === '.' ? entry.name : `${dir}/${entry.name}`
       if (entry.isDirectory) {
+        // Trailing slash tells Pierre this is an explicit directory, so empty
+        // folders still render in the tree.
+        out.push(`${path}/`)
         if (depth < MAX_DEPTH) queue.push({ dir: path, depth: depth + 1 })
       } else {
         out.push(path)
@@ -130,6 +133,9 @@ export function PierreFileTree({
     const abs = rel.startsWith('/') ? rel : `${rootPath.replace(/\/$/, '')}/${rel}`
     dt.setData('text/plain', abs)
     dt.setData('application/x-hydra-filepath', abs)
+    // Pierre defaults to "move"; chat input + terminal accept copy. Allow both
+    // so drop targets that set dropEffect = 'copy' are not rejected.
+    dt.effectAllowed = 'copyMove'
   }
 
   if (loading) {
