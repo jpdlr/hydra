@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { GitStatus, GitCommit, ProviderId, ModelId } from '@shared/types'
 import { ChangesTab } from './ChangesTab'
 import { BranchesTab } from './BranchesTab'
@@ -34,6 +34,24 @@ export function GitPanel({
   const [error, setError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(false)
 
+  const COLLAPSED_WIDTH = 480
+  const EXPANDED_WIDTH = 900
+  const MIN_WIDTH = 360
+  const MAX_WIDTH = typeof window !== 'undefined' ? Math.floor(window.innerWidth * 0.95) : 1600
+
+  const [panelWidth, setPanelWidth] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('hydra.gitPanel.width')
+      if (saved) return Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, parseInt(saved, 10)))
+    } catch {
+      // ignore
+    }
+    return COLLAPSED_WIDTH
+  })
+  const [isResizing, setIsResizing] = useState(false)
+  const userResizedRef = useRef(false)
+  const resizeStartRef = useRef({ x: 0, w: 0 })
+
   const refresh = useCallback(async () => {
     setError(null)
     try {
@@ -54,12 +72,68 @@ export function GitPanel({
 
   const isExpanded = expanded || activeTab === 'pr-review'
 
+  // Auto-bump width when entering expanded state (diff/PR review), but never
+  // shrink the user's chosen width. Once the user drags, they own it.
+  useEffect(() => {
+    if (userResizedRef.current) return
+    if (isExpanded && panelWidth < EXPANDED_WIDTH) setPanelWidth(EXPANDED_WIDTH)
+    if (!isExpanded && panelWidth > COLLAPSED_WIDTH) setPanelWidth(COLLAPSED_WIDTH)
+  }, [isExpanded, panelWidth])
+
+  const handlePanelResizeDown = useCallback(
+    (e: React.PointerEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      resizeStartRef.current = { x: e.clientX, w: panelWidth }
+      setIsResizing(true)
+      const target = e.currentTarget as HTMLElement
+      target.setPointerCapture(e.pointerId)
+
+      const onMove = (ev: PointerEvent) => {
+        // Panel sits on the right; dragging left grows it.
+        const delta = resizeStartRef.current.x - ev.clientX
+        const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, resizeStartRef.current.w + delta))
+        setPanelWidth(next)
+      }
+      const onUp = () => {
+        setIsResizing(false)
+        userResizedRef.current = true
+        try {
+          localStorage.setItem('hydra.gitPanel.width', String(resizeStartRef.current.w))
+        } catch {
+          // ignore
+        }
+        target.releasePointerCapture(e.pointerId)
+        target.removeEventListener('pointermove', onMove)
+        target.removeEventListener('pointerup', onUp)
+      }
+      target.addEventListener('pointermove', onMove)
+      target.addEventListener('pointerup', onUp)
+    },
+    [panelWidth, MAX_WIDTH]
+  )
+
+  // Persist on every settled change (covers the auto-bump + drag end).
+  useEffect(() => {
+    try {
+      localStorage.setItem('hydra.gitPanel.width', String(panelWidth))
+    } catch {
+      // ignore
+    }
+  }, [panelWidth])
+
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div
-        className={`${styles.panel} ${isExpanded ? styles.panelExpanded : ''}`}
+        className={`${styles.panel} ${isResizing ? '' : styles.panelTransition}`}
+        style={{ width: panelWidth }}
         onClick={(e) => e.stopPropagation()}
       >
+        <div
+          className={`${styles.panelResize} ${isResizing ? styles.panelResizeActive : ''}`}
+          onPointerDown={handlePanelResizeDown}
+          title="Drag to resize"
+        />
         <div className={styles.header}>
           <h2>Git</h2>
           {status && (
