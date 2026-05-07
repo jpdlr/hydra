@@ -18,4 +18,9 @@ if (typeof window !== 'undefined') {
   }
   Object.defineProperty(window, 'localStorage', { value: localStorageShim, writable: true, configurable: true })
   Object.defineProperty(globalThis, 'localStorage', { value: localStorageShim, writable: true, configurable: true })
+
+  // Monaco's clipboard contribution probes document.queryCommandSupported at load time.
+  if (typeof document !== 'undefined' && typeof (document as Document & { queryCommandSupported?: unknown }).queryCommandSupported !== 'function') {
+    (document as Document & { queryCommandSupported?: (cmd: string) => boolean }).queryCommandSupported = () => false
+  }
 }

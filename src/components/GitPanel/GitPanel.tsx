@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { GitStatus, GitCommit, ProviderId, ModelId } from '@shared/types'
+import type { GitStatus, GitCommit, ProviderId, ModelId, PanelDisplayMode } from '@shared/types'
 import { ChangesTab } from './ChangesTab'
 import { BranchesTab } from './BranchesTab'
 import { PrReviewTab } from './PrReviewTab'
@@ -19,6 +19,7 @@ interface GitPanelProps {
   defaultProvider: ProviderId
   defaultModel: ModelId
   onClose: () => void
+  displayMode?: PanelDisplayMode
 }
 
 export function GitPanel({
@@ -26,7 +27,8 @@ export function GitPanel({
   theme,
   defaultProvider,
   defaultModel,
-  onClose
+  onClose,
+  displayMode = 'overlay'
 }: GitPanelProps) {
   const [activeTab, setActiveTab] = useState<GitTab>('changes')
   const [status, setStatus] = useState<GitStatus | null>(null)
@@ -120,13 +122,12 @@ export function GitPanel({
     }
   }, [panelWidth])
 
-  return (
-    <div className={styles.overlay} onClick={onClose}>
-      <div
-        className={`${styles.panel} ${isResizing ? '' : styles.panelTransition}`}
-        style={{ width: panelWidth }}
-        onClick={(e) => e.stopPropagation()}
-      >
+  const isOverlay = displayMode === 'overlay'
+  const panelInner = (
+    <div
+      className={`${styles.panel} ${isResizing ? '' : styles.panelTransition} ${isOverlay ? styles.panelOverlay : styles.panelSplit}`}
+      style={{ width: panelWidth }}
+    >
         <div
           className={`${styles.panelResize} ${isResizing ? styles.panelResizeActive : ''}`}
           onPointerDown={handlePanelResizeDown}
@@ -195,7 +196,9 @@ export function GitPanel({
             />
           )}
         </div>
-      </div>
     </div>
   )
+
+  if (!isOverlay) return panelInner
+  return <div className={styles.overlay}>{panelInner}</div>
 }

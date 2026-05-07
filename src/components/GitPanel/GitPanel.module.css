@@ -1,11 +1,12 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.06);
   display: flex;
   align-items: stretch;
   justify-content: flex-end;
   z-index: 100;
+  pointer-events: none;
 }
 
 .panel {
@@ -17,6 +18,17 @@
   flex-direction: column;
   overflow: hidden;
   position: relative;
+}
+
+.panelOverlay {
+  pointer-events: auto;
+  box-shadow: var(--shadow-lg, -4px 0 20px rgba(0, 0, 0, 0.18));
+}
+
+.panelSplit {
+  height: 100%;
+  border-left: 1px solid var(--color-border);
+  flex-shrink: 0;
 }
 
 .panelTransition {

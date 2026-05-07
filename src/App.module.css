@@ -126,6 +126,50 @@
   }
 }
 
+/* Editor side-loader (overlay mode) */
+.editorOverlayWrap {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  z-index: 90;
+  background: rgba(0, 0, 0, 0.06);
+  pointer-events: none;
+}
+
+.editorOverlayPanel {
+  position: relative;
+  pointer-events: auto;
+  width: min(900px, 100vw);
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.18);
+}
+
+.editorOverlayClose {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  z-index: 5;
+  background: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
+}
+
+.editorOverlayClose:hover {
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+}
+
 /* YOLO confirmation dialog */
 .confirmOverlay {
   position: fixed;

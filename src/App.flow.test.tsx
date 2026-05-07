@@ -153,7 +153,9 @@ const baseConfig: AppConfig = {
   freeTerminalLifecyclePolicy: 'explicit',
   freeTerminalMaxCount: 8,
   freeTerminalIdleTimeoutMinutes: 30,
-  freeTerminalScrollbackLines: 5000
+  freeTerminalScrollbackLines: 5000,
+  gitPanelDisplayMode: 'overlay',
+  editorPanelDisplayMode: 'overlay'
 }
 
 let currentConfig: AppConfig = { ...baseConfig }

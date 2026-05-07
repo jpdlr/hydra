@@ -14,6 +14,7 @@ import { NotificationToast } from './components/Notifications/NotificationToast'
 import { FileSearchPopup } from './components/FileSearchPopup/FileSearchPopup'
 import { CommandPalette } from './components/CommandPalette/CommandPalette'
 import { GitPanel } from './components/GitPanel/GitPanel'
+import { EditorPanel } from './components/EditorPanel'
 import { RemoteControlModal } from './components/RemoteControl/RemoteControlModal'
 import { PreflightTestModal } from './components/PreflightTestModal/PreflightTestModal'
 import { useAgents } from './hooks/useAgents'
@@ -463,7 +464,7 @@ export default function App() {
           setShowSettings(true)
           return true
         case 'git-panel':
-          setShowGitPanel(true)
+          setShowGitPanel((prev) => !prev)
           return true
         case 'usage-dashboard':
           setShowUsageDashboard(true)
@@ -761,7 +762,8 @@ export default function App() {
               onRemoveAgent={() => {
                 if (selectedAgentId) void handleRemoveAgent(selectedAgentId)
               }}
-              editorOpen={editorPanel.isOpen}
+              editorOpen={editorPanel.isOpen && config.editorPanelDisplayMode === 'split'}
+              editorActiveAnyMode={editorPanel.isOpen}
               onToggleEditor={editorPanel.toggle}
               editorTabs={editorPanel.tabs}
               editorActiveTabPath={editorPanel.activeTabPath}
@@ -827,6 +829,17 @@ export default function App() {
             />
           )}
         </main>
+
+        {showGitPanel && selectedAgent?.state.projectDir && config.gitPanelDisplayMode === 'split' && (
+          <GitPanel
+            projectDir={selectedAgent.state.projectDir}
+            theme={config.theme}
+            defaultProvider={config.defaultProvider}
+            defaultModel={config.defaultModel}
+            onClose={() => setShowGitPanel(false)}
+            displayMode="split"
+          />
+        )}
       </div>
 
       {/* Dialogs */}
@@ -1044,14 +1057,42 @@ export default function App() {
         />
       )}
 
-      {showGitPanel && selectedAgent?.state.projectDir && (
+      {showGitPanel && selectedAgent?.state.projectDir && config.gitPanelDisplayMode === 'overlay' && (
         <GitPanel
           projectDir={selectedAgent.state.projectDir}
           theme={config.theme}
           defaultProvider={config.defaultProvider}
           defaultModel={config.defaultModel}
           onClose={() => setShowGitPanel(false)}
+          displayMode="overlay"
         />
+      )}
+
+      {editorPanel.isOpen && selectedAgent && config.editorPanelDisplayMode === 'overlay' && viewMode === 'chat' && (
+        <div className={styles.editorOverlayWrap}>
+          <div className={styles.editorOverlayPanel}>
+            <button
+              className={styles.editorOverlayClose}
+              onClick={() => editorPanel.toggle()}
+              title="Close editor"
+            >
+              ✕
+            </button>
+            <EditorPanel
+              agentId={selectedAgent.state.id}
+              projectDir={selectedAgent.state.projectDir}
+              theme={config.theme}
+              tabs={editorPanel.tabs}
+              activeTabPath={editorPanel.activeTabPath}
+              fileContents={editorPanel.fileContents ?? new Map()}
+              onOpenFile={(path) => { void editorPanel.openFile(path) }}
+              onCloseTab={editorPanel.closeTab}
+              onSelectTab={editorPanel.selectTab}
+              onContentChange={editorPanel.updateContent}
+              onSaveFile={(path) => { void editorPanel.saveFile(path) }}
+            />
+          </div>
+        </div>
       )}
 
       {showShortcuts && (

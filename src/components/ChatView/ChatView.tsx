@@ -26,6 +26,8 @@ interface ChatViewProps {
   onRemoveAgent?: () => void
   // Editor panel
   editorOpen?: boolean
+  /** True when editor is open in any mode — used for the toggle button's active state. */
+  editorActiveAnyMode?: boolean
   onToggleEditor?: () => void
   editorTabs?: EditorTab[]
   editorActiveTabPath?: string | null
@@ -56,6 +58,7 @@ export function ChatView({
   onKillAgent,
   onRemoveAgent,
   editorOpen = false,
+  editorActiveAnyMode,
   onToggleEditor,
   editorTabs = [],
   editorActiveTabPath = null,
@@ -176,7 +179,7 @@ export function ChatView({
             {onToggleEditor && (
               <Tooltip content="Toggle Code Editor  ⌘E">
                 <button
-                  className={`${styles.actionBtn} ${editorOpen ? styles.actionBtnActive : ''}`}
+                  className={`${styles.actionBtn} ${(editorActiveAnyMode ?? editorOpen) ? styles.actionBtnActive : ''}`}
                   onClick={onToggleEditor}
                 >
                   <CodeBracketIcon />

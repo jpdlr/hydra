@@ -35,7 +35,7 @@ type SectionId =
   | 'skills'
 
 const SECTIONS: Array<{ id: SectionId; label: string; keywords: string[] }> = [
-  { id: 'appearance', label: 'Appearance', keywords: ['appearance', 'theme', 'color', 'view', 'chat', 'grid', 'sound', 'dark', 'light', 'midnight', 'terracotta'] },
+  { id: 'appearance', label: 'Appearance', keywords: ['appearance', 'theme', 'color', 'view', 'chat', 'grid', 'sound', 'dark', 'light', 'midnight', 'terracotta', 'overlay', 'split', 'git panel', 'editor panel', 'side loader'] },
   { id: 'agents', label: 'Agent Defaults', keywords: ['agent', 'provider', 'model', 'claude', 'codex', 'opencode', 'concurrent', 'max', 'yolo', 'project', 'directory'] },
   { id: 'sessions', label: 'Session Import', keywords: ['session', 'import', 'limit', 'age', 'prefix', 'hidden'] },
   { id: 'remote', label: 'Remote Control', keywords: ['remote', 'control', 'timeout'] },
@@ -214,6 +214,48 @@ export function SettingsPanel({
                 />
                 <span>Play sound on agent events</span>
               </label>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label}>Git Panel (⌘G)</label>
+              <div className={styles.segmented}>
+                <button
+                  className={`${styles.segment} ${config.gitPanelDisplayMode === 'overlay' ? styles.active : ''}`}
+                  onClick={() => onUpdate({ gitPanelDisplayMode: 'overlay' })}
+                >
+                  Overlay
+                </button>
+                <button
+                  className={`${styles.segment} ${config.gitPanelDisplayMode === 'split' ? styles.active : ''}`}
+                  onClick={() => onUpdate({ gitPanelDisplayMode: 'split' })}
+                >
+                  Split
+                </button>
+              </div>
+              <p className={styles.hint}>
+                Overlay slides in from the right and lets you keep using the rest of the app. Split docks the panel in a resizable column.
+              </p>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label}>Editor Panel (⌘E)</label>
+              <div className={styles.segmented}>
+                <button
+                  className={`${styles.segment} ${config.editorPanelDisplayMode === 'overlay' ? styles.active : ''}`}
+                  onClick={() => onUpdate({ editorPanelDisplayMode: 'overlay' })}
+                >
+                  Overlay
+                </button>
+                <button
+                  className={`${styles.segment} ${config.editorPanelDisplayMode === 'split' ? styles.active : ''}`}
+                  onClick={() => onUpdate({ editorPanelDisplayMode: 'split' })}
+                >
+                  Split
+                </button>
+              </div>
+              <p className={styles.hint}>
+                Overlay floats above the chat for quick edits. Split keeps the editor docked alongside the chat.
+              </p>
             </div>
           </div>}
 
