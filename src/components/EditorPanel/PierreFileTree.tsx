@@ -93,6 +93,13 @@ export function PierreFileTree({
     paths,
     initialSelectedPaths,
     search: true,
+    // Enable HTML5 drag from rows. We allow drag (so external drop targets like
+    // the chat InputBar receive `text/plain` with the path) but reject internal
+    // drops to keep the tree read-only.
+    dragAndDrop: {
+      canDrag: () => true,
+      canDrop: () => false
+    },
     onSelectionChange: (selected) => {
       const last = selected[selected.length - 1]
       if (!last) return
@@ -113,6 +120,18 @@ export function PierreFileTree({
     if (activeFilePath) model.focusPath(activeFilePath)
   }, [model, activeFilePath])
 
+  // Promote relative paths set by Pierre on drag to absolute paths so external
+  // drop targets (chat input, OS apps) receive something useful.
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+    const dt = e.dataTransfer
+    if (!dt) return
+    const rel = dt.getData('text/plain')
+    if (!rel) return
+    const abs = rel.startsWith('/') ? rel : `${rootPath.replace(/\/$/, '')}/${rel}`
+    dt.setData('text/plain', abs)
+    dt.setData('application/x-hydra-filepath', abs)
+  }
+
   if (loading) {
     return <div className={styles.empty}>Loading…</div>
   }
@@ -121,5 +140,9 @@ export function PierreFileTree({
     return <div className={styles.empty}>No files found</div>
   }
 
-  return <FileTree model={model} className={styles.tree} />
+  return (
+    <div className={styles.treeWrap} onDragStart={handleDragStart}>
+      <FileTree model={model} className={styles.tree} />
+    </div>
+  )
 }

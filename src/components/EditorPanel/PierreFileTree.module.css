@@ -2,6 +2,13 @@
 /* CSS custom properties inherit through Shadow DOM, so setting them on the   */
 /* host (the <FileTree> wrapper) is sufficient.                               */
 
+.treeWrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
 .tree {
   flex: 1;
   min-height: 0;
