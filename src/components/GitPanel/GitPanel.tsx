@@ -37,12 +37,13 @@ export function GitPanel({
   const COLLAPSED_WIDTH = 480
   const EXPANDED_WIDTH = 900
   const MIN_WIDTH = 360
-  const MAX_WIDTH = typeof window !== 'undefined' ? Math.floor(window.innerWidth * 0.95) : 1600
+  const getMaxWidth = () =>
+    typeof window !== 'undefined' ? window.innerWidth : 4000
 
   const [panelWidth, setPanelWidth] = useState<number>(() => {
     try {
       const saved = localStorage.getItem('hydra.gitPanel.width')
-      if (saved) return Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, parseInt(saved, 10)))
+      if (saved) return Math.max(MIN_WIDTH, Math.min(getMaxWidth(), parseInt(saved, 10)))
     } catch {
       // ignore
     }
@@ -92,7 +93,7 @@ export function GitPanel({
       const onMove = (ev: PointerEvent) => {
         // Panel sits on the right; dragging left grows it.
         const delta = resizeStartRef.current.x - ev.clientX
-        const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, resizeStartRef.current.w + delta))
+        const next = Math.min(getMaxWidth(), Math.max(MIN_WIDTH, resizeStartRef.current.w + delta))
         setPanelWidth(next)
       }
       const onUp = () => {
@@ -110,7 +111,7 @@ export function GitPanel({
       target.addEventListener('pointermove', onMove)
       target.addEventListener('pointerup', onUp)
     },
-    [panelWidth, MAX_WIDTH]
+    [panelWidth]
   )
 
   // Persist on every settled change (covers the auto-bump + drag end).
