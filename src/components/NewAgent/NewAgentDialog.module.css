@@ -9,7 +9,8 @@
 }
 
 .dialog {
-  width: 480px;
+  width: 600px;
+  max-width: calc(100vw - var(--space-8));
   max-height: 85vh;
   background: var(--color-surface);
   border-radius: var(--radius-xl);
@@ -165,16 +166,14 @@
 .dirSuggestion {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2);
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
-  font-family: var(--font-mono);
-  color: var(--color-text-primary);
   cursor: pointer;
   text-align: left;
   width: 100%;
   background: transparent;
+  min-width: 0;
 }
 
 .dirSuggestion:hover,
@@ -182,25 +181,57 @@
   background: var(--color-surface-hover);
 }
 
-.dirSuggestionName {
+.dirSuggestionText {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dirSuggestionName {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.dirSuggestionParent {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
+  text-align: left;
+}
+
+.dirSuggestionBadges {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
 }
 
 .dirSuggestionMeta {
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
   font-family: var(--font-ui);
-  flex-shrink: 0;
 }
 
 .dirSuggestionGit {
-  font-size: var(--font-size-xs);
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   color: var(--color-accent);
+  background: var(--color-accent-subtle);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
   font-family: var(--font-ui);
-  flex-shrink: 0;
 }
 
 .browseBtn {

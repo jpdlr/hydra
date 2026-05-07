@@ -325,6 +325,9 @@ export function NewAgentDialog({
                       )}
                       {dirSuggestions.map((sug, idx) => {
                         const isFirstFs = sug.kind === 'fs' && idx === recentCount
+                        const lastSlash = sug.path.lastIndexOf('/')
+                        const basename = lastSlash >= 0 ? sug.path.slice(lastSlash + 1) : sug.path
+                        const parent = lastSlash > 0 ? sug.path.slice(0, lastSlash) : '/'
                         return (
                           <div key={`${sug.kind}-${sug.path}`}>
                             {isFirstFs && fsCount > 0 && (
@@ -334,6 +337,7 @@ export function NewAgentDialog({
                               type="button"
                               role="option"
                               aria-selected={idx === dirActiveIdx}
+                              title={sug.path}
                               className={`${styles.dirSuggestion} ${idx === dirActiveIdx ? styles.dirSuggestionActive : ''}`}
                               onMouseEnter={() => setDirActiveIdx(idx)}
                               onMouseDown={(e) => {
@@ -341,13 +345,18 @@ export function NewAgentDialog({
                                 acceptDirSuggestion(sug.path)
                               }}
                             >
-                              <span className={styles.dirSuggestionName}>{sug.path}</span>
-                              {sug.isGitRepo && (
-                                <span className={styles.dirSuggestionGit}>git</span>
-                              )}
-                              {sug.kind === 'recent' && (
-                                <span className={styles.dirSuggestionMeta}>recent</span>
-                              )}
+                              <span className={styles.dirSuggestionText}>
+                                <span className={styles.dirSuggestionName}>{basename || sug.path}</span>
+                                <span className={styles.dirSuggestionParent} dir="rtl">{parent}</span>
+                              </span>
+                              <span className={styles.dirSuggestionBadges}>
+                                {sug.isGitRepo && (
+                                  <span className={styles.dirSuggestionGit}>git</span>
+                                )}
+                                {sug.kind === 'recent' && (
+                                  <span className={styles.dirSuggestionMeta}>recent</span>
+                                )}
+                              </span>
                             </button>
                           </div>
                         )
