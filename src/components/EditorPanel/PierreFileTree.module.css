@@ -1,0 +1,39 @@
+/* Map @pierre/trees override CSS vars onto Hydra design tokens. */
+/* CSS custom properties inherit through Shadow DOM, so setting them on the   */
+/* host (the <FileTree> wrapper) is sufficient.                               */
+
+.tree {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+
+  --trees-fg-override: var(--color-text-secondary);
+  --trees-fg-muted-override: var(--color-text-muted);
+  --trees-bg-override: transparent;
+  --trees-bg-muted-override: var(--color-surface-hover);
+  --trees-accent-override: var(--color-accent);
+  --trees-border-color-override: var(--color-border);
+
+  --trees-focus-ring-color-override: var(--color-accent);
+  --trees-focus-ring-width-override: 1px;
+  --trees-focus-ring-offset-override: -1px;
+
+  --trees-search-fg-override: var(--color-text-primary);
+  --trees-search-bg-override: var(--color-input-bg);
+
+  --trees-selected-fg-override: var(--color-text-primary);
+  --trees-selected-bg-override: var(--color-accent-subtle);
+  --trees-selected-focused-border-color-override: var(--color-accent);
+
+  --trees-font-family-override: var(--font-ui);
+  --trees-font-size-override: var(--font-size-sm);
+  --trees-density-override: 0.95;
+  --trees-border-radius-override: var(--radius-sm);
+}
+
+.empty {
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}

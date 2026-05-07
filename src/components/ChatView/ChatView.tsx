@@ -6,6 +6,7 @@ import type { AttachedImage } from './InputBar'
 import { EditorPanel } from '../EditorPanel'
 import { SplitHandle } from '../EditorPanel/SplitHandle'
 import { DiffStats } from './DiffStats'
+import { Tooltip } from '../Tooltip'
 import type { AgentState, ProviderId } from '@shared/types'
 import type { EditorTab } from '../EditorPanel/TabBar'
 import claudeIcon from '@/assets/icons/claude.svg'
@@ -175,62 +176,69 @@ export function ChatView({
         <div className={styles.agentActions}>
           <div className={styles.iconActions}>
             {onToggleEditor && (
-              <button
-                className={`${styles.actionBtn} ${editorOpen ? styles.actionBtnActive : ''}`}
-                onClick={onToggleEditor}
-                title="Toggle Code Editor (Cmd+E)"
-              >
-                <CodeBracketIcon />
-              </button>
+              <Tooltip content="Toggle Code Editor  ⌘E">
+                <button
+                  className={`${styles.actionBtn} ${editorOpen ? styles.actionBtnActive : ''}`}
+                  onClick={onToggleEditor}
+                >
+                  <CodeBracketIcon />
+                </button>
+              </Tooltip>
             )}
             {onToggleFreeTerminal && (
-              <button
-                className={`${styles.actionBtn} ${freeTerminalOpen ? styles.actionBtnActive : ''}`}
-                onClick={onToggleFreeTerminal}
-                title="Toggle Terminal (Cmd+J)"
-              >
-                <TermShellIcon />
-              </button>
+              <Tooltip content="Toggle Terminal  ⌘J">
+                <button
+                  className={`${styles.actionBtn} ${freeTerminalOpen ? styles.actionBtnActive : ''}`}
+                  onClick={onToggleFreeTerminal}
+                >
+                  <TermShellIcon />
+                </button>
+              </Tooltip>
             )}
             {onToggleChatInput && (
-              <button
-                className={`${styles.actionBtn} ${chatInputHidden ? styles.actionBtnActive : ''}`}
-                onClick={onToggleChatInput}
-                title={chatInputHidden ? 'Show Chat Input (Cmd+Shift+I)' : 'Hide Chat Input (Cmd+Shift+I)'}
-              >
-                <ChatBubbleIcon />
-              </button>
+              <Tooltip content={chatInputHidden ? 'Show Chat Input  ⌘⇧I' : 'Hide Chat Input  ⌘⇧I'}>
+                <button
+                  className={`${styles.actionBtn} ${chatInputHidden ? styles.actionBtnActive : ''}`}
+                  onClick={onToggleChatInput}
+                >
+                  <ChatBubbleIcon />
+                </button>
+              </Tooltip>
             )}
             {onOpenGitPanel && (
-              <button
-                className={`${styles.actionBtn} ${gitPanelOpen ? styles.actionBtnActive : ''}`}
-                onClick={onOpenGitPanel}
-                title="Open Git Panel (Cmd+G)"
-              >
-                <GitIcon />
-              </button>
+              <Tooltip content="Open Git Panel  ⌘G">
+                <button
+                  className={`${styles.actionBtn} ${gitPanelOpen ? styles.actionBtnActive : ''}`}
+                  onClick={onOpenGitPanel}
+                >
+                  <GitIcon />
+                </button>
+              </Tooltip>
             )}
-            <button
-              className={styles.actionBtn}
-              onClick={onToggleYolo}
-              title={agent.yolo ? 'Disable YOLO' : 'Enable YOLO'}
-            >
-              <LockIcon unlocked={agent.yolo} />
-            </button>
-            <button className={styles.actionBtn} onClick={onRestartAgent} title="Restart">
-              <RestartIcon />
-            </button>
-            <button className={styles.actionBtn} onClick={onKillAgent} title="Stop">
-              <StopIcon />
-            </button>
-            {onRemoveAgent && (
-              <button
-                className={`${styles.actionBtn} ${styles.removeBtn}`}
-                onClick={onRemoveAgent}
-                title="Close session (Cmd+W)"
-              >
-                <TrashIcon />
+            <Tooltip content={agent.yolo ? 'Disable YOLO' : 'Enable YOLO'}>
+              <button className={styles.actionBtn} onClick={onToggleYolo}>
+                <LockIcon unlocked={agent.yolo} />
               </button>
+            </Tooltip>
+            <Tooltip content="Restart">
+              <button className={styles.actionBtn} onClick={onRestartAgent}>
+                <RestartIcon />
+              </button>
+            </Tooltip>
+            <Tooltip content="Stop">
+              <button className={styles.actionBtn} onClick={onKillAgent}>
+                <StopIcon />
+              </button>
+            </Tooltip>
+            {onRemoveAgent && (
+              <Tooltip content="Close session  ⌘W">
+                <button
+                  className={`${styles.actionBtn} ${styles.removeBtn}`}
+                  onClick={onRemoveAgent}
+                >
+                  <TrashIcon />
+                </button>
+              </Tooltip>
             )}
           </div>
         </div>

@@ -1,0 +1,17 @@
+.wrapper {
+  flex: 1;
+  min-height: 300px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: auto;
+  background: var(--color-surface);
+
+  /* Shrink the diff text — lib defaults are 13px / 20px which feels cramped
+     when the file list takes a chunk of the panel. */
+  --diffs-font-size: 11px;
+  --diffs-line-height: 16px;
+}
+
+.diff {
+  font-size: 11px;
+}

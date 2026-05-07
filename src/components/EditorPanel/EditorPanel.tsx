@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { FileTree } from './FileTree'
+import { PierreFileTree } from './PierreFileTree'
 import { FileTreeFilterResults } from './FileTreeFilterResults'
+import { useFeatureFlag } from '../../lib/featureFlags'
 import { TabBar } from './TabBar'
 import { CodeEditor } from './CodeEditor'
 import type { EditorTab } from './TabBar'
@@ -44,6 +46,7 @@ export function EditorPanel({
   const startXRef = useRef(0)
   const startWidthRef = useRef(0)
 
+  const useExperimentalViews = useFeatureFlag('experimentalViews')
   const [filterQuery, setFilterQuery] = useState('')
   const [filterResults, setFilterResults] = useState<FsSearchResult[]>([])
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -123,6 +126,13 @@ export function EditorPanel({
             results={filterResults}
             activeFilePath={activeTabPath}
             rootPath={projectDir}
+            onOpenFile={onOpenFile}
+          />
+        ) : useExperimentalViews ? (
+          <PierreFileTree
+            agentId={agentId}
+            rootPath={projectDir}
+            activeFilePath={activeTabPath}
             onOpenFile={onOpenFile}
           />
         ) : (
