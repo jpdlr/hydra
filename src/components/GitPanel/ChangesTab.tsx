@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import type { GitStatus, GitCommit, GitFileContents } from '@shared/types'
 import { MonacoDiffViewer } from './MonacoDiffViewer'
 import { PierreDiffViewer } from './PierreDiffViewer'
@@ -12,6 +12,22 @@ interface ChangesTabProps {
   commits: GitCommit[]
   onRefresh: () => Promise<void>
   onExpandedChange: (expanded: boolean) => void
+}
+
+function ExpandIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 5V2h3M10 5V2H7M2 7v3h3M10 7v3H7" />
+    </svg>
+  )
+}
+
+function CollapseIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 2v3H2M7 2v3h3M5 10V7H2M7 10V7h3" />
+    </svg>
+  )
 }
 
 function relativeDate(iso: string): string {
@@ -36,6 +52,35 @@ export function ChangesTab({
 }: ChangesTabProps) {
   const useExperimentalViews = useFeatureFlag('experimentalViews')
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
+  const [fileListWidth, setFileListWidth] = useState(240)
+  const [isResizing, setIsResizing] = useState(false)
+  const [diffFullscreen, setDiffFullscreen] = useState(false)
+  const resizeStartRef = useRef({ x: 0, w: 0 })
+
+  const handleResizeDown = useCallback(
+    (e: React.PointerEvent) => {
+      e.preventDefault()
+      resizeStartRef.current = { x: e.clientX, w: fileListWidth }
+      setIsResizing(true)
+      const target = e.currentTarget as HTMLElement
+      target.setPointerCapture(e.pointerId)
+
+      const onMove = (ev: PointerEvent) => {
+        const delta = ev.clientX - resizeStartRef.current.x
+        const next = Math.min(480, Math.max(180, resizeStartRef.current.w + delta))
+        setFileListWidth(next)
+      }
+      const onUp = () => {
+        setIsResizing(false)
+        target.releasePointerCapture(e.pointerId)
+        target.removeEventListener('pointermove', onMove)
+        target.removeEventListener('pointerup', onUp)
+      }
+      target.addEventListener('pointermove', onMove)
+      target.addEventListener('pointerup', onUp)
+    },
+    [fileListWidth]
+  )
   const [fileContents, setFileContents] = useState<GitFileContents | null>(null)
   const [loadingDiff, setLoadingDiff] = useState(false)
   const [commitMsg, setCommitMsg] = useState('')
@@ -47,6 +92,7 @@ export function ChangesTab({
       if (selectedFile === file) {
         setSelectedFile(null)
         setFileContents(null)
+        setDiffFullscreen(false)
         onExpandedChange(false)
         return
       }
@@ -103,7 +149,10 @@ export function ChangesTab({
 
   return (
     <div className={hasDiff ? styles.splitLayout : styles.normalLayout}>
-      <div className={hasDiff ? styles.fileListSide : undefined}>
+      <div
+        className={`${hasDiff ? styles.fileListSide : ''} ${diffFullscreen ? styles.fileListHidden : ''}`.trim() || undefined}
+        style={hasDiff && !diffFullscreen ? { width: fileListWidth } : undefined}
+      >
         {error && <div className={styles.error}>{error}</div>}
 
         {/* File status */}
@@ -186,21 +235,40 @@ export function ChangesTab({
         )}
       </div>
 
+      {/* Resize handle */}
+      {hasDiff && !diffFullscreen && (
+        <div
+          className={`${styles.resizeHandle} ${isResizing ? styles.resizeActive : ''}`}
+          onPointerDown={handleResizeDown}
+        />
+      )}
+
       {/* Diff viewer */}
       {hasDiff && (
         <div className={styles.diffSide}>
           <div className={styles.diffHeader}>
             <span className={styles.sectionLabel}>Diff: {selectedFile}</span>
-            <button
-              className={styles.closeDiffBtn}
-              onClick={() => {
-                setSelectedFile(null)
-                setFileContents(null)
-                onExpandedChange(false)
-              }}
-            >
-              ✕
-            </button>
+            <div className={styles.diffHeaderActions}>
+              <button
+                className={styles.iconBtn}
+                onClick={() => setDiffFullscreen((v) => !v)}
+                title={diffFullscreen ? 'Exit full screen' : 'Full screen'}
+              >
+                {diffFullscreen ? <CollapseIcon /> : <ExpandIcon />}
+              </button>
+              <button
+                className={styles.iconBtn}
+                onClick={() => {
+                  setSelectedFile(null)
+                  setFileContents(null)
+                  setDiffFullscreen(false)
+                  onExpandedChange(false)
+                }}
+                title="Close diff"
+              >
+                ✕
+              </button>
+            </div>
           </div>
           {loadingDiff ? (
             <div className={styles.loading}>Loading diff...</div>
