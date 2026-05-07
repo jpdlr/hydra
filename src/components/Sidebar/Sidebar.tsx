@@ -203,7 +203,14 @@ export function Sidebar({
           value={searchQuery}
           onChange={setSearchQuery}
           onEscapeWithValue={() => setSelectionMode(true)}
-        >
+        />
+      </div>
+
+      <FilterChips chips={chips} onDismiss={dismissChip} />
+
+      <div className={styles.sectionHeader}>
+        <span className={styles.sectionLabel}>PROJECTS</span>
+        <div className={styles.sectionActions}>
           <SortDropdown value={sortKey} onChange={setSortKey} />
           <FilterDropdown
             filter={filter}
@@ -211,12 +218,8 @@ export function Sidebar({
             onClear={clearAll}
             hasActive={hasActiveFilter}
           />
-        </SearchBar>
+        </div>
       </div>
-
-      <FilterChips chips={chips} onDismiss={dismissChip} />
-
-      <div className={styles.sectionLabel}>PROJECTS</div>
 
       <div ref={treeContainerRef} className={styles.treeContainer} tabIndex={-1}>
         {filteredGroups.length === 0 ? (

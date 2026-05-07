@@ -10,6 +10,8 @@ interface SearchBarProps {
 
 export const SIDEBAR_SEARCH_FOCUS_EVENT = 'hydra:focus-sidebar-search'
 
+const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform)
+
 export function SearchBar({ value, onChange, onEscapeWithValue, children }: SearchBarProps) {
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -43,10 +45,14 @@ export function SearchBar({ value, onChange, onEscapeWithValue, children }: Sear
           }
         }}
       />
-      {value && (
+      {value ? (
         <button className={styles.clear} onClick={() => onChange('')}>
           <ClearIcon />
         </button>
+      ) : (
+        <kbd className={styles.kbd} aria-hidden>
+          {isMac ? '⌘K' : 'Ctrl K'}
+        </kbd>
       )}
       {children && <div className={styles.actions}>{children}</div>}
     </div>
