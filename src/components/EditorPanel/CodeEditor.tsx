@@ -74,6 +74,13 @@ export function CodeEditor({ filePath, content, theme, onChange, onSave }: CodeE
         onSave()
       })
 
+      // Cmd+E: route to the app-level toggle instead of Monaco's "Add selection
+      // to next find match" so the editor toggle hotkey still works while focus
+      // is inside Monaco.
+      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyE, () => {
+        window.dispatchEvent(new CustomEvent('hydra:toggle-editor'))
+      })
+
       editor.focus()
     },
     [theme, onSave]

@@ -14,7 +14,7 @@ import { NotificationToast } from './components/Notifications/NotificationToast'
 import { FileSearchPopup } from './components/FileSearchPopup/FileSearchPopup'
 import { CommandPalette } from './components/CommandPalette/CommandPalette'
 import { GitPanel } from './components/GitPanel/GitPanel'
-import { EditorPanel } from './components/EditorPanel'
+import { EditorOverlay } from './components/EditorPanel/EditorOverlay'
 import { RemoteControlModal } from './components/RemoteControl/RemoteControlModal'
 import { PreflightTestModal } from './components/PreflightTestModal/PreflightTestModal'
 import { useAgents } from './hooks/useAgents'
@@ -576,7 +576,12 @@ export default function App() {
     }
 
     window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
+    const toggleEditorListener = () => { executeCommand('toggle-editor') }
+    window.addEventListener('hydra:toggle-editor', toggleEditorListener)
+    return () => {
+      window.removeEventListener('keydown', handler)
+      window.removeEventListener('hydra:toggle-editor', toggleEditorListener)
+    }
   }, [
     executeCommand,
     keybindings
@@ -1069,30 +1074,20 @@ export default function App() {
       )}
 
       {editorPanel.isOpen && selectedAgent && config.editorPanelDisplayMode === 'overlay' && viewMode === 'chat' && (
-        <div className={styles.editorOverlayWrap}>
-          <div className={styles.editorOverlayPanel}>
-            <button
-              className={styles.editorOverlayClose}
-              onClick={() => editorPanel.toggle()}
-              title="Close editor"
-            >
-              ✕
-            </button>
-            <EditorPanel
-              agentId={selectedAgent.state.id}
-              projectDir={selectedAgent.state.projectDir}
-              theme={config.theme}
-              tabs={editorPanel.tabs}
-              activeTabPath={editorPanel.activeTabPath}
-              fileContents={editorPanel.fileContents ?? new Map()}
-              onOpenFile={(path) => { void editorPanel.openFile(path) }}
-              onCloseTab={editorPanel.closeTab}
-              onSelectTab={editorPanel.selectTab}
-              onContentChange={editorPanel.updateContent}
-              onSaveFile={(path) => { void editorPanel.saveFile(path) }}
-            />
-          </div>
-        </div>
+        <EditorOverlay
+          agentId={selectedAgent.state.id}
+          projectDir={selectedAgent.state.projectDir}
+          theme={config.theme}
+          tabs={editorPanel.tabs}
+          activeTabPath={editorPanel.activeTabPath}
+          fileContents={editorPanel.fileContents ?? new Map()}
+          onOpenFile={(path) => { void editorPanel.openFile(path) }}
+          onCloseTab={editorPanel.closeTab}
+          onSelectTab={editorPanel.selectTab}
+          onContentChange={editorPanel.updateContent}
+          onSaveFile={(path) => { void editorPanel.saveFile(path) }}
+          onClose={() => editorPanel.toggle()}
+        />
       )}
 
       {showShortcuts && (
