@@ -25,6 +25,7 @@ interface InputBarProps {
   placeholder?: string
   workMode?: WorkMode
   worktreeBranch?: string | null
+  onHideInput?: () => void
 }
 
 interface SlashMenuItem {
@@ -49,7 +50,8 @@ export function InputBar({
   onBranchChanged,
   placeholder = 'Send a message...',
   workMode = 'local',
-  worktreeBranch
+  worktreeBranch,
+  onHideInput
 }: InputBarProps) {
   const [value, setValue] = useState('')
   const [images, setImages] = useState<AttachedImage[]>([])
@@ -563,6 +565,16 @@ export function InputBar({
             </div>
           )}
           <span className={styles.toolbarSpacer} />
+          {onHideInput && (
+            <button
+              type="button"
+              className={styles.toolbarIconBtn}
+              onClick={onHideInput}
+              title="Hide Chat Input  ⌘⇧I"
+            >
+              <HideInputIcon />
+            </button>
+          )}
           <button
             className={styles.sendBtn}
             onClick={handleSubmit}
@@ -574,6 +586,14 @@ export function InputBar({
         </div>
       </div>
     </div>
+  )
+}
+
+function HideInputIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
   )
 }
 

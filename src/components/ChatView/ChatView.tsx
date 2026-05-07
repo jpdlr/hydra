@@ -22,7 +22,6 @@ interface ChatViewProps {
   onTerminalData: (data: string) => void
   onTerminalResize: (cols: number, rows: number) => void
   onRestartAgent: () => void
-  onToggleYolo: () => void
   onKillAgent: () => void
   onRemoveAgent?: () => void
   // Editor panel
@@ -54,7 +53,6 @@ export function ChatView({
   onTerminalData,
   onTerminalResize,
   onRestartAgent,
-  onToggleYolo,
   onKillAgent,
   onRemoveAgent,
   editorOpen = false,
@@ -195,16 +193,6 @@ export function ChatView({
                 </button>
               </Tooltip>
             )}
-            {onToggleChatInput && (
-              <Tooltip content={chatInputHidden ? 'Show Chat Input  ⌘⇧I' : 'Hide Chat Input  ⌘⇧I'}>
-                <button
-                  className={`${styles.actionBtn} ${chatInputHidden ? styles.actionBtnActive : ''}`}
-                  onClick={onToggleChatInput}
-                >
-                  <ChatBubbleIcon />
-                </button>
-              </Tooltip>
-            )}
             {onOpenGitPanel && (
               <Tooltip content="Open Git Panel  ⌘G">
                 <button
@@ -215,11 +203,7 @@ export function ChatView({
                 </button>
               </Tooltip>
             )}
-            <Tooltip content={agent.yolo ? 'Disable YOLO' : 'Enable YOLO'}>
-              <button className={styles.actionBtn} onClick={onToggleYolo}>
-                <LockIcon unlocked={agent.yolo} />
-              </button>
-            </Tooltip>
+            <span className={styles.iconActionsDivider} aria-hidden="true" />
             <Tooltip content="Restart">
               <button className={styles.actionBtn} onClick={onRestartAgent}>
                 <RestartIcon />
@@ -318,6 +302,7 @@ export function ChatView({
             onBranchChanged={setGitBranch}
             workMode={agent.workMode}
             worktreeBranch={agent.worktreeBranch}
+            onHideInput={onToggleChatInput}
 
             placeholder={
               agent.status === 'errored'
@@ -412,42 +397,6 @@ function CodeBracketIcon() {
   )
 }
 
-function LockIcon({ unlocked }: { unlocked: boolean }) {
-  if (unlocked) {
-    return (
-      <svg
-        className={styles.actionIcon}
-        viewBox="0 0 16 16"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M4 7h8a1 1 0 0 1 1 1v5H3V8a1 1 0 0 1 1-1Z" />
-        <path d="M6 7V5.3a2.7 2.7 0 0 1 5.1-1.2" />
-      </svg>
-    )
-  }
-
-  return (
-    <svg
-      className={styles.actionIcon}
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M4 7h8a1 1 0 0 1 1 1v5H3V8a1 1 0 0 1 1-1Z" />
-      <path d="M5.4 7V5.1a2.6 2.6 0 0 1 5.2 0V7" />
-    </svg>
-  )
-}
-
 const PROVIDER_ICONS: Record<ProviderId, string> = { claude: claudeIcon, codex: codexIcon, opencode: opencodeIcon }
 
 function ProviderModelPill({ provider, model }: { provider: ProviderId; model: string }) {
@@ -530,23 +479,6 @@ function VerticalResizeHandle({
       role="separator"
       aria-orientation="horizontal"
     />
-  )
-}
-
-function ChatBubbleIcon() {
-  return (
-    <svg
-      className={styles.actionIcon}
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M3 4h10a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H7l-3 2.5V11H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" />
-    </svg>
   )
 }
 

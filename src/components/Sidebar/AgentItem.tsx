@@ -14,6 +14,7 @@ interface AgentItemProps {
   onSelect: () => void
   onRename: (newName: string) => void
   onRemove: () => void
+  onStop: () => void
   hotkeyNumber?: number
 }
 
@@ -39,7 +40,8 @@ const STATUS_COLORS: Record<string, string> = {
   starting: 'var(--color-status-starting)'
 }
 
-export function AgentItem({ agent, isSelected, onSelect, onRename, onRemove, hotkeyNumber }: AgentItemProps) {
+export function AgentItem({ agent, isSelected, onSelect, onRename, onRemove, onStop, hotkeyNumber }: AgentItemProps) {
+  const canStop = agent.status === 'running' || agent.status === 'starting' || agent.status === 'idle'
   const age = useMemo(() => relativeTime(agent.lastActivityAt), [agent.lastActivityAt])
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   const [editing, setEditing] = useState(false)
@@ -155,6 +157,11 @@ export function AgentItem({ agent, isSelected, onSelect, onRename, onRemove, hot
           <button className={styles.contextMenuItem} onClick={startRename}>
             <PencilIcon /> Rename
           </button>
+          {canStop && (
+            <button className={styles.contextMenuItem} onClick={() => { setContextMenu(null); onStop() }}>
+              <StopIcon /> Stop Session
+            </button>
+          )}
           <button className={`${styles.contextMenuItem} ${styles.contextMenuItemDanger}`} onClick={() => { setContextMenu(null); onRemove() }}>
             <TrashIcon /> Remove Session
           </button>
@@ -197,6 +204,14 @@ function PencilIcon() {
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
       <path d="m15 5 4 4" />
+    </svg>
+  )
+}
+
+function StopIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="6" y="6" width="12" height="12" rx="2" />
     </svg>
   )
 }

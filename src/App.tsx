@@ -721,6 +721,9 @@ export default function App() {
               onRemoveAgent={(agentId) => {
                 void handleRemoveAgent(agentId)
               }}
+              onStopAgent={(agentId) => {
+                void killAgent(agentId)
+              }}
               width={sidebarWidth}
               onWidthChange={setSidebarWidth}
               sessionMaxAgeDays={config.sessionMaxAgeDays}
@@ -750,11 +753,6 @@ export default function App() {
               onRestartAgent={() => {
                 if (selectedAgentId) {
                   void handleRestartAgent(selectedAgentId)
-                }
-              }}
-              onToggleYolo={() => {
-                if (selectedAgentId && selectedAgent) {
-                  toggleYolo(selectedAgentId, !selectedAgent.state.yolo)
                 }
               }}
               onKillAgent={() => {

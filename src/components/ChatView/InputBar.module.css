@@ -165,6 +165,24 @@
   flex: 1;
 }
 
+.toolbarIconBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  color: var(--color-text-muted);
+  background: transparent;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.toolbarIconBtn:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
 .sendBtn {
   display: flex;
   align-items: center;
