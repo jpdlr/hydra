@@ -86,6 +86,9 @@ export function GitPanel({
       e.preventDefault()
       e.stopPropagation()
       resizeStartRef.current = { x: e.clientX, w: panelWidth }
+      // Flip immediately so the auto-snap effect doesn't fight the drag
+      // when crossing the collapsed/expanded thresholds.
+      userResizedRef.current = true
       setIsResizing(true)
       const target = e.currentTarget as HTMLElement
       target.setPointerCapture(e.pointerId)
@@ -98,12 +101,6 @@ export function GitPanel({
       }
       const onUp = () => {
         setIsResizing(false)
-        userResizedRef.current = true
-        try {
-          localStorage.setItem('hydra.gitPanel.width', String(resizeStartRef.current.w))
-        } catch {
-          // ignore
-        }
         target.releasePointerCapture(e.pointerId)
         target.removeEventListener('pointermove', onMove)
         target.removeEventListener('pointerup', onUp)
