@@ -43,6 +43,7 @@ export function Sidebar({
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(() => new Set(projectGroups.map((g) => g.projectDir)))
+  const seenDirsRef = useRef<Set<string>>(new Set(projectGroups.map((g) => g.projectDir)))
   const [isDragging, setIsDragging] = useState(false)
   const [selectionMode, setSelectionMode] = useState(false)
   const treeContainerRef = useRef<HTMLDivElement>(null)
@@ -90,18 +91,20 @@ export function Sidebar({
     [width, onWidthChange]
   )
 
-  // Auto-expand newly appearing project groups
+  // Auto-expand newly appearing project groups (only the first time we see them)
   useEffect(() => {
+    const newDirs: string[] = []
+    for (const g of projectGroups) {
+      if (!seenDirsRef.current.has(g.projectDir)) {
+        seenDirsRef.current.add(g.projectDir)
+        newDirs.push(g.projectDir)
+      }
+    }
+    if (newDirs.length === 0) return
     setExpandedDirs((prev) => {
       const next = new Set(prev)
-      let changed = false
-      for (const g of projectGroups) {
-        if (!next.has(g.projectDir)) {
-          next.add(g.projectDir)
-          changed = true
-        }
-      }
-      return changed ? next : prev
+      for (const dir of newDirs) next.add(dir)
+      return next
     })
   }, [projectGroups])
 
