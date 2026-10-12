@@ -32,7 +32,7 @@
     "release:notes": "node scripts/release-notes.mjs",
     "release:validate-win-artifacts": "node scripts/validate-win-update-artifacts.mjs",
     "deploy": "bash scripts/deploy-local.sh",
-    "firebase:login": "firebase login:use phoenixbiolabs@gmail.com || true",
+    "firebase:login": "if [ -n \"$HYDRA_FIREBASE_ACCOUNT\" ]; then firebase login:use \"$HYDRA_FIREBASE_ACCOUNT\" || true; fi",
     "firebase:deploy:functions": "npm run firebase:login && cd firebase-backend/functions && npm run build && cd .. && firebase deploy --only functions",
     "firebase:deploy:rules": "npm run firebase:login && cd firebase-backend && firebase deploy --only firestore:rules",
     "firebase:deploy:hosting": "npm run firebase:login && cd hydra-remote && npm run build && cd ../firebase-backend && rm -rf public && cp -r ../hydra-remote/dist public && firebase deploy --only hosting",
